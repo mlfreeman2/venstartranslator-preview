@@ -1,0 +1,374 @@
+syntax = "proto2";
+
+package skyport;
+import "nanopb.proto";
+
+//Initial login and self identify
+message LOGIN {
+  required string mac = 1 [(nanopb).max_size = 23];
+  required string fwVer = 2 [(nanopb).max_size = 32];
+  required string model = 3 [(nanopb).max_size = 15];
+  optional string name = 4 [(nanopb).max_size = 10];
+}
+
+message DATETIMERESPONSE {
+  required uint32 timestamp = 1;
+}
+
+message COMMISSIONING {
+  optional string msg = 1 [(nanopb).max_size = 15];
+  optional string error = 2 [(nanopb).max_size = 15];
+}
+
+message MODESETPOINT {
+  required uint32 mode = 1;
+  required uint32 coolSP = 2;
+  required uint32 heatSP = 3;
+}
+
+message MODESETPOINTRESPONSE {
+  /*
+    (Alvin 6/24/2015 - Yes, this is similar to the MODESETPOINT command
+    and we can use the same definition but leaving as is
+    because colortouch separates the two.
+   */
+  required uint32 mode = 1;
+  required uint32 coolSP = 2;
+  required uint32 heatSP = 3;
+}
+
+message RUNTIMESUMMARY {
+  required uint32 ts = 1;
+  required uint32 heat1 = 2;
+  required uint32 heat2 = 3;
+  required uint32 aux1 = 4;
+  required uint32 aux2 = 5;
+  required uint32 cool1 = 6;
+  required uint32 cool2 = 7;
+  optional uint32 freeCool = 8;
+  optional uint32 override = 9;
+}
+
+message MESSAGES {
+  required string msg = 1 [(nanopb).max_size = 51];
+}
+
+message NAME {
+  required string name = 1 [(nanopb).max_size = 11];
+}
+
+message AWAY {
+  required bool away = 1;
+}
+
+message FAN {
+  required bool on = 1;
+}
+
+message OUTDOORCONDITIONS {
+  required uint32 temp = 1;
+  required uint32 hi = 2;
+  required uint32 lo = 3;
+  optional uint32 hum = 4;
+}
+
+message EHEAT {
+  required bool on = 1;
+}
+
+message AWAYSETTINGS {
+  optional uint32 mode = 1 [(nanopb).int_size = IS_8];
+  optional uint32 csp = 2 [(nanopb).int_size = IS_8];
+  optional uint32 hsp = 3 [(nanopb).int_size = IS_8];
+}
+
+message OVERRIDETIME {
+  required uint32 time = 1;
+}
+
+message COMPROGRESPONSE {
+  required uint32 mode = 1;
+  required uint32 csp = 2;
+  required uint32 hsp = 3;
+  required bool override = 4;
+  required uint32 progPart = 5;
+  required bool forceUnocc = 6;
+  optional bool progOn = 7;
+  optional uint32 time = 8;
+}
+
+message FORCEUNOCCUPIED {
+  required bool active = 1;
+}
+
+message HOLIDAYS {
+  repeated uint32 direct = 1 [(nanopb).max_count = 250]; //static, 250
+  repeated uint32 custom = 2 [(nanopb).max_count = 20]; //repeated, 20
+  repeated uint32 unhols = 3 [(nanopb).max_count = 50]; //exception, 50
+  required bool enabled = 4;
+}
+
+message FIRMWARERESOURCE {
+  optional string resource = 1 [(nanopb).max_size = 64];
+  optional uint32 port = 2;
+  required string token = 3 [(nanopb).max_size = 48];
+  optional bool latest = 4;
+  optional bool useApp = 5;
+}
+
+message FIRMWAREREQUEST {
+  enum Devices {
+    VOYAGERMODULE = 1;
+    VOYAGERSTAT = 2;
+  }
+  required Devices device = 1;
+  optional string token = 2 [(nanopb).max_size = 48];
+  optional string file = 3 [(nanopb).max_size = 24];
+}
+
+//Sent by client to notify server that one or more of it's subscribed items
+//have changed. AlertItem will include 'value' field with bytes.
+message OBSERVEALERT {
+  repeated AlertItem subs = 1 [(nanopb).max_count = 75];
+  optional string name = 2 [(nanopb).max_size = 11];
+}
+
+message AlertItem {
+  required string name = 1 [(nanopb).max_size = 15];
+  required uint32 value = 2;
+}
+
+//Submessage to OBSERVELIST contains indexes to watch
+//along with the watch interval.
+message ObserveItem {
+  required string name = 1 [(nanopb).max_size = 15];
+  required uint32 index = 2 [(nanopb).int_size = IS_8]; //Thermostat is configured only for 8bit numbers
+  optional uint32 length = 3 [default = 1];
+  optional uint32 mask = 4 [default = 255]; //Thermostat is configured only for 8bit numbers
+  optional uint32 delay = 5 [default = 0]; //Limit is 1440 minutes (24hr), packed to 11 bits on wifi module
+}
+
+message OBSERVELIST {
+  repeated ObserveItem subs = 1 [(nanopb).max_count = 75];
+}
+
+message READ {
+  repeated ReadWriteItem items = 1 [(nanopb).max_count = 50];
+}
+
+message WRITE {
+  repeated ReadWriteItem items = 1 [(nanopb).max_count = 50];
+}
+
+message ReadWriteItem {
+  required uint32 index = 1;
+  optional uint32 length = 2 [default = 1];
+  optional uint32 mask = 3 [default = 4294967295]; //Default mask is 4 bytes 0xFFFFFFFF for uint32
+  optional uint32 value = 4;
+}
+
+message READRESPONSE {
+  repeated ReadWriteItem items = 1 [(nanopb).max_count = 50];
+}
+
+message SCHEDULEACK {
+  required uint32 progPart = 1;
+  required uint32 mode = 2;
+  required uint32 csp = 3;
+  required uint32 hsp = 4;
+  optional bool progOn = 5;
+}
+
+message VACATIONSCHEDULE {
+  required uint32 start = 1;
+  required uint32 stop =2;
+}
+
+message SCHEDULERES {
+  enum ProgTypes {
+    NONPROG = 0;
+    SINGLEDAY = 1;
+    WEEKDAY = 2;
+    SEVENDAY = 3;
+  }
+  required bool enabled = 1;
+  optional ProgTypes type = 2;
+  repeated ResidentialSchedule sched = 3 [(nanopb).max_count = 7];
+}
+
+message SCHEDULECOM {
+  enum ProgTypes {
+    NONPROG = 0;
+    SINGLEDAY = 1;
+    WEEKDAY = 2;
+    SEVENDAY = 3;
+  }
+  required bool enabled = 1;
+  repeated CommercialSchedule sched = 2 [(nanopb).max_count = 7];
+  optional uint32 unocc_mode = 3 [(nanopb).int_size = IS_8];
+  optional uint32 unocc_cool = 4 [(nanopb).int_size = IS_8];
+  optional uint32 unocc_heat = 5 [(nanopb).int_size = IS_8];
+  optional ProgTypes type = 6;
+}
+
+message ResidentialSchedule {
+  required uint32 day = 1  [(nanopb).int_size = IS_8];
+  required bool morn_enabled = 2 [(nanopb).int_size = IS_8];
+  required uint32 morn_start = 3 [(nanopb).int_size = IS_8];
+  required uint32 morn_mode = 4 [(nanopb).int_size = IS_8];
+  required uint32 morn_cool = 5 [(nanopb).int_size = IS_8];
+  required uint32 morn_heat = 6 [(nanopb).int_size = IS_8];
+  required bool day_enabled = 7 [(nanopb).int_size = IS_8];
+  required uint32 day_start = 8 [(nanopb).int_size = IS_8];
+  required uint32 day_mode = 9 [(nanopb).int_size = IS_8];
+  required uint32 day_cool = 10 [(nanopb).int_size = IS_8];
+  required uint32 day_heat = 11 [(nanopb).int_size = IS_8];
+  required bool eve_enabled = 12 [(nanopb).int_size = IS_8];
+  required uint32 eve_start = 13 [(nanopb).int_size = IS_8];
+  required uint32 eve_mode = 14 [(nanopb).int_size = IS_8];
+  required uint32 eve_cool = 15 [(nanopb).int_size = IS_8];
+  required uint32 eve_heat = 16 [(nanopb).int_size = IS_8];
+  required bool night_enabled = 17 [(nanopb).int_size = IS_8];
+  required uint32 night_start = 18 [(nanopb).int_size = IS_8];
+  required uint32 night_mode = 19 [(nanopb).int_size = IS_8];
+  required uint32 night_cool = 20 [(nanopb).int_size = IS_8];
+  required uint32 night_heat = 21 [(nanopb).int_size = IS_8];
+}
+
+message CommercialSchedule {
+  required uint32 day = 1 [(nanopb).int_size = IS_8];
+  required bool occ1_enabled = 2 [(nanopb).int_size = IS_8];
+  required uint32 occ1_start = 3 [(nanopb).int_size = IS_8];
+  required uint32 occ1_stop = 4 [(nanopb).int_size = IS_8];
+  required uint32 occ1_cool = 5 [(nanopb).int_size = IS_8];
+  required uint32 occ1_heat = 6 [(nanopb).int_size = IS_8];
+  required bool occ2_enabled = 7 [(nanopb).int_size = IS_8];
+  required uint32 occ2_start = 8 [(nanopb).int_size = IS_8];
+  required uint32 occ2_stop = 9 [(nanopb).int_size = IS_8];
+  required uint32 occ2_cool = 10 [(nanopb).int_size = IS_8];
+  required uint32 occ2_heat = 11 [(nanopb).int_size = IS_8];
+  required bool occ3_enabled = 12 [(nanopb).int_size = IS_8];
+  required uint32 occ3_start = 13 [(nanopb).int_size = IS_8];
+  required uint32 occ3_stop = 14 [(nanopb).int_size = IS_8];
+  required uint32 occ3_cool = 15 [(nanopb).int_size = IS_8];
+  required uint32 occ3_heat = 16 [(nanopb).int_size = IS_8];
+  required uint32 occ1_mode = 17 [(nanopb).int_size = IS_8];
+  required uint32 occ2_mode = 18 [(nanopb).int_size = IS_8];
+  required uint32 occ3_mode = 19 [(nanopb).int_size = IS_8];
+}
+
+message WIFICONFIG {
+  required string SSID = 1 [(nanopb).max_size = 32];  //32 bytes is the limit of SSID name length
+  required uint32 security_type = 2;                  //0 = none, 1 = WEP, 2 == WPA
+  required bool dhcp = 3;                           //If static IP address config will be used
+  optional string password = 4 [(nanopb).max_size = 64];
+  optional uint32 ipv4_address = 5;                   //4 bytes, ex. 192.168.1.1 == ipv4_address[0] 192, ipv4_address[1] 168, ipv4_address[2] 1, ipv4_address[3] 1
+  optional uint32 mask = 6;
+  optional uint32 gateway = 7;
+  optional uint32 dns_address = 8;
+}
+
+message WIFISCANRESULTS {
+  repeated WIFISCANITEM wifi_scan_results = 1 [(nanopb).max_count = 10];
+}
+
+message WIFISCANITEM {
+  required string SSID = 1 [(nanopb).max_size = 32];
+  required uint32 security_type = 2;                              //0 = none, 1 = WEP, 2 & 3 == WPA1/2
+  required uint32 signal_strength = 3 [(nanopb).int_size = IS_8];  //8 bit number, 0 to 100%
+}
+
+
+/**
+ * Message Frame
+ */
+message Message {
+  enum Commands {
+    //From Client
+    PING = 1;
+    LOGIN = 2;
+    NOTIFICATIONSETUP = 13; //todo
+    READRESPONSE = 18;
+    MODESETPOINTRESPONSE = 24;
+    SCHEDULEACK = 34;
+    DATETIMESETUP = 45;
+    PAIRREQUEST = 74;
+    OBSERVE = 76;
+    OBSERVEALERT = 78;
+    RUNTIMESUMMARY = 79;
+    FIRMWAREREQUEST = 125;
+    SUCCESS = 126;
+    FAILURE = 127;
+
+    //From Server
+    LOGINACK = 3;
+    LOGINIDLE = 4;
+    COMMISSIONING = 5;
+    COMMISSIONINGSTOP = 6;
+    NAME = 16;
+    READ = 17;
+    WRITE = 20;
+    MODESETPOINT = 23;
+
+    VACATIONGET = 30;
+    SCHEDULEGET = 36;
+    MESSAGES = 38;
+    DATETIMERESPONSE = 46;
+    OVERRIDETIME = 50;
+    OVERRIDETIMERESPONSE = 51;
+    FORCEUNOCCUPIED = 53;
+    LOCALWEATHER = 59;
+    FIRMWARECHECK = 61;
+    HOLIDAYGET = 62;
+    HOLIDAYS = 64;
+    VACATIONSCHEDULE = 65;
+    AWAY = 66;
+    AWAYSETTINGS = 67;
+    FIRMWARERESOURCE = 75;
+    OBSERVELIST = 77;
+    SCHEDULERES = 81;
+    SCHEDULECOM = 82;
+    COMPROGRESPONSE = 83;
+    FAN = 86;
+    OUTDOORCONDITIONS = 87;
+    EHEAT = 88;
+    WIFICONFIG = 120;
+    WIFISCANRESULTS = 121;
+  }
+
+  required Commands command = 1000;
+  required string sequence = 1001 [(nanopb).max_size = 50];
+
+  oneof data {
+    LOGIN login = 2;
+    COMMISSIONING commissioning = 5;
+    NAME name = 16;
+    READ read = 17;
+    READRESPONSE readresponse = 18;
+    WRITE write = 20;
+    MODESETPOINT modesetpoint = 23;
+    MODESETPOINTRESPONSE modesetpointresponse = 24;
+    SCHEDULEACK scheduleack = 34;
+    MESSAGES messages = 38;
+    DATETIMERESPONSE datetimeresponse = 46;
+    OVERRIDETIME overridetime = 50;
+    FORCEUNOCCUPIED forceunoccupied = 53;
+    HOLIDAYS holidays = 64;
+    VACATIONSCHEDULE vacationschedule = 65;
+    AWAY away = 66;
+    AWAYSETTINGS awaysettings = 67;
+    FIRMWARERESOURCE firmwareresource = 75;
+    OBSERVELIST observelist = 77;
+    OBSERVEALERT observealert = 78;
+    RUNTIMESUMMARY runtimesummary = 79;
+    SCHEDULERES scheduleres = 81;
+    SCHEDULECOM schedulecom = 82;
+    COMPROGRESPONSE comprogresponse = 83;
+    FAN fan = 86;
+    OUTDOORCONDITIONS outdoorconditions = 87;
+    EHEAT eheat = 88;
+    WIFICONFIG wificonfig = 120;
+    WIFISCANRESULTS wifiscanresults = 121;
+    FIRMWAREREQUEST firmwarerequest = 125;
+  }
+}

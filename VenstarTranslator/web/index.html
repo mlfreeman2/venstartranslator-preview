@@ -1,0 +1,219 @@
+<html>
+	<head>
+			<title>Venstar Sensor Emulator</title>
+			<meta name="viewport" content="width=device-width, initial-scale=1">
+
+			<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+
+			<script src="https://code.jquery.com/ui/1.14.1/jquery-ui.min.js" integrity="sha256-AlTido85uXPlSyyaZNsjJXeCs07eSv3r43kyCVc8ChI=" crossorigin="anonymous"></script>
+			<link rel="stylesheet" href="https://code.jquery.com/ui/1.14.1/themes/base/jquery-ui.css" />
+
+			<link href="https://cdn.datatables.net/v/ju/dt-2.1.8/datatables.min.css" rel="stylesheet">
+ 			<script src="https://cdn.datatables.net/v/ju/dt-2.1.8/datatables.min.js"></script>
+
+			<script type="text/javascript">
+				$(function() {
+					var countdownTime = 30;
+					var table = $('#sensors').DataTable( {
+						ajax: {
+							url: '/api/sensors',
+							dataSrc: ''
+						},
+						pageLength: 20,
+						paging: false,
+						info: false,
+						searching: false,
+						order: [[1, 'asc']],
+						columns: [
+							{ data: 'name' },
+							{ data: 'sensorID' },
+							{ data: 'enabled' },
+							{ data: 'purpose' },
+							{ data: null }
+						],
+						"columnDefs": [
+							{
+								"targets": 2,  // Specify the column index (0 for the first column, etc.)
+								"render": function (data, type, row) {
+									// Check if the data is true or false
+									return data ? '<input type="checkbox" checked disabled>' : '<input type="checkbox" disabled>';
+								}
+							},
+							{
+								"targets": 4,
+								"data": null,
+								"render": function (data, type, row) {
+									if (!row.enabled) {
+										return "";
+									}
+									return '<button class="btn btn-primary pairing-btn" onclick="sendPairingPacket(\''+row.sensorID+'\')">Send Pairing Packet</button><br>'
+											+ '<button class="btn btn-primary pairing-btn" onclick="getLatestTemperature(\''+row.sensorID+'\')">Get Current Temperature</button>';
+								}
+							}
+						]
+					});					
+				});
+				function sendPairingPacket(sensorID) {
+					$.ajax({
+						url: '/api/pair/' + sensorID,
+						type: 'GET',
+						success: function(response) {
+							// If the request is successful
+							$('#modalMessage').text(response.message); // Display success message
+							$('#responseModal').dialog('open');
+						},
+						error: function(xhr, status, error) {
+							// If the request fails
+							$('#modalMessage').text(error); // Display error message
+							$('#responseModal').dialog('open');
+						}
+					});
+				};
+				function getLatestTemperature(sensorID) {
+					$.ajax({
+						url: '/api/sensors/' + sensorID + "/latest",
+						type: 'GET',
+						success: function(response) {
+							// If the request is successful
+							$('#modalMessage').text(response.temperature + "\u00B0" + response.scale); // Display success message
+							$('#responseModal').dialog('open');
+						},
+						error: function(xhr, status, error) {
+							// If the request fails
+							$('#modalMessage').text(error); // Display error message
+							$('#responseModal').dialog('open');
+						}
+					});
+				};				
+			</script>
+			<script>
+				$(document).ready(function(){
+					// Initialize the modal dialog (hidden by default)
+					$('#responseModal').dialog({
+						autoOpen: false,  // Don't open on page load
+						modal: true,      // Make the dialog modal
+						position: {
+							my: "center",
+							at: "center",
+							of: window
+						},
+						title: "Results",
+						buttons: {
+							"Close": function() {
+								$(this).dialog("close");
+							}
+						}
+					});
+				});
+			</script>
+
+			<style>
+					canvas {
+						-moz-user-select: none;
+						-webkit-user-select: none;
+						-ms-user-select: none;
+						user-select: none;
+					}
+
+					body {
+						background-image: url('');
+						background-repeat: no-repeat;
+						background-attachment: fixed;
+						-webkit-background-size: cover;
+						-moz-background-size: cover;
+						-o-background-size: cover;
+						background-size: cover;
+						filter: progid:DXImageTransform.Microsoft.AlphaImageLoader(src='', sizingMethod='scale');
+						-ms-filter: "progid:DXImageTransform.Microsoft.AlphaImageLoader(src='', sizingMethod='scale')";
+					}
+
+					.iGadgetBox {
+						margin-bottom: 20px;
+						display: block;
+						width: 100%;
+					}
+
+					.iGadgetBox .iGadgetBoxTitle {
+						background-color: #F7F7F7;
+						border-bottom: 1px solid #DCDCDC;
+						font: 13px arial,sans-serif;
+						font-weight: bold;
+						height: 32px;
+						line-height: 28px;
+						position: relative;
+						color: #111111;
+						overflow: hidden;
+						padding-top: 3px;
+						padding-right: 7px !important;
+						padding-bottom: 0px;
+						padding-left: 7px;
+						text-decoration: none;
+						text-overflow: ellipsis;
+						white-space: nowrap;
+						width: 100%;
+						z-index: 200;
+					}
+
+					.iGadgetBox .iGadgetBoxTitle .iGadgetBoxTitleText a {
+						float: left;
+						cursor: pointer;
+						color: #111111;
+					}
+
+					.iGadgetBox .iGadgetBoxTitle .iGadgetBoxTitleText a:active,
+					.iGadgetBox .iGadgetBoxTitle .iGadgetBoxTitleText a:visited,
+					.iGadgetBox .iGadgetBoxTitle .iGadgetBoxTitleText a:link {
+						text-decoration: none;
+					}
+
+					.iGadgetBox .iGadgetBoxTitle .iGadgetBoxTitleText a:hover {
+						text-decoration: underline;
+					}
+
+					.iGadgetBox .iGadgetBoxContent {
+						background-color: #FFFFFF;
+						width: 100%;
+						position: relative;
+						margin: 0;
+						overflow: hidden;
+						padding: 4px 0 0;
+						top: 34px;
+					}
+
+					#countdown {
+						padding: 10px;
+						background-color: rgba(0, 0, 0, 0.6);
+						color: white;
+						font-size: 16px;
+						font-weight: bold;
+						border-radius: 5px;
+					}
+			</style>
+	</head>
+	<body style="height: 100%">
+		<!-- jQuery UI Modal -->
+		<div id="responseModal" title="AJAX Call Result" style="display:none;">
+			<p id="modalMessage"></p>
+		</div>
+		<div id="iGadgetBox1" class='iGadgetBox'>
+			<div class="iGadgetBoxTitle" style="margin: 0 auto;  position: fixed; top: 0;">
+				<div class="iGadgetBoxTitleText" style="float: left; padding-right: 30px; height: 32px;">
+					<span>Configured Sensors</span>
+				</div>
+			</div>
+			<div class="iGadgetBoxContent">
+				<table id="sensors" class="display" style="width:100%">
+					<thead>
+						<tr>
+							<th>Name</th>
+							<th>Sensor ID</th>
+							<th>Enabled</th>
+							<th>Purpose</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+				</table>
+			</div>
+		</div>
+	</body>
+</html>

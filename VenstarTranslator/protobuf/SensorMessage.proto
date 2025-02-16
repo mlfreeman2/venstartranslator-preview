@@ -1,0 +1,113 @@
+syntax = "proto2";
+
+package sensor;
+import "nanopb.proto";
+
+//Sensor state
+message INFO {
+
+  enum SensorType {
+    OUTDOOR = 1;
+    RETURN = 2;
+    REMOTE = 3;
+    SUPPLY = 4;
+  }
+
+  enum PowerSource {
+    BATTERY = 1;
+    WIRED = 2;
+  }
+
+  enum SensorModel {
+    TEMPSENSOR = 1;
+  }
+
+  required uint32 sequence = 1 [(nanopb).int_size = IS_16]; 
+  required uint32 sensorId = 2 [(nanopb).int_size = IS_8];
+  required string mac = 3 [(nanopb).max_size = 13];
+  required uint32 fwMajor = 4 [(nanopb).int_size = IS_8];
+  required uint32 fwMinor = 5 [(nanopb).int_size = IS_8];
+  required SensorModel model = 6;
+  required PowerSource power = 7;
+  optional string name = 8 [(nanopb).max_size = 15];
+  optional SensorType type = 9;
+  optional uint32 temperature = 10 [(nanopb).int_size = IS_8];
+  optional uint32 battery = 11 [(nanopb).int_size = IS_8];
+  optional uint32 humidity = 12 [(nanopb).int_size = IS_8];
+}
+
+//Used for setting sensor name
+message SENSORNAME {
+  required string name = 8 [(nanopb).max_size = 15];
+}
+
+//Used for both pairing and the sensor data packet
+message SENSORDATA {
+  required INFO info = 1;
+  required string signature = 2 [(nanopb).max_size = 45];
+}
+
+message WIFICONFIG {
+  required string SSID = 1 [(nanopb).max_size = 32];             //32 bytes is the limit of SSID name length
+  required uint32 security_type = 2 [(nanopb).int_size = IS_8];  //0 = none, 1 = WEP, 2 = WPA, 3 = WPA2
+  required uint32 dhcp = 3 [(nanopb).int_size = IS_8];           //0 = Static IP, 1 = DHCP, 2 = RFC3927 Link Local IP
+  optional string password = 4 [(nanopb).max_size = 64];
+  optional uint32 ipv4_address = 5;                              //4 bytes, ex. 192.168.1.1 == ipv4_address[0] 192, ipv4_address[1] 168, ipv4_address[2] 1, ipv4_address[3] 1
+  optional uint32 mask = 6;
+  optional uint32 gateway = 7;
+  optional uint32 dns_address = 8;
+}
+
+message WIFISCANRESULTS {
+  repeated WIFISCANITEM wifi_scan_results = 1 [(nanopb).max_count = 10];
+}
+
+message WIFISCANITEM {
+  required string SSID = 1 [(nanopb).max_size = 32];
+  required uint32 security_type = 2 [(nanopb).int_size = IS_8];    //0 = none, 1 = WEP, 2 = WPA, 3 = WPA2
+  required uint32 signal_strength = 3 [(nanopb).int_size = IS_8];  //8 bit number, signal strength % (0-100)
+}
+
+message FIRMWARECHUNK {
+  enum FirmwareType {
+    MODULE = 2;
+    SERVICEPACK = 3;
+  }
+  required uint32 sequence = 1 [(nanopb).int_size = IS_16];
+  required FirmwareType type = 2;
+  required bytes data = 3 [(nanopb).max_size = 1024];
+}
+
+message FIRMWARECOMPLETE {
+  required uint32 sequence = 1 [(nanopb).int_size = IS_16];
+  required uint32 moduleChecksum = 2;
+  optional bytes servicePackSignature = 3 [(nanopb).max_size = 256];
+}
+
+/**
+ * Message Frame
+ */
+message SensorMessage {
+  enum Commands {
+    SETSENSORNAME = 41;
+    SENSORDATA = 42;
+    SENSORPAIR = 43;
+    WIFICONFIG = 44;
+    WIFISCANRESULTS = 45;
+    FIRMWARECHUNK = 46;
+    FIRMWARECOMPLETE = 47;
+    SUCCESS = 126;
+    FAILURE = 127;
+  }
+
+  required Commands command = 1;
+
+  oneof data {
+    SENSORNAME sensorname = 41;
+    SENSORDATA sensordata = 42;
+    WIFICONFIG wificonfig = 44;
+    WIFISCANRESULTS wifiscanresults = 45;
+    FIRMWARECHUNK firmwarechunk = 46;
+    FIRMWARECOMPLETE firmwarecomplete = 47;
+  }
+}
