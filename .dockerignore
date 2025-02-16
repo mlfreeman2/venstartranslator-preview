@@ -1,0 +1,4 @@
+**/bin
+**/obj
+VenstarTranslator/VenstarTranslatorDataCache.db*
+VenstarTranslator/VenstarTranslator.db*
