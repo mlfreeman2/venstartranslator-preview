@@ -1,0 +1,33 @@
+{
+	"name": "Venstar Translator DevContainer",
+	"image": "mcr.microsoft.com/devcontainers/dotnet:8.0",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-dotnettools.csharp",
+				"ms-azuretools.vscode-docker",
+				"redhat.vscode-yaml",
+				"ms-dotnettools.csdevkit"
+			]
+		}
+	},
+	"runArgs": [
+		"--network=host"
+	],	
+	"mounts": [
+		"source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+	],
+	"forwardPorts": [
+		8080
+	],	
+	"remoteEnv": {
+		"PATH": "${containerEnv:PATH}:/home/vscode/.dotnet/tools",
+		"TZ": "America/New_York"
+	},
+	"remoteUser": "vscode",
+	"features": {
+		"docker-from-docker": "latest",
+		"git": "latest", 
+		"ghcr.io/devcontainers-extra/features/protoc": {}
+	}
+}
