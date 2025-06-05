@@ -179,14 +179,17 @@ namespace VenstarTranslator
                     throw new InvalidOperationException($"The URL provided for sensor #{sensors[i].SensorID} was not a properly formed URL.");
                 }
 
-                if (sensors[i].Headers.Any(a => string.IsNullOrWhiteSpace(a.Name) || string.IsNullOrWhiteSpace(a.Value)))
+                if (sensors[i].Headers != null && sensors[i].Headers.Count > 0)
                 {
-                    throw new InvalidOperationException($"The HTTP headers block for sensor #{sensors[i].SensorID} contains an entry with null, blank, or white space.");
-                }
+                    if (sensors[i].Headers.Any(a => string.IsNullOrWhiteSpace(a.Name) || string.IsNullOrWhiteSpace(a.Value)))
+                    {
+                        throw new InvalidOperationException($"The HTTP headers block for sensor #{sensors[i].SensorID} contains an entry with null, blank, or white space.");
+                    }
 
-                if (sensors[i].Headers.Select(a => a.Name).Distinct().Count() < sensors[i].Headers.Count)
-                {
-                    throw new InvalidOperationException($"The HTTP headers block for sensor #{sensors[i].SensorID} contains a repeated header name. The .NET runtime will complain if the 'Authorization' header is repeated, so this in general is not supported.");
+                    if (sensors[i].Headers.Select(a => a.Name).Distinct().Count() < sensors[i].Headers.Count)
+                    {
+                        throw new InvalidOperationException($"The HTTP headers block for sensor #{sensors[i].SensorID} contains a repeated header name. The .NET runtime will complain if the 'Authorization' header is repeated, so this in general is not supported.");
+                    }
                 }
 
                 if (!dbContext.Sensors.Any(a => a.SensorID == sensors[i].SensorID))
