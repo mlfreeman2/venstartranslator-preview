@@ -126,11 +126,6 @@ namespace VenstarTranslator
                 throw new InvalidOperationException("No sensors enabled in the config file, not starting up further.");
             }
 
-            if (sensors.Select(a => a.URL).Distinct().Count() < sensors.Count)
-            {
-                throw new InvalidOperationException("One or more of the data source URLs was included in multiple sensor entries.");
-            }
-
             if (sensors.Select(a => a.Name).Distinct().Count() < sensors.Count)
             {
                 throw new InvalidOperationException("One or more of the sensor names was included in multiple sensor entries.");
