@@ -206,7 +206,10 @@ namespace VenstarTranslator
                     current.Headers.Clear();
                     dbContext.SaveChanges();
 
-                    current.Headers.AddRange(sensors[i].Headers);
+                    if (sensors[i].Headers != null && sensors[i].Headers.Any())
+                    {
+                        current.Headers.AddRange(sensors[i].Headers);
+                    }
                     dbContext.SaveChanges();
                 }
             }
