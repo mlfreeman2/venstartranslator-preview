@@ -1,0 +1,92 @@
+[
+	{
+		"Name": "Outside",
+		"Enabled": true,
+		"Purpose": "Outdoor",
+		"Scale": "F",
+		"URL": "http://homeassistant.example.org/api/states/sensor.gw2000b_outdoor_temperature",
+		"IgnoreSSLErrors": true,
+		"JSONPath": "$.state",
+		"Headers": [
+			{
+				"Name": "Authorization",
+				"Value": "Bearer get_your_own_bearer_token"
+			}
+		]
+	},
+	{
+		"Name": "Living Room",
+		"Enabled": true,
+		"Purpose": "Remote",
+		"Scale": "F",
+		"URL": "http://homeassistant.example.org/api/states/sensor.gw2000b_temperature_1",
+		"IgnoreSSLErrors": true,
+		"JSONPath": "$.state",
+		"Headers": [
+			{
+				"Name": "Authorization",
+				"Value": "Bearer get_your_own_bearer_token"
+			}
+		]
+	},
+	{
+		"Name": "Master Bedroom",
+		"Enabled": true,
+		"Purpose": "Remote",
+		"Scale": "F",
+		"URL": "http://homeassistant.example.org/api/states/sensor.gw2000b_temperature_2",
+		"IgnoreSSLErrors": true,
+		"JSONPath": "$.state",
+		"Headers": [
+			{
+				"Name": "Authorization",
+				"Value": "Bearer get_your_own_bearer_token"
+			}
+		]
+	},
+	{
+		"Name": "South Bedroom",
+		"Enabled": true,
+		"Purpose": "Remote",
+		"Scale": "F",
+		"URL": "http://homeassistant.example.org/api/states/sensor.gw2000b_temperature_3",
+		"IgnoreSSLErrors": true,
+		"JSONPath": "$.state",
+		"Headers": [
+			{
+				"Name": "Authorization",
+				"Value": "Bearer get_your_own_bearer_token"
+			}
+		]
+	},
+	{
+		"Name": "North Bedroom",
+		"Enabled": true,
+		"Purpose": "Remote",
+		"Scale": "F",
+		"URL": "http://homeassistant.example.org/api/states/sensor.gw2000b_temperature_4",
+		"IgnoreSSLErrors": true,
+		"JSONPath": "$.state",
+		"Headers": [
+			{
+				"Name": "Authorization",
+				"Value": "Bearer get_your_own_bearer_token"
+			}
+		]
+	},
+	{
+		"Name": "Utility Room",
+		"Enabled": true,
+		"Purpose": "Remote",
+		"Scale": "F",
+		"URL": "http://homeassistant.example.org/api/states/sensor.gw2000b_temperature_5",
+		"IgnoreSSLErrors": true,
+		"JSONPath": "$.state",
+		"Headers": [
+			{
+				"Name": "Authorization",
+				"Value": "Bearer get_your_own_bearer_token"
+			}
+		]
+	}
+]
