@@ -1,0 +1,17 @@
+[
+	{
+		"Name": "Name of the sensor as you want it to appear in the thermostat UI, max 14 characters",
+		"Enabled": true, // if you set this to false, it's defined but nothing will happen.
+		"Purpose": "One of these four values *ONLY*, case sensitive: 'Outdoor', 'Return', 'Remote', or 'Supply'",
+		"Scale": "F for Farenheit or C for Celsius, case sensitive",
+		"URL": "HTTP or HTTPS URL to hit for temperature reading. Only HTTP GET is supported, and ideally the URL should return JSON but it's not required.",
+		"IgnoreSSLErrors": true, // Only set this to true if this is a self-signed HTTPS URL.
+		"JSONPath": "A JSONPath compliant query to run on the response from the URL to extract the actual temperature. A regex is run on the result to extract the first number from this field. If this is blank, the regex will be run on the whole HTTP response body instead.",
+		"Headers": [
+			{
+				"Name": "Optional HTTP header required when sending the GET (e.g. 'Authorization' is required for Home Assistant's API)",
+				"Value": "Value to send in the HTTP header"
+			}
+		]
+	}
+]
