@@ -1,13 +1,11 @@
 ﻿using System;
-using System.IO;
 using System.Linq;
-using Google.Protobuf;
-using Hangfire;
+
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Models.Protobuf;
-using Newtonsoft.Json;
+
 using VenstarTranslator.DB;
+using VenstarTranslator.Models.Protobuf;
 
 namespace VenstarTranslator.Controllers
 {
@@ -37,40 +35,17 @@ namespace VenstarTranslator.Controllers
             {
                 return new JsonResult(new { Message = "Sensor not enabled." });
             }
+            
             var tempIndex = Tasks.ConvertTemperatureToIndex(Tasks.GetLatestReading(sensor), sensor.Scale);
 
             var dataPacket = new SensorMessage {
-                Command = SensorMessage.Types.Commands.Sensorpair,
-                Sensordata = new SENSORDATA {
+                Command = SensorMessage.Commands.SENSORPAIR,
+                SensorData = new SENSORDATA {
                     Info = new INFO {
-                        Sequence = 0,
-                        SensorId = sensor.SensorID,
-                        Mac = sensor.MacAddress,
-                        FwMajor = 4,
-                        FwMinor = 2,
-                        Model = INFO.Types.SensorModel.Tempsensor,
-                        Battery = 100,
-                        Power = INFO.Types.PowerSource.Battery,
-                        Type = Tasks.TranslateType(sensor),
-                        Name = sensor.Name,
-                        Temperature = tempIndex
-                    },
-                    Signature = sensor.Signature_Key
-                }
-            };
-
-
-            sensor.Sequence = 1;
-            _db.SaveChanges();
-
-            var otherDataPacket = new Sensor.SensorMessage {
-                Command = Sensor.SensorMessage.Commands.SENSORPAIR,
-                SensorData = new Sensor.SENSORDATA {
-                    Info = new Sensor.INFO {
                         Sequence = 0,
                         SensorId = Convert.ToByte(sensor.SensorID),
                         Mac = sensor.MacAddress,
-                        Type = Tasks.TranslateType2(sensor),
+                        Type = Tasks.TranslateType(sensor),
                         Name = sensor.Name,
                         Temperature = Convert.ToByte(tempIndex)
                     },
@@ -78,22 +53,10 @@ namespace VenstarTranslator.Controllers
                 }
             };
 
-            using (var ms = new MemoryStream())
-            using (var ms2 = new MemoryStream())
-            {
-                ((IMessage)dataPacket).WriteTo(ms);
-                var oldBytes = ms.ToArray();
-                var newBytes = Sensor.SensorMessageSerializer.Serialize<Sensor.SensorMessage>(otherDataPacket);
-                var equalPacket = oldBytes.SequenceEqual(newBytes);
-                Console.WriteLine($"SendPairingPacket: {sensor.Name}: old classes equal new classes {equalPacket}");
-                if (!equalPacket)
-                {
-                    Sensor.SensorMessageSerializer.PrintAsHex(oldBytes, "Old classes");
-                    Sensor.SensorMessageSerializer.PrintAsHex(newBytes, "New classes");
-                }
-            }
+            sensor.Sequence = 1;
+            _db.SaveChanges();
 
-            Tasks.UdpBroadcast(dataPacket);
+            Tasks.UdpBroadcast(SensorMessageSerializer.Serialize(dataPacket));
 
             return new JsonResult(new { Message = "Pairing packet sent." });
         } 

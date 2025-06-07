@@ -1,18 +1,21 @@
 using System;
-using Microsoft.Extensions.DependencyInjection;
-using System.Linq;
 using System.IO;
-using System.Net.Sockets;
-using Models.Protobuf;
-using System.Security.Cryptography;
-using Google.Protobuf;
-using VenstarTranslator.DB;
-using Hangfire;
+using System.Linq;
 using System.Net.Http;
-using Newtonsoft.Json.Linq;
-using Microsoft.EntityFrameworkCore;
+using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+
+using Hangfire;
+
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+using Newtonsoft.Json.Linq;
+
+using VenstarTranslator.DB;
+using VenstarTranslator.Models.Protobuf;
 
 namespace VenstarTranslator
 {
@@ -47,45 +50,15 @@ namespace VenstarTranslator
 
                 var dataPacket = new SensorMessage
                 {
-                    Command = SensorMessage.Types.Commands.Sensordata,
-                    Sensordata = new SENSORDATA
+                    Command = SensorMessage.Commands.SENSORDATA,
+                    SensorData = new SENSORDATA
                     {
                         Info = new INFO
-                        {
-                            Sequence = sensorInfo.Sequence,
-                            SensorId = sensorInfo.SensorID,
-                            Mac = sensorInfo.MacAddress,
-                            FwMajor = 4,
-                            FwMinor = 2,
-                            Model = INFO.Types.SensorModel.Tempsensor,
-                            Battery = 100,
-                            Power = INFO.Types.PowerSource.Battery,
-                            Type = TranslateType(sensorInfo),
-                            Name = sensorInfo.Name,
-                            Temperature = tempIndex
-                        }
-                    }
-                };
-
-                using (HMACSHA256 hmac = new(Convert.FromBase64String(sensorInfo.Signature_Key)))
-                using (MemoryStream ms = new())
-                {
-                    dataPacket.Sensordata.Info.WriteTo(ms);
-                    dataPacket.Sensordata.Signature = Convert.ToBase64String(hmac.ComputeHash(ms.ToArray()));
-                }
-
-
-                var otherDataPacket = new Sensor.SensorMessage
-                {
-                    Command = Sensor.SensorMessage.Commands.SENSORDATA,
-                    SensorData = new Sensor.SENSORDATA
-                    {
-                        Info = new Sensor.INFO
                         {
                             Sequence = Convert.ToUInt16(sensorInfo.Sequence),
                             SensorId = Convert.ToByte(sensorInfo.SensorID),
                             Mac = sensorInfo.MacAddress,
-                            Type = TranslateType2(sensorInfo),
+                            Type = TranslateType(sensorInfo),
                             Name = sensorInfo.Name,
                             Temperature = Convert.ToByte(tempIndex)
                         }
@@ -95,26 +68,9 @@ namespace VenstarTranslator
                 using (HMACSHA256 hmac = new(Convert.FromBase64String(sensorInfo.Signature_Key)))
                 using (MemoryStream ms = new())
                 {
-                    var bytes = Sensor.SensorMessageSerializer.Serialize(otherDataPacket.SensorData.Info);
-                    otherDataPacket.SensorData.Signature = Convert.ToBase64String(hmac.ComputeHash(bytes));
+                    var bytes = SensorMessageSerializer.Serialize(dataPacket.SensorData.Info);
+                    dataPacket.SensorData.Signature = Convert.ToBase64String(hmac.ComputeHash(bytes));
                 }
-
-                using (var ms = new MemoryStream())
-                using (var ms2 = new MemoryStream())
-                {
-                    ((IMessage)dataPacket).WriteTo(ms);
-                    var oldBytes = ms.ToArray();
-                    var newBytes = Sensor.SensorMessageSerializer.Serialize<Sensor.SensorMessage>(otherDataPacket);
-                    var equalPacket = oldBytes.SequenceEqual(newBytes);
-                    Console.WriteLine($"SendDataPacket: {sensorInfo.Name}: old classes equal new classes {equalPacket}");
-                    if (!equalPacket)
-                    {
-                        Sensor.SensorMessageSerializer.PrintAsHex(oldBytes, "Old classes");
-                        Sensor.SensorMessageSerializer.PrintAsHex(newBytes, "New classes");
-                    }
-                }
-
-
 
                 sensorInfo.Sequence += 1;
                 if (sensorInfo.Sequence > 65000)
@@ -123,7 +79,7 @@ namespace VenstarTranslator
                 }
                 dbContext.SaveChanges();
 
-                UdpBroadcast(dataPacket);
+                UdpBroadcast(SensorMessageSerializer.Serialize(dataPacket));
             }
         }
 
@@ -183,53 +139,32 @@ namespace VenstarTranslator
             }
         }
 
-        public static void UdpBroadcast(IMessage protobufPacket)
+        public static void UdpBroadcast(byte[] bytes)
         {
             UdpClient udpClient = new()
             {
                 EnableBroadcast = true
             };
             udpClient.Connect("255.255.255.255", 5001);
-            using (var ms = new MemoryStream())
-            {
-                protobufPacket.WriteTo(ms);
-                udpClient.Send(ms.ToArray());
-                udpClient.Send(ms.ToArray());
-                udpClient.Send(ms.ToArray());
-                udpClient.Send(ms.ToArray());
-                udpClient.Send(ms.ToArray());
-            }
+            udpClient.Send(bytes);
+            udpClient.Send(bytes);
+            udpClient.Send(bytes);
+            udpClient.Send(bytes);
+            udpClient.Send(bytes);
         }
 
-        public static INFO.Types.SensorType TranslateType(TranslatedVenstarSensor sensor)
+        public static INFO.SensorType TranslateType(TranslatedVenstarSensor sensor)
         {
             switch (sensor.Purpose)
             {
                 case SensorPurpose.Outdoor:
-                    return INFO.Types.SensorType.Outdoor;
+                    return INFO.SensorType.OUTDOOR;
                 case SensorPurpose.Remote:
-                    return INFO.Types.SensorType.Remote;
+                    return INFO.SensorType.REMOTE;
                 case SensorPurpose.Return:
-                    return INFO.Types.SensorType.Return;
+                    return INFO.SensorType.RETURN;
                 case SensorPurpose.Supply:
-                    return INFO.Types.SensorType.Supply;
-                default:
-                    throw new Exception();
-            }
-        }
-
-        public static Sensor.INFO.SensorType TranslateType2(TranslatedVenstarSensor sensor)
-        {
-            switch (sensor.Purpose)
-            {
-                case SensorPurpose.Outdoor:
-                    return Sensor.INFO.SensorType.OUTDOOR;
-                case SensorPurpose.Remote:
-                    return Sensor.INFO.SensorType.REMOTE;
-                case SensorPurpose.Return:
-                    return Sensor.INFO.SensorType.RETURN;
-                case SensorPurpose.Supply:
-                    return Sensor.INFO.SensorType.SUPPLY;
+                    return INFO.SensorType.SUPPLY;
                 default:
                     throw new Exception();
             }

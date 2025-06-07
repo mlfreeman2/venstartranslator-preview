@@ -1,10 +1,10 @@
-using ProtoBuf;
 using System;
-using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 
-namespace Sensor
+using ProtoBuf;
+
+namespace VenstarTranslator.Models.Protobuf
 {
 
     [ProtoContract]
