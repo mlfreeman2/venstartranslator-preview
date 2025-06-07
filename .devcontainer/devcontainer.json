@@ -7,7 +7,8 @@
 				"ms-dotnettools.csharp",
 				"ms-azuretools.vscode-docker",
 				"redhat.vscode-yaml",
-				"ms-dotnettools.csdevkit"
+				"ms-dotnettools.csdevkit",
+				"eamodio.gitlens"
 			]
 		}
 	},
@@ -15,7 +16,8 @@
 		"--network=host"
 	],	
 	"mounts": [
-		"source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+		"source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+		"source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,readonly"
 	],
 	"forwardPorts": [
 		8080
