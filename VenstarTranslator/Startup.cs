@@ -231,7 +231,7 @@ namespace VenstarTranslator
                 }
 
                 var cronString = sensor.Purpose != SensorPurpose.Outdoor ? "* * * * *" : "*/5 * * * *";               
-                RecurringJob.AddOrUpdate<Tasks>($"'{sensorFilePath}' - Sensor #{sensor.SensorID}: {sensor.Name}", a => a.SendPacket(sensor.SensorID), cronString, rjo);
+                RecurringJob.AddOrUpdate<Tasks>($"'{sensorFilePath}' - Sensor #{sensor.SensorID}: {sensor.Name}", a => a.SendDataPacket(sensor.SensorID), cronString, rjo);
             }
         }
     }

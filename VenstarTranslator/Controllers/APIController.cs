@@ -1,9 +1,11 @@
-﻿using System.Linq;
-using Hangfire;
+﻿using System;
+using System.Linq;
+
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Models.Protobuf;
+
 using VenstarTranslator.DB;
+using VenstarTranslator.Models.Protobuf;
 
 namespace VenstarTranslator.Controllers
 {
@@ -33,22 +35,19 @@ namespace VenstarTranslator.Controllers
             {
                 return new JsonResult(new { Message = "Sensor not enabled." });
             }
+            
+            var tempIndex = Tasks.ConvertTemperatureToIndex(Tasks.GetLatestReading(sensor), sensor.Scale);
 
             var dataPacket = new SensorMessage {
-                Command = SensorMessage.Types.Commands.Sensorpair,
-                Sensordata = new SENSORDATA {
+                Command = SensorMessage.Commands.SENSORPAIR,
+                SensorData = new SENSORDATA {
                     Info = new INFO {
                         Sequence = 0,
-                        SensorId = sensor.SensorID,
+                        SensorId = Convert.ToByte(sensor.SensorID),
                         Mac = sensor.MacAddress,
-                        FwMajor = 4,
-                        FwMinor = 2,
-                        Model = INFO.Types.SensorModel.Tempsensor,
-                        Battery = 100,
-                        Power = INFO.Types.PowerSource.Battery,
                         Type = Tasks.TranslateType(sensor),
                         Name = sensor.Name,
-                        Temperature = Tasks.ConvertTemperatureToIndex(Tasks.GetLatestReading(sensor), sensor.Scale)
+                        Temperature = Convert.ToByte(tempIndex)
                     },
                     Signature = sensor.Signature_Key
                 }
@@ -57,7 +56,7 @@ namespace VenstarTranslator.Controllers
             sensor.Sequence = 1;
             _db.SaveChanges();
 
-            Tasks.UdpBroadcast(dataPacket);
+            Tasks.UdpBroadcast(SensorMessageSerializer.Serialize(dataPacket));
 
             return new JsonResult(new { Message = "Pairing packet sent." });
         } 
