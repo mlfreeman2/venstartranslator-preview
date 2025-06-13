@@ -16,6 +16,7 @@ using Newtonsoft.Json.Converters;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
 
 namespace VenstarTranslator
 {
@@ -76,10 +77,10 @@ namespace VenstarTranslator
             if (string.IsNullOrWhiteSpace(fakeMacPrefix))
             {
                 fakeMacPrefix = "428e0486d7";
-            } 
-            else 
+            }
+            else
             {
-                if (fakeMacPrefix.Length != 10) 
+                if (fakeMacPrefix.Length != 10)
                 {
                     throw new InvalidOperationException("The prefix to use in the fake MAC addresses included in each data packet has to be exactly 10 characters long.");
                 }
@@ -89,17 +90,17 @@ namespace VenstarTranslator
                     throw new InvalidOperationException("The prefix to use in the fake MAC addresses included in each data packet can only be numbers and lowercase a-f (in other words, hexadecimal).");
                 }
             }
-            
+
             TranslatedVenstarSensor.macPrefix = fakeMacPrefix;
 
             var sensorFilePath = _config.GetValue<string>("SensorFilePath");
-            
-            if (string.IsNullOrWhiteSpace(sensorFilePath)) 
+
+            if (string.IsNullOrWhiteSpace(sensorFilePath))
             {
                 throw new FileNotFoundException($"Sensor JSON file path not provided.");
             }
 
-            if (!File.Exists(sensorFilePath)) 
+            if (!File.Exists(sensorFilePath))
             {
                 throw new FileNotFoundException($"The sensor JSON file was supposed to be at '{sensorFilePath}' but could not be found.");
             }
@@ -133,16 +134,19 @@ namespace VenstarTranslator
 
             dbContext.Database.EnsureCreated();
 
-            app.UseFileServer(new FileServerOptions {
+            app.UseFileServer(new FileServerOptions
+            {
                 FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "web")),
                 RequestPath = "/ui"
             });
             app.UseRouting();
             app.UseAuthorization();
 
-            app.UseEndpoints(endpoints => {
+            app.UseEndpoints(endpoints =>
+            {
                 endpoints.MapControllers();
-                endpoints.MapHangfireDashboard("/hangfire", new DashboardOptions {
+                endpoints.MapHangfireDashboard("/hangfire", new DashboardOptions
+                {
                     Authorization = [],
                     DefaultRecordsPerPage = 50,
                 });
@@ -187,6 +191,22 @@ namespace VenstarTranslator
                     }
                 }
 
+                // test the JSONPath against an empty shell to check it for syntax errors.
+                try
+                {
+                    JObject obj = [];
+                    obj.SelectToken(sensors[i].JSONPath);
+                }
+                catch (JsonException e)
+                {
+                    if (e.Message == "Unexpected character while parsing path query: \"")
+                    {
+                        throw new InvalidOperationException($"Sensor #{sensors[i].SensorID} had a syntax error in its JSONPath. Replace double quotes \" with single quotes '.");
+                    }
+                    var message = $"Sensor #{sensors[i].SensorID} had a syntax error in its JSONPath: '{e.Message}'";
+                    throw new InvalidOperationException(message);
+                }
+
                 if (!dbContext.Sensors.Any(a => a.SensorID == sensors[i].SensorID))
                 {
                     dbContext.Sensors.Add(sensors[i]);
@@ -222,7 +242,7 @@ namespace VenstarTranslator
                 }
             }
             dbContext.SaveChanges();
-            
+
             foreach (var sensor in dbContext.Sensors.ToList())
             {
                 if (!sensor.Enabled)
@@ -230,7 +250,7 @@ namespace VenstarTranslator
                     continue;
                 }
 
-                var cronString = sensor.Purpose != SensorPurpose.Outdoor ? "* * * * *" : "*/5 * * * *";               
+                var cronString = sensor.Purpose != SensorPurpose.Outdoor ? "* * * * *" : "*/5 * * * *";
                 RecurringJob.AddOrUpdate<Tasks>($"'{sensorFilePath}' - Sensor #{sensor.SensorID}: {sensor.Name}", a => a.SendDataPacket(sensor.SensorID), cronString, rjo);
             }
         }
