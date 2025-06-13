@@ -22,5 +22,13 @@
 		"Scale": "F",
 		"URL": "http://172.17.21.11/get_livedata_info",
 		"JSONPath": "$.ch_temp[?(@.name=='Fridge')].temp"
+	},
+	{
+		"Name": "GW2000 Onboard",
+		"Enabled": true,
+		"Purpose": "Remote",
+		"Scale": "F",
+		"URL": "http://172.17.21.11/get_livedata_info",
+		"JSONPath": "$.wh25[0].intemp"
 	}
 ]
