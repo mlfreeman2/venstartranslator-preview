@@ -19,6 +19,21 @@ I will not provide network configuration support at all.
 
 The `docker-compose.yml.sample` file can be used to get you up and running in a docker compose environment.
 
+If you don't use Docker Compose, you can try this ChatGPT translation to a plain `docker` command (not tested, I use Docker Compose):
+```
+docker run -d \
+  --name venstartranslator \
+  --network host \
+  --restart always \
+  -v "$PWD/sensors.myhouse.json:/data/sensors.json" \
+  -e TZ='America/New_York' \
+  -e SensorFilePath='/data/sensors.json' \
+  -e Kestrel__Endpoints__Http__Url='http://*:8080' \
+  -e FakeMacPrefix='428e0486d8' \
+  --log-opt max-size=10m \
+  --log-opt max-file=5 \
+  ghcr.io/mlfreeman2/venstartranslator-preview:main
+```
 You have to map the sensor file in to the container for the app to work.
 
 You also have to set three things via environment variable: the time zone, the path to your sensor settings file, and the port to run the app on.
