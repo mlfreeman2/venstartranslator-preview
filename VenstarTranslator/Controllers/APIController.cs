@@ -1,8 +1,9 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-
+using Newtonsoft.Json;
 using VenstarTranslator.DB;
 
 namespace VenstarTranslator.Controllers
@@ -61,6 +62,14 @@ namespace VenstarTranslator.Controllers
         public ActionResult ListSensors()
         {
             return new JsonResult(_db.Sensors.ToList());
+        }
+
+        [HttpPut]
+        [Route("/api/sensors/{sensorId}")]
+        public ActionResult UpdateSensor(int sensorId, TranslatedVenstarSensor sensor)
+        {
+            Console.WriteLine($"{sensorId}: {JsonConvert.SerializeObject(sensor, Formatting.Indented)}");
+            return Ok();
         }
     }
 }
