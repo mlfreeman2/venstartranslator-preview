@@ -1,219 +1,573 @@
-<html>
-	<head>
-			<title>Venstar Sensor Emulator</title>
-			<meta name="viewport" content="width=device-width, initial-scale=1">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venstar Sensor Emulator</title>
+    
+    <!-- External Libraries -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/ui/1.14.1/jquery-ui.min.js" integrity="sha256-AlTido85uXPlSyyaZNsjJXeCs07eSv3r43kyCVc8ChI=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.14.1/themes/ui-lightness/jquery-ui.css" />
+    <link href="https://cdn.datatables.net/v/ju/dt-2.1.8/datatables.min.css" rel="stylesheet">
+    <script src="https://cdn.datatables.net/v/ju/dt-2.1.8/datatables.min.js"></script>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --secondary-color: #64748b;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
 
-			<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-			<script src="https://code.jquery.com/ui/1.14.1/jquery-ui.min.js" integrity="sha256-AlTido85uXPlSyyaZNsjJXeCs07eSv3r43kyCVc8ChI=" crossorigin="anonymous"></script>
-			<link rel="stylesheet" href="https://code.jquery.com/ui/1.14.1/themes/base/jquery-ui.css" />
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
 
-			<link href="https://cdn.datatables.net/v/ju/dt-2.1.8/datatables.min.css" rel="stylesheet">
- 			<script src="https://cdn.datatables.net/v/ju/dt-2.1.8/datatables.min.js"></script>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
 
-			<script type="text/javascript">
-				$(function() {
-					var countdownTime = 30;
-					var table = $('#sensors').DataTable( {
-						ajax: {
-							url: '/api/sensors',
-							dataSrc: ''
-						},
-						pageLength: 20,
-						paging: false,
-						info: false,
-						searching: false,
-						order: [[1, 'asc']],
-						columns: [
-							{ data: 'name' },
-							{ data: 'sensorID' },
-							{ data: 'enabled' },
-							{ data: 'purpose' },
-							{ data: null }
-						],
-						"columnDefs": [
-							{
-								"targets": 2,  // Specify the column index (0 for the first column, etc.)
-								"render": function (data, type, row) {
-									// Check if the data is true or false
-									return data ? '<input type="checkbox" checked disabled>' : '<input type="checkbox" disabled>';
-								}
-							},
-							{
-								"targets": 4,
-								"data": null,
-								"render": function (data, type, row) {
-									if (!row.enabled) {
-										return "";
-									}
-									return '<button class="btn btn-primary pairing-btn" onclick="sendPairingPacket(\''+row.sensorID+'\')">Send Pairing Packet</button><br>'
-											+ '<button class="btn btn-primary pairing-btn" onclick="getLatestTemperature(\''+row.sensorID+'\')">Get Current Temperature</button>';
-								}
-							}
-						]
-					});					
-				});
-				function sendPairingPacket(sensorID) {
-					$.ajax({
-						url: '/api/pair/' + sensorID,
-						type: 'GET',
-						success: function(response) {
-							// If the request is successful
-							$('#modalMessage').text(response.message); // Display success message
-							$('#responseModal').dialog('open');
-						},
-						error: function(xhr, status, error) {
-							// If the request fails
-							$('#modalMessage').text(error); // Display error message
-							$('#responseModal').dialog('open');
-						}
-					});
-				};
-				function getLatestTemperature(sensorID) {
-					$.ajax({
-						url: '/api/sensors/' + sensorID + "/latest",
-						type: 'GET',
-						success: function(response) {
-							// If the request is successful
-							$('#modalMessage').text(response.temperature + "\u00B0" + response.scale); // Display success message
-							$('#responseModal').dialog('open');
-						},
-						error: function(xhr, status, error) {
-							// If the request fails
-							$('#modalMessage').text(error); // Display error message
-							$('#responseModal').dialog('open');
-						}
-					});
-				};				
-			</script>
-			<script>
-				$(document).ready(function(){
-					// Initialize the modal dialog (hidden by default)
-					$('#responseModal').dialog({
-						autoOpen: false,  // Don't open on page load
-						modal: true,      // Make the dialog modal
-						position: {
-							my: "center",
-							at: "center",
-							of: window
-						},
-						title: "Results",
-						buttons: {
-							"Close": function() {
-								$(this).dialog("close");
-							}
-						}
-					});
-				});
-			</script>
+        .header {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+        }
 
-			<style>
-					canvas {
-						-moz-user-select: none;
-						-webkit-user-select: none;
-						-ms-user-select: none;
-						user-select: none;
-					}
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
 
-					body {
-						background-image: url('');
-						background-repeat: no-repeat;
-						background-attachment: fixed;
-						-webkit-background-size: cover;
-						-moz-background-size: cover;
-						-o-background-size: cover;
-						background-size: cover;
-						filter: progid:DXImageTransform.Microsoft.AlphaImageLoader(src='', sizingMethod='scale');
-						-ms-filter: "progid:DXImageTransform.Microsoft.AlphaImageLoader(src='', sizingMethod='scale')";
-					}
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            font-weight: 400;
+        }
 
-					.iGadgetBox {
-						margin-bottom: 20px;
-						display: block;
-						width: 100%;
-					}
+        .card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+        }
 
-					.iGadgetBox .iGadgetBoxTitle {
-						background-color: #F7F7F7;
-						border-bottom: 1px solid #DCDCDC;
-						font: 13px arial,sans-serif;
-						font-weight: bold;
-						height: 32px;
-						line-height: 28px;
-						position: relative;
-						color: #111111;
-						overflow: hidden;
-						padding-top: 3px;
-						padding-right: 7px !important;
-						padding-bottom: 0px;
-						padding-left: 7px;
-						text-decoration: none;
-						text-overflow: ellipsis;
-						white-space: nowrap;
-						width: 100%;
-						z-index: 200;
-					}
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
+        }
 
-					.iGadgetBox .iGadgetBoxTitle .iGadgetBoxTitleText a {
-						float: left;
-						cursor: pointer;
-						color: #111111;
-					}
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
 
-					.iGadgetBox .iGadgetBoxTitle .iGadgetBoxTitleText a:active,
-					.iGadgetBox .iGadgetBoxTitle .iGadgetBoxTitleText a:visited,
-					.iGadgetBox .iGadgetBoxTitle .iGadgetBoxTitleText a:link {
-						text-decoration: none;
-					}
+        .card-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
 
-					.iGadgetBox .iGadgetBoxTitle .iGadgetBoxTitleText a:hover {
-						text-decoration: underline;
-					}
+        /* DataTables Styling */
+        .dataTables_wrapper {
+            font-family: inherit;
+        }
 
-					.iGadgetBox .iGadgetBoxContent {
-						background-color: #FFFFFF;
-						width: 100%;
-						position: relative;
-						margin: 0;
-						overflow: hidden;
-						padding: 4px 0 0;
-						top: 34px;
-					}
+        table.dataTable {
+            width: 100% !important;
+            border-collapse: separate;
+            border-spacing: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
 
-					#countdown {
-						padding: 10px;
-						background-color: rgba(0, 0, 0, 0.6);
-						color: white;
-						font-size: 16px;
-						font-weight: bold;
-						border-radius: 5px;
-					}
-			</style>
-	</head>
-	<body style="height: 100%">
-		<!-- jQuery UI Modal -->
-		<div id="responseModal" title="AJAX Call Result" style="display:none;">
-			<p id="modalMessage"></p>
-		</div>
-		<div id="iGadgetBox1" class='iGadgetBox'>
-			<div class="iGadgetBoxTitle" style="margin: 0 auto;  position: fixed; top: 0;">
-				<div class="iGadgetBoxTitleText" style="float: left; padding-right: 30px; height: 32px;">
-					<span>Configured Sensors</span>
-				</div>
-			</div>
-			<div class="iGadgetBoxContent">
-				<table id="sensors" class="display" style="width:100%">
-					<thead>
-						<tr>
-							<th>Name</th>
-							<th>Sensor ID</th>
-							<th>Enabled</th>
-							<th>Purpose</th>
-							<th>Actions</th>
-						</tr>
-					</thead>
-				</table>
-			</div>
-		</div>
-	</body>
+        table.dataTable thead th {
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 1.5rem 1rem;
+            border-bottom: 2px solid var(--border);
+            position: relative;
+        }
+
+        table.dataTable tbody td {
+            padding: 1.25rem 1rem;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        table.dataTable tbody tr {
+            transition: all 0.2s ease;
+        }
+
+        table.dataTable tbody tr:hover {
+            background-color: #f8fafc;
+            transform: translateY(-1px);
+        }
+
+        table.dataTable tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Custom Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 0.25rem;
+            min-width: 120px;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+            color: white;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--secondary-color), #475569);
+            color: white;
+            box-shadow: 0 4px 12px rgba(100, 116, 139, 0.3);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(100, 116, 139, 0.4);
+        }
+
+        /* Status Indicators */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-enabled {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-disabled {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error-color);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Sensor ID Styling */
+        .sensor-id {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #f1f5f9;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        /* Purpose Badges */
+        .purpose-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+        .purpose-outdoor {
+            background: linear-gradient(135deg, #059669, #10b981);
+            box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+        }
+
+        .purpose-remote {
+            background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+        }
+
+        .purpose-return {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+        }
+
+        .purpose-supply {
+            background: linear-gradient(135deg, #0284c7, #0ea5e9);
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+        }
+
+        /* Modal Styling */
+        .ui-dialog {
+            border-radius: 16px !important;
+            box-shadow: var(--shadow-lg) !important;
+            border: 1px solid var(--border) !important;
+            overflow: hidden;
+        }
+
+        .ui-dialog-titlebar {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-hover)) !important;
+            color: white !important;
+            border: none !important;
+            padding: 1.5rem !important;
+            font-weight: 600 !important;
+        }
+
+        .ui-dialog-content {
+            padding: 2rem !important;
+            font-size: 1.1rem !important;
+            color: var(--text-primary) !important;
+        }
+
+        .ui-button {
+            background: var(--primary-color) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 0.75rem 1.5rem !important;
+            font-weight: 500 !important;
+            transition: all 0.2s ease !important;
+        }
+
+        .ui-button:hover {
+            background: var(--primary-hover) !important;
+            transform: translateY(-1px) !important;
+        }
+
+        /* Loading Animation */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .loading .btn {
+            position: relative;
+        }
+
+        .loading .btn::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            right: 0.75rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .card {
+                padding: 1.5rem;
+            }
+            
+            table.dataTable thead th,
+            table.dataTable tbody td {
+                padding: 1rem 0.75rem;
+            }
+            
+            .btn {
+                min-width: 100px;
+                font-size: 0.8rem;
+                padding: 0.6rem 1rem;
+            }
+        }
+
+        /* Animations */
+        .card, .header {
+            animation: fadeInUp 0.6s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <i class="fas fa-thermometer-half"></i>
+                Venstar Sensor Emulator
+            </h1>
+            <p>Monitor and control your smart temperature sensors with ease</p>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon">
+                    <i class="fas fa-list"></i>
+                </div>
+                <h2 class="card-title">Configured Sensors</h2>
+            </div>
+            
+            <table id="sensors" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th><i class="fas fa-tag"></i> Name</th>
+                        <th><i class="fas fa-barcode"></i> Sensor ID</th>
+                        <th><i class="fas fa-power-off"></i> Status</th>
+                        <th><i class="fas fa-bullseye"></i> Purpose</th>
+                        <th><i class="fas fa-cogs"></i> Actions</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+
+    <!-- jQuery UI Modal -->
+    <div id="responseModal" title="Sensor Response" style="display:none;">
+        <p id="modalMessage"></p>
+    </div>
+
+    <script>
+        $(function() {
+            var table = $('#sensors').DataTable({
+                ajax: {
+                    url: '/api/sensors',
+                    dataSrc: ''
+                },
+                pageLength: 20,
+                paging: false,
+                info: false,
+                searching: false,
+                order: [[1, 'asc']],
+                columns: [
+                    { data: 'name' },
+                    { data: 'sensorID' },
+                    { data: 'enabled' },
+                    { data: 'purpose' },
+                    { data: null }
+                ],
+                columnDefs: [
+                    {
+                        targets: 1,
+                        render: function(data, type, row) {
+                            return '<span class="sensor-id">' + data + '</span>';
+                        }
+                    },
+                    {
+                        targets: 2,
+						orderable: false,
+                        render: function(data, type, row) {
+                            if (data) {
+                                return '<span class="status-badge status-enabled"><span class="status-dot"></span>Enabled</span>';
+                            } else {
+                                return '<span class="status-badge status-disabled"><span class="status-dot"></span>Disabled</span>';
+                            }
+                        }
+                    },
+                    {
+                        targets: 3,
+						orderable: false,
+                        render: function(data, type, row) {
+                            let icon = '';
+                            let className = 'purpose-badge';
+                            
+                            switch(data.toLowerCase()) {
+                                case 'outdoor':
+                                    icon = '<i class="fas fa-tree"></i>';
+                                    className += ' purpose-outdoor';
+                                    break;
+                                case 'remote':
+                                    icon = '<i class="fas fa-home"></i>';
+                                    className += ' purpose-remote';
+                                    break;
+                                case 'return':
+                                    icon = '<i class="fas fa-arrow-rotate-left"></i>';
+                                    className += ' purpose-return';
+                                    break;
+                                case 'supply':
+                                    icon = '<i class="fas fa-wind"></i>';
+                                    className += ' purpose-supply';
+                                    break;
+                                default:
+                                    icon = '<i class="fas fa-question"></i>';
+                                    className += ' purpose-remote';
+                            }
+                            
+                            return '<span class="' + className + '">' + icon + ' ' + data + '</span>';
+                        }
+                    },
+                    {
+                        targets: 4,
+						orderable: false,
+                        data: null,
+                        render: function(data, type, row) {
+                            if (!row.enabled) {
+                                return '<span style="color: var(--text-secondary); font-style: italic;">No actions available</span>';
+                            }
+                            return '<div style="display: flex; flex-direction: column; gap: 0.5rem;">' +
+                                   '<button class="btn btn-primary" onclick="sendPairingPacket(\'' + row.sensorID + '\')">' +
+                                   '<i class="fas fa-wifi"></i> Send Pairing</button>' +
+                                   '<button class="btn btn-secondary" onclick="getLatestTemperature(\'' + row.sensorID + '\')">' +
+                                   '<i class="fas fa-thermometer-half"></i> Get Temperature</button>' +
+                                   '</div>';
+                        }
+                    }
+                ]
+            });
+        });
+
+        function sendPairingPacket(sensorID) {
+            const button = event.target;
+            button.classList.add('loading');
+            
+            $.ajax({
+                url: '/api/pair/' + sensorID,
+                type: 'GET',
+                success: function(response) {
+                    $('#modalMessage').html('<i class="fas fa-check-circle" style="color: var(--success-color); margin-right: 0.5rem;"></i>' + response.message);
+                    $('#responseModal').dialog('open');
+                },
+                error: function(xhr, status, error) {
+                    $('#modalMessage').html('<i class="fas fa-exclamation-triangle" style="color: var(--error-color); margin-right: 0.5rem;"></i>' + error);
+                    $('#responseModal').dialog('open');
+                },
+                complete: function() {
+                    button.classList.remove('loading');
+                }
+            });
+        }
+
+        function getLatestTemperature(sensorID) {
+            const button = event.target;
+            button.classList.add('loading');
+            
+            $.ajax({
+                url: '/api/sensors/' + sensorID + "/latest",
+                type: 'GET',
+                success: function(response) {
+                    $('#modalMessage').html('<i class="fas fa-thermometer-half" style="color: var(--primary-color); margin-right: 0.5rem;"></i>' + 
+                                          '<strong>' + response.temperature + "°" + response.scale + '</strong>');
+                    $('#responseModal').dialog('open');
+                },
+                error: function(xhr, status, error) {
+                    $('#modalMessage').html('<i class="fas fa-exclamation-triangle" style="color: var(--error-color); margin-right: 0.5rem;"></i>' + error);
+                    $('#responseModal').dialog('open');
+                },
+                complete: function() {
+                    button.classList.remove('loading');
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            $('#responseModal').dialog({
+                autoOpen: false,
+                modal: true,
+                width: 400,
+                position: {
+                    my: "center",
+                    at: "center",
+                    of: window
+                },
+                title: "Sensor Response",
+                buttons: {
+                    "Close": function() {
+                        $(this).dialog("close");
+                    }
+                }
+            });
+        });
+    </script>
+</body>
 </html>

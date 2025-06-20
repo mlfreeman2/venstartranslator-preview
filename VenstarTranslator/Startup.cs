@@ -156,7 +156,7 @@ namespace VenstarTranslator
 
             for (int i = 0; i < sensors.Count; i++)
             {
-                sensors[i].SensorID = Convert.ToUInt32(i + sensorIdOffset);
+                sensors[i].SensorID = Convert.ToByte(i + sensorIdOffset);
 
                 if (string.IsNullOrWhiteSpace(sensors[i].Name))
                 {
