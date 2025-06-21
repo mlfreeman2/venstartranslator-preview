@@ -123,52 +123,81 @@ namespace VenstarTranslator.Controllers
                 }
                 currentFileSensor.Headers.AddRange(proposedSensor.Headers);
             }
+            else
+            {
+                currentFileSensor.Headers = null;
+            }
             System.IO.File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(fileSensors, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
 
-            if (currentDbSensor.Enabled)
+            HangfireCleanup(currentDbSensor);
+
+            return Ok(new { message = "Successful!" });
+        }
+
+        private static void HangfireCleanup(TranslatedVenstarSensor sensor)
+        {
+            if (sensor.Enabled)
             {
                 var rjo = new RecurringJobOptions() { TimeZone = TimeZoneInfo.Local };
-                var cronString = currentDbSensor.Purpose != SensorPurpose.Outdoor ? "* * * * *" : "*/5 * * * *";
-                RecurringJob.AddOrUpdate<Tasks>($"Sensor #{currentDbSensor.SensorID}: {currentDbSensor.Name}", a => a.SendDataPacket(currentDbSensor.SensorID), cronString, rjo);
+                var cronString = sensor.Purpose == SensorPurpose.Outdoor ? "*/5 * * * *" : "* * * * *";
+                RecurringJob.AddOrUpdate<Tasks>($"Sensor #{sensor.SensorID}: {sensor.Name}", a => a.SendDataPacket(sensor.SensorID), cronString, rjo);
             }
             else
             {
-                RecurringJob.RemoveIfExists($"Sensor #{currentDbSensor.SensorID}: {currentDbSensor.Name}");
+                RecurringJob.RemoveIfExists($"Sensor #{sensor.SensorID}: {sensor.Name}");
             }
-
-            return Ok(new { message = "Successful!" });
         }
 
         [HttpPost]
         [Route("/api/sensors")]
         public ActionResult AddSensor(TranslatedVenstarSensor proposedSensor)
         {
-            if (_db.Sensors.Max(a => a.SensorID) >= 19)
-            {
-                return StatusCode(400, new { message = "Too many sensors." });
-            }
-
-            proposedSensor.SensorID = Convert.ToByte(_db.Sensors.Max(a => a.SensorID) + 1);
-            _db.Sensors.Add(proposedSensor);
-            _db.SaveChanges();
-
             var sensorFilePath = _config.GetValue<string>("SensorFilePath");
-            var fileSensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(System.IO.File.ReadAllText(sensorFilePath));
-            fileSensors.Add(proposedSensor);
 
-            System.IO.File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(fileSensors, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
-
-            if (proposedSensor.Enabled)
+            if (!_db.Sensors.Any())
             {
-                var rjo = new RecurringJobOptions() { TimeZone = TimeZoneInfo.Local };
-                var cronString = proposedSensor.Purpose != SensorPurpose.Outdoor ? "* * * * *" : "*/5 * * * *";
-                RecurringJob.AddOrUpdate<Tasks>($"Sensor #{proposedSensor.SensorID}: {proposedSensor.Name}", a => a.SendDataPacket(proposedSensor.SensorID), cronString, rjo);
+                proposedSensor.SensorID = Convert.ToByte(0);
+                _db.Sensors.Add(proposedSensor);
+                _db.SaveChanges();
+
+                var fileSensors = new List<TranslatedVenstarSensor> { proposedSensor };
+                System.IO.File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(fileSensors, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
             }
             else
             {
-                RecurringJob.RemoveIfExists($"Sensor #{proposedSensor.SensorID}: {proposedSensor.Name}");
+                if (_db.Sensors.Max(a => a.SensorID) >= 19)
+                {
+                    return StatusCode(400, new { message = "Too many sensors." });
+                }
+
+                proposedSensor.SensorID = Convert.ToByte(_db.Sensors.Any() ? _db.Sensors.Max(a => a.SensorID) + 1 : 0);
+                _db.Sensors.Add(proposedSensor);
+                _db.SaveChanges();
+
+                var fileSensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(System.IO.File.ReadAllText(sensorFilePath));
+                fileSensors.Add(proposedSensor);
+                System.IO.File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(fileSensors, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
             }
 
+            HangfireCleanup(proposedSensor);
+
+            return Ok(new { message = "Successful!" });
+        }
+
+        [HttpDelete]
+        [Route("/api/sensors/{sensorId}")]
+        public ActionResult DeleteSensor(int sensorId)
+        {
+            var sensorFilePath = _config.GetValue<string>("SensorFilePath");
+            var sensorIdOffset = _config.GetValue<int>("SensorIdOffset");
+
+            var currentDbSensor = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == sensorId);
+            _db.Sensors.Remove(currentDbSensor);
+            _db.SaveChanges();
+
+            var fileSensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(System.IO.File.ReadAllText(sensorFilePath));
+            fileSensors.RemoveAt(sensorId - sensorIdOffset);
+            System.IO.File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(fileSensors, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
             return Ok(new { message = "Successful!" });
         }
     }

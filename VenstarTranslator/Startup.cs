@@ -63,19 +63,22 @@ namespace VenstarTranslator
 
             TranslatedVenstarSensor.macPrefix = ValidateAndGetMacPrefix(_config.GetValue<string>("FakeMacPrefix"));
 
+            dbContext.Database.EnsureCreated();
+
             var sensorIdOffset = _config.GetValue<int>("SensorIdOffset");
             ValidateSensorIdOffset(sensorIdOffset);
 
             var sensorFilePath = _config.GetValue<string>("SensorFilePath");
             ValidateSensorFilePath(sensorFilePath);
 
-            var sensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(File.ReadAllText(sensorFilePath));
-
-            ValidateSensorCollection(sensors, sensorIdOffset);
-
-            ValidateIndividualSensors(sensors);
-
-            dbContext.Database.EnsureCreated();
+            if (File.Exists(sensorFilePath))
+            {
+                var sensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(File.ReadAllText(sensorFilePath));
+                ValidateSensorCollection(sensors, sensorIdOffset);
+                ValidateIndividualSensors(sensors);
+                UpdateDatabaseSensors(dbContext, sensors, sensorIdOffset);
+                ScheduleSensorJobs(dbContext);
+            }
 
             app.UseFileServer(new FileServerOptions
             {
@@ -94,9 +97,6 @@ namespace VenstarTranslator
                     DefaultRecordsPerPage = 50,
                 });
             });
-
-            UpdateDatabaseSensors(dbContext, sensors, sensorIdOffset);
-            ScheduleSensorJobs(dbContext);
         }
 
         private static void ValidateSensorIdOffset(int sensorIdOffset)

@@ -19,13 +19,13 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
+        <!-- <div class="header">
             <h1>
                 <i class="fas fa-thermometer-half"></i>
                 Venstar Sensor Emulator
             </h1>
             <p>Monitor and control your smart temperature sensors with ease</p>
-        </div>
+        </div> -->
 
         <div class="card">
             <div class="card-header">
@@ -33,6 +33,11 @@
                     <i class="fas fa-list"></i>
                 </div>
                 <h2 class="card-title">Configured Sensors</h2>
+                <div class="card-actions">
+                    <button class="btn btn-success" onclick="addNewSensor()">
+                        <i class="fas fa-plus"></i> Add New Sensor
+                    </button>
+                </div>
             </div>
             
             <table id="sensors" class="display" style="width:100%">
@@ -52,6 +57,11 @@
     <!-- jQuery UI Modal for responses -->
     <div id="responseModal" title="Sensor Response" style="display:none;">
         <p id="modalMessage"></p>
+    </div>
+
+    <!-- Hidden div for dialog content -->
+    <div id="confirmation-dialog" title="Confirm Action" style="display: none;">
+        <p id="confirmation-message"></p>
     </div>
 
     <!-- Edit Modal -->

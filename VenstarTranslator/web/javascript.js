@@ -1,4 +1,5 @@
 let currentEditingSensor = null;
+let isAddingNewSensor = false;
 let table;
 
 $(function() {
@@ -78,13 +79,12 @@ $(function() {
                     let buttons = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
                     
                     buttons += '<button class="btn btn-warning" onclick="editSensor(' + row.sensorID + ')">' +
-                                '<i class="fas fa-edit"></i> Edit</button>';
-                    
-                    if (!row.enabled) {
-                        buttons += '<span style="color: var(--text-secondary); font-style: italic; text-align: center; padding: 0.5rem;">Sensor disabled</span>';
-                    } else {
+                               '<i class="fas fa-edit"></i> Edit</button>' +
+                               '<button class="btn btn-error" onclick="deleteSensor(' + row.sensorID + ')">' +
+                               '<i class="fas fa-trash"></i> Delete</button>';
+                    if (row.enabled) {
                         buttons += '<button class="btn btn-primary" onclick="sendPairingPacket(\'' + row.sensorID + '\')">' +
-                                    '<i class="fas fa-wifi"></i> Send Pairing</button>' +
+                                    '<i class="fas fa-wifi"></i> Send Pairing Packet</button>' +
                                     '<button class="btn btn-secondary" onclick="getLatestTemperature(\'' + row.sensorID + '\')">' +
                                     '<i class="fas fa-thermometer-half"></i> Get Temperature</button>';
                     }
@@ -97,7 +97,30 @@ $(function() {
     });
 });
 
+function addNewSensor() {
+    isAddingNewSensor = true;
+    currentEditingSensor = null;
+
+    // Clear and populate form with defaults
+    $('#edit-name').val('');
+    $('#edit-enabled').prop('checked', true);
+    $('#edit-purpose').val('Remote');
+    $('#edit-scale').val('F');
+    $('#edit-url').val('');
+    $('#edit-ignoreSSLErrors').prop('checked', false);
+    $('#edit-jsonPath').val('');
+
+    // Clear headers
+    $('#headers-container').empty();
+
+    // Update modal title and open
+    $('#editModal').dialog('option', 'title', 'Add New Sensor');
+    $('#editModal').dialog('open');
+}
+
 function editSensor(sensorID) {
+    isAddingNewSensor = false;
+    
     // Find the sensor data directly from DataTables
     const sensor = table.rows().data().toArray().find(s => s.sensorID === sensorID);
     if (!sensor) {
@@ -124,7 +147,8 @@ function editSensor(sensorID) {
         });
     }
 
-    // Open the modal
+    // Update modal title and open
+    $('#editModal').dialog('option', 'title', 'Edit Sensor Configuration');
     $('#editModal').dialog('open');
 }
 
@@ -161,8 +185,6 @@ function removeHeaderRow(button) {
 }
 
 function saveSensor() {
-    if (!currentEditingSensor) return;
-
     // Collect form data
     const formData = {
         name: $('#edit-name').val(),
@@ -184,22 +206,34 @@ function saveSensor() {
         }
     });
 
-    formData.sensorID = currentEditingSensor.sensorID;
+    // Determine HTTP method and URL based on whether we're adding or editing
+    const method = isAddingNewSensor ? 'POST' : 'PUT';
+    const url = '/api/sensors';
+
+    // For editing, include the original sensor ID
+    if (!isAddingNewSensor && currentEditingSensor) {
+        formData.sensorID = currentEditingSensor.sensorID;
+    }
 
     $.ajax({
-        url: '/api/sensors/',
-        type: 'PUT',
+        url: url,
+        type: method,
         contentType: 'application/json',
         data: JSON.stringify(formData),
         success: function(response) {
             // Reload the table data
             table.ajax.reload();
-            $('#modalMessage').html('<i class="fas fa-check-circle" style="color: var(--success-color); margin-right: 0.5rem;"></i>' + response.message);
+            const action = isAddingNewSensor ? 'added' : 'updated';
+            $('#modalMessage').html('<i class="fas fa-check-circle" style="color: var(--success-color); margin-right: 0.5rem;"></i>Sensor ' + action + ' successfully!');
             $('#responseModal').dialog('open');
             $('#editModal').dialog('close');
         },
         error: function(xhr, status, error) {
-            $('#modalMessage').html('<i class="fas fa-exclamation-triangle" style="color: var(--error-color); margin-right: 0.5rem;"></i>' + error);
+            let errorMessage = error;
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            }
+            $('#modalMessage').html('<i class="fas fa-exclamation-triangle" style="color: var(--error-color); margin-right: 0.5rem;"></i>' + errorMessage);
             $('#responseModal').dialog('open');
         }
     });
@@ -245,6 +279,101 @@ function getLatestTemperature(sensorID) {
         complete: function() {
             button.classList.remove('loading');
         }
+    });
+}
+
+// Generic jQuery UI confirmation dialog function
+function confirmDialog(message, yesCallback, options = {}) {
+    // Default options
+    const defaults = {
+        title: 'Confirm Action',
+        width: 350,
+        height: 'auto',
+        modal: true,
+        resizable: false,
+        draggable: true,
+        yesText: 'Yes',
+        noText: 'No',
+        yesClass: 'confirm-yes',
+        noClass: 'confirm-no',
+        position: { my: "center", at: "center", of: window }
+    };
+    
+    // Merge options with defaults
+    const settings = $.extend({}, defaults, options);
+    
+    // Set the message
+    $('#confirmation-message').html(message);
+    
+    // Configure dialog buttons
+    const buttons = {};
+    buttons[settings.noText] = {
+        text: settings.noText,
+        class: settings.noClass,
+        click: function() {
+            $(this).dialog('close');
+        }
+    };
+    buttons[settings.yesText] = {
+        text: settings.yesText,
+        class: settings.yesClass,
+        click: function() {
+            $(this).dialog('close');
+            if (typeof yesCallback === 'function') {
+                yesCallback();
+            }
+        }
+    };
+    
+    // Destroy existing dialog if it exists
+    if ($('#confirmation-dialog').hasClass('ui-dialog-content')) {
+        $('#confirmation-dialog').dialog('destroy');
+    }
+    
+    // Create and show the dialog
+    $('#confirmation-dialog').dialog({
+        title: settings.title,
+        width: settings.width,
+        height: settings.height,
+        modal: settings.modal,
+        resizable: settings.resizable,
+        draggable: settings.draggable,
+        position: settings.position,
+        buttons: buttons,
+        dialogClass: 'confirmation-dialog',
+        close: function() {
+            // Optional: Add any cleanup code here
+        }
+    });
+}
+
+// Demo functions
+function deleteSensor(sensorId) {
+    confirmDialog('Are you sure you want to delete this sensor?', function() {
+        $.ajax({
+            url: '/api/sensors/' + sensorId,
+            type: 'DELETE',
+            success: function(response) {
+                // Reload the table data
+                table.ajax.reload();                
+                $('#modalMessage').html('<i class="fas fa-check-circle" style="color: var(--success-color); margin-right: 0.5rem;"></i>Sensor deleted successfully!');
+                $('#responseModal').dialog('open');
+                $('#editModal').dialog('close');
+            },
+            error: function(xhr, status, error) {
+                let errorMessage = error;
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                $('#modalMessage').html('<i class="fas fa-exclamation-triangle" style="color: var(--error-color); margin-right: 0.5rem;"></i>' + errorMessage);
+                $('#responseModal').dialog('open');
+            }
+        });
+    }, {
+        title: 'Confirm Delete',
+        yesText: 'Delete',
+        noText: 'Cancel',
+        width: 400
     });
 }
 
@@ -294,6 +423,7 @@ $(function() {
         },
         close: function() {
             currentEditingSensor = null;
+            isAddingNewSensor = false;
         }
     });
 });
