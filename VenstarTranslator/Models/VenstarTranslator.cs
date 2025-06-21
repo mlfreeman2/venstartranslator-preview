@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Linq;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -15,35 +16,11 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 using VenstarTranslator.Models.Protobuf;
+using Newtonsoft.Json.Converters;
 
 namespace VenstarTranslator.DB
 {
-    public class VenstarTranslatorDataCache : DbContext
-    {
-        public DbSet<TranslatedVenstarSensor> Sensors { get; set; }
-
-        public VenstarTranslatorDataCache() { }
-
-        public VenstarTranslatorDataCache(DbContextOptions<VenstarTranslatorDataCache> options) : base(options) { }
-
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            modelBuilder
-                .Entity<TranslatedVenstarSensor>()
-                .Property(e => e.Purpose)
-                .HasConversion(v => v.ToString(), v => (SensorPurpose)Enum.Parse(typeof(SensorPurpose), v));
-            modelBuilder
-                .Entity<TranslatedVenstarSensor>()
-                .Property(e => e.Scale)
-                .HasConversion(v => v.ToString(), v => (TemperatureScale)Enum.Parse(typeof(TemperatureScale), v));
-            modelBuilder
-                .Entity<TranslatedVenstarSensor>()
-                .OwnsMany(a => a.Headers);
-
-        }
-    }
-
-    public class TranslatedVenstarSensor
+    public class TranslatedVenstarSensor : IValidatableObject
     {
         public static string macPrefix = "";
 
@@ -55,14 +32,14 @@ namespace VenstarTranslator.DB
 
         [JsonProperty(Order = 1)]
         [Key]
-        [Required(AllowEmptyStrings = false)]
-        [Range(0, 19, MinimumIsExclusive = false, MaximumIsExclusive = false)]
+        [Required(AllowEmptyStrings = false, ErrorMessage = "Sensor ID is required.")]
+        [Range(0, 19, ErrorMessage = "Sensor ID must be between 0 and 19.")]
         [DatabaseGenerated(DatabaseGeneratedOption.None)]
         public byte SensorID { get; set; }
 
         [JsonProperty(Order = 2)]
-        [MaxLength(14)]
-        [Required(AllowEmptyStrings = false)]
+        [Required(AllowEmptyStrings = false, ErrorMessage = "Sensor name is required and cannot be empty.")]
+        [MaxLength(14, ErrorMessage = "Sensor name cannot exceed 14 characters.")]
         public string Name { get; set; }
 
         [JsonProperty(Order = 3)]
@@ -71,10 +48,10 @@ namespace VenstarTranslator.DB
         [JsonIgnore]
         public ushort Sequence { get; set; }
 
-        [JsonProperty(Order = 4)]
+        [JsonIgnore]
         public string MacAddress => (macPrefix + SensorID.ToString("X2")).ToLower();
 
-        [JsonProperty(Order = 5)]
+        [JsonIgnore]
         public string Signature_Key
         {
             get
@@ -87,28 +64,43 @@ namespace VenstarTranslator.DB
             }
         }
 
-        [JsonProperty(Order = 6)]
-        [Required(AllowEmptyStrings = false)]
+        [JsonProperty(Order = 4)]
+        [JsonConverter(typeof(StringEnumConverter))]
+        [Required(ErrorMessage = "Sensor purpose is required.")]
         public SensorPurpose Purpose { get; set; }
 
-        [JsonProperty(Order = 7)]
-        [Required(AllowEmptyStrings = false)]
+        [JsonProperty(Order = 5)]
+        [JsonConverter(typeof(StringEnumConverter))]
+        [Required(ErrorMessage = "Temperature scale is required.")]
         public TemperatureScale Scale { get; set; }
 
-        [JsonProperty(Order = 8)]
-        [Required(AllowEmptyStrings = false)]
-        [Url]
+        [JsonProperty(Order = 6)]
+        [Required(AllowEmptyStrings = false, ErrorMessage = "URL is required and cannot be empty.")]
+        [ValidAbsoluteUrl]
         public string URL { get; set; }
 
-        [JsonProperty(Order = 9)]
+        [JsonProperty(Order = 7)]
         public bool IgnoreSSLErrors { get; set; }
 
-        [JsonProperty(Order = 10)]
-        [Required(AllowEmptyStrings = false)]
+        [JsonProperty(Order = 8)]
+        [Required(AllowEmptyStrings = false, ErrorMessage = "JSONPath is required.")]
+        [ValidJsonPath]
         public string JSONPath { get; set; }
 
-        [JsonProperty(Order = 11)]
+        [JsonProperty(Order = 9)]
+        [ValidHttpHeaders]
         public List<DataSourceHttpHeader> Headers { get; set; }
+
+        // IValidatableObject implementation for complex validation logic
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            var results = new List<ValidationResult>();
+
+            // Additional context-dependent validation can go here
+            // For example, validation that requires access to other services or configuration
+
+            return results;
+        }
 
         private SensorMessage BuildProtobufPacket()
         {
@@ -245,31 +237,25 @@ namespace VenstarTranslator.DB
         public int ID { get; set; }
 
         [JsonProperty(Order = 1)]
-        [Required(AllowEmptyStrings = false)]
+        [Required(AllowEmptyStrings = false, ErrorMessage = "Header name is required.")]
         public string Name { get; set; }
 
         [JsonProperty(Order = 2)]
-        [Required(AllowEmptyStrings = false)]
+        [Required(AllowEmptyStrings = false, ErrorMessage = "Header value is required.")]
         public string Value { get; set; }
     }
 
     public enum SensorPurpose
     {
         Outdoor = 1,
-
         Return = 2,
-
         Remote = 3,
-
         Supply = 4,
     }
 
     public enum TemperatureScale
     {
-        F,
-
-        C
+        F = 1,
+        C = 2
     }
-
-
 }

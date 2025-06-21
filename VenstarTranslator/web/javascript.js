@@ -1,16 +1,9 @@
 let currentEditingSensor = null;
-let sensors = [];
+let table;
 
 $(function() {
-    $.get('/api/sensors', function(data) {
-        sensors = data;
-    })
-})
-
-$(function() {
-    $.ajax('/api/sensors')
-
-    var table = $('#sensors').DataTable({
+    // Initialize DataTables
+    table = $('#sensors').DataTable({
         ajax: {
             url: '/api/sensors',
             dataSrc: ''
@@ -105,8 +98,8 @@ $(function() {
 });
 
 function editSensor(sensorID) {
-    // Find the sensor data
-    const sensor = sensors.find(s => s.sensorID === sensorID);
+    // Find the sensor data directly from DataTables
+    const sensor = table.rows().data().toArray().find(s => s.sensorID === sensorID);
     if (!sensor) {
         alert('Sensor not found');
         return;
@@ -115,7 +108,6 @@ function editSensor(sensorID) {
     currentEditingSensor = sensor;
 
     // Populate the form
-    $('#edit-sensorID').val(sensor.sensorID);
     $('#edit-name').val(sensor.name);
     $('#edit-enabled').prop('checked', sensor.enabled);
     $('#edit-purpose').val(sensor.purpose);
@@ -173,7 +165,6 @@ function saveSensor() {
 
     // Collect form data
     const formData = {
-        sensorID: parseInt($('#edit-sensorID').val()),
         name: $('#edit-name').val(),
         enabled: $('#edit-enabled').is(':checked'),
         purpose: $('#edit-purpose').val(),
@@ -193,17 +184,16 @@ function saveSensor() {
         }
     });
 
-    // Keep the sensitive fields from original data
-    formData.macAddress = currentEditingSensor.macAddress;
-    formData.signature_Key = currentEditingSensor.signature_Key;
+    formData.sensorID = currentEditingSensor.sensorID;
 
     $.ajax({
-        url: '/api/sensors/' + formData.sensorID,
+        url: '/api/sensors/',
         type: 'PUT',
         contentType: 'application/json',
         data: JSON.stringify(formData),
         success: function(response) {
-            $('#sensors').DataTable().ajax.reload();
+            // Reload the table data
+            table.ajax.reload();
             $('#modalMessage').html('<i class="fas fa-check-circle" style="color: var(--success-color); margin-right: 0.5rem;"></i>' + response.message);
             $('#responseModal').dialog('open');
             $('#editModal').dialog('close');
