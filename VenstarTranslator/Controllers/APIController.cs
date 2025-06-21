@@ -1,12 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Hangfire;
+
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+
 using Newtonsoft.Json;
+
 using VenstarTranslator.DB;
 
 namespace VenstarTranslator.Controllers
@@ -31,14 +35,14 @@ namespace VenstarTranslator.Controllers
         [Route("/api/pair/{id}")]
         public ActionResult SendPairingPacket(uint id)
         {
-            var sensor = _db.Sensors.FirstOrDefault(a => a.SensorID == id);
+            var sensor = _db.Sensors.Include(a => a.Headers).FirstOrDefault(a => a.SensorID == id);
             if (sensor == null)
             {
-                return new JsonResult(new { Message = "Sensor not found." });
+                return StatusCode(404, new { message = "Sensor not found." });
             }
             if (!sensor.Enabled)
             {
-                return new JsonResult(new { Message = "Sensor not enabled." });
+                return StatusCode(403, new { message = "Sensor not enabled." });
             }
 
             sensor.SendPairingPacket();
@@ -51,15 +55,16 @@ namespace VenstarTranslator.Controllers
         [Route("/api/sensors/{id}/latest")]
         public ActionResult GetReading(uint id)
         {
-            var sensor = _db.Sensors.FirstOrDefault(a => a.SensorID == id);
+            var sensor = _db.Sensors.Include(a => a.Headers).FirstOrDefault(a => a.SensorID == id);
             if (sensor == null)
             {
-                return new JsonResult(new { Message = "Sensor not found." });
+                return StatusCode(404, new { message = "Sensor not found." });
             }
             if (!sensor.Enabled)
             {
-                return new JsonResult(new { Message = "Sensor not enabled." });
+                return StatusCode(403, new { message = "Sensor not enabled." });
             }
+
             return new JsonResult(new { Temperature = sensor.GetLatestReading(), sensor.Scale });
         }
 
@@ -67,7 +72,7 @@ namespace VenstarTranslator.Controllers
         [Route("/api/sensors")]
         public ActionResult ListSensors()
         {
-            return new JsonResult(_db.Sensors.ToList());
+            return new JsonResult(_db.Sensors.Include(a => a.Headers).ToList());
         }
 
         [HttpPut]
@@ -76,7 +81,7 @@ namespace VenstarTranslator.Controllers
         {
             if (!_db.Sensors.Any(a => a.SensorID == proposedSensor.SensorID))
             {
-                return StatusCode(404, new { message = "Sensor not found to update." });
+                return StatusCode(404, new { message = "Sensor not found." });
             }
 
             // update working db
@@ -187,6 +192,11 @@ namespace VenstarTranslator.Controllers
         [Route("/api/sensors/{sensorId}")]
         public ActionResult DeleteSensor(int sensorId)
         {
+            if (!_db.Sensors.Any(a => a.SensorID == sensorId))
+            {
+                return StatusCode(404, new { message = "Sensor not found." });
+            }
+
             var sensorFilePath = _config.GetValue<string>("SensorFilePath");
 
             var currentDbSensor = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == sensorId);
