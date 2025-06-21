@@ -99,10 +99,9 @@ namespace VenstarTranslator.Controllers
             _db.SaveChanges();
 
             // update sensors.json
-            var sensorIdOffset = _config.GetValue<int>("SensorIdOffset");
             var sensorFilePath = _config.GetValue<string>("SensorFilePath");
             var fileSensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(System.IO.File.ReadAllText(sensorFilePath));
-            var currentFileSensor = fileSensors[proposedSensor.SensorID - sensorIdOffset];
+            var currentFileSensor = fileSensors[proposedSensor.SensorID];
             currentFileSensor.Name = proposedSensor.Name;
             currentFileSensor.Enabled = proposedSensor.Enabled;
             currentFileSensor.URL = proposedSensor.URL;
@@ -140,11 +139,11 @@ namespace VenstarTranslator.Controllers
             {
                 var rjo = new RecurringJobOptions() { TimeZone = TimeZoneInfo.Local };
                 var cronString = sensor.Purpose == SensorPurpose.Outdoor ? "*/5 * * * *" : "* * * * *";
-                RecurringJob.AddOrUpdate<Tasks>($"Sensor #{sensor.SensorID}: {sensor.Name}", a => a.SendDataPacket(sensor.SensorID), cronString, rjo);
+                RecurringJob.AddOrUpdate<Tasks>(sensor.HangfireJobName, a => a.SendDataPacket(sensor.SensorID), cronString, rjo);
             }
             else
             {
-                RecurringJob.RemoveIfExists($"Sensor #{sensor.SensorID}: {sensor.Name}");
+                RecurringJob.RemoveIfExists(sensor.HangfireJobName);
             }
         }
 
@@ -189,14 +188,14 @@ namespace VenstarTranslator.Controllers
         public ActionResult DeleteSensor(int sensorId)
         {
             var sensorFilePath = _config.GetValue<string>("SensorFilePath");
-            var sensorIdOffset = _config.GetValue<int>("SensorIdOffset");
 
             var currentDbSensor = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == sensorId);
+            RecurringJob.RemoveIfExists(currentDbSensor.HangfireJobName);
             _db.Sensors.Remove(currentDbSensor);
             _db.SaveChanges();
 
             var fileSensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(System.IO.File.ReadAllText(sensorFilePath));
-            fileSensors.RemoveAt(sensorId - sensorIdOffset);
+            fileSensors.RemoveAt(sensorId);
             System.IO.File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(fileSensors, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
             return Ok(new { message = "Successful!" });
         }

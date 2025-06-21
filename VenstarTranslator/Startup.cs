@@ -65,18 +65,18 @@ namespace VenstarTranslator
 
             dbContext.Database.EnsureCreated();
 
-            var sensorIdOffset = _config.GetValue<int>("SensorIdOffset");
-            ValidateSensorIdOffset(sensorIdOffset);
-
             var sensorFilePath = _config.GetValue<string>("SensorFilePath");
-            ValidateSensorFilePath(sensorFilePath);
+            if (string.IsNullOrWhiteSpace(sensorFilePath))
+            {
+                throw new FileNotFoundException("Sensor JSON file path not provided.");
+            }
 
             if (File.Exists(sensorFilePath))
             {
                 var sensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(File.ReadAllText(sensorFilePath));
-                ValidateSensorCollection(sensors, sensorIdOffset);
+                ValidateSensorCollection(sensors);
                 ValidateIndividualSensors(sensors);
-                UpdateDatabaseSensors(dbContext, sensors, sensorIdOffset);
+                UpdateDatabaseSensors(dbContext, sensors);
                 ScheduleSensorJobs(dbContext);
             }
 
@@ -97,19 +97,6 @@ namespace VenstarTranslator
                     DefaultRecordsPerPage = 50,
                 });
             });
-        }
-
-        private static void ValidateSensorIdOffset(int sensorIdOffset)
-        {
-            if (sensorIdOffset < 0)
-            {
-                throw new InvalidOperationException("The sensor ID offset is too low. It can not be below zero.");
-            }
-
-            if (sensorIdOffset > 18)
-            {
-                throw new InvalidOperationException("The sensor ID offset is too high. It can not be above 18. That would leave no IDs open for actual sensors.");
-            }
         }
 
         private static string ValidateAndGetMacPrefix(string fakeMacPrefix)
@@ -133,15 +120,7 @@ namespace VenstarTranslator
             return fakeMacPrefix;
         }
 
-        private static void ValidateSensorFilePath(string sensorFilePath)
-        {
-            if (string.IsNullOrWhiteSpace(sensorFilePath))
-            {
-                throw new FileNotFoundException("Sensor JSON file path not provided.");
-            }
-        }
-
-        private static void ValidateSensorCollection(List<TranslatedVenstarSensor> sensors, int sensorIdOffset)
+        private static void ValidateSensorCollection(List<TranslatedVenstarSensor> sensors)
         {
             if (sensors.Count > 20)
             {
@@ -151,12 +130,6 @@ namespace VenstarTranslator
             if (sensors.Count == 0)
             {
                 throw new InvalidOperationException("No sensors found in the configuration.");
-            }
-
-            // Check if sensor ID offset + count exceeds limit
-            if (sensorIdOffset + sensors.Count > 20)
-            {
-                throw new InvalidOperationException($"The sensor ID offset ({sensorIdOffset}) + number of sensors ({sensors.Count}) must be less than or equal to 20 (it was {sensorIdOffset + sensors.Count}).");
             }
 
             // Check if at least one sensor is enabled
@@ -195,11 +168,11 @@ namespace VenstarTranslator
             }
         }
 
-        private static void UpdateDatabaseSensors(VenstarTranslatorDataCache dbContext, List<TranslatedVenstarSensor> sensors, int sensorIdOffset)
+        private static void UpdateDatabaseSensors(VenstarTranslatorDataCache dbContext, List<TranslatedVenstarSensor> sensors)
         {
             for (int i = 0; i < sensors.Count; i++)
             {
-                sensors[i].SensorID = Convert.ToByte(i + sensorIdOffset);
+                sensors[i].SensorID = Convert.ToByte(i);
 
                 if (!dbContext.Sensors.Any(a => a.SensorID == sensors[i].SensorID))
                 {
@@ -249,8 +222,8 @@ namespace VenstarTranslator
                     continue;
                 }
 
-                var cronString = sensor.Purpose != SensorPurpose.Outdoor ? "* * * * *" : "*/5 * * * *";
-                RecurringJob.AddOrUpdate<Tasks>($"Sensor #{sensor.SensorID}: {sensor.Name}", a => a.SendDataPacket(sensor.SensorID), cronString, rjo);
+                var cronString = sensor.Purpose == SensorPurpose.Outdoor ? "*/5 * * * *" : "* * * * *";
+                RecurringJob.AddOrUpdate<Tasks>(sensor.HangfireJobName, a => a.SendDataPacket(sensor.SensorID), cronString, rjo);
             }
         }
     }

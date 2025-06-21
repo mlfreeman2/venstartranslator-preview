@@ -64,6 +64,9 @@ namespace VenstarTranslator.DB
             }
         }
 
+        [JsonIgnore]
+        public string HangfireJobName => $"Sensor #{SensorID}: {Name}";
+        
         [JsonProperty(Order = 4)]
         [JsonConverter(typeof(StringEnumConverter))]
         [Required(ErrorMessage = "Sensor purpose is required.")]
@@ -90,6 +93,7 @@ namespace VenstarTranslator.DB
         [JsonProperty(Order = 9)]
         [ValidHttpHeaders]
         public List<DataSourceHttpHeader> Headers { get; set; }
+
 
         // IValidatableObject implementation for complex validation logic
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
