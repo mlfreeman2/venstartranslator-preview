@@ -32,7 +32,7 @@ namespace VenstarTranslator.Controllers
         }
 
         [HttpGet]
-        [Route("/api/pair/{id}")]
+        [Route("/api/sensors/{id}/pair")]
         public ActionResult SendPairingPacket(uint id)
         {
             var sensor = _db.Sensors.Include(a => a.Headers).FirstOrDefault(a => a.SensorID == id);
@@ -138,20 +138,6 @@ namespace VenstarTranslator.Controllers
             return Ok(new { message = "Successful!" });
         }
 
-        private static void HangfireCleanup(TranslatedVenstarSensor sensor)
-        {
-            if (sensor.Enabled)
-            {
-                var rjo = new RecurringJobOptions() { TimeZone = TimeZoneInfo.Local };
-                var cronString = sensor.Purpose == SensorPurpose.Outdoor ? "*/5 * * * *" : "* * * * *";
-                RecurringJob.AddOrUpdate<Tasks>(sensor.HangfireJobName, a => a.SendDataPacket(sensor.SensorID), cronString, rjo);
-            }
-            else
-            {
-                RecurringJob.RemoveIfExists(sensor.HangfireJobName);
-            }
-        }
-
         [HttpPost]
         [Route("/api/sensors")]
         public ActionResult AddSensor(TranslatedVenstarSensor proposedSensor)
@@ -189,25 +175,39 @@ namespace VenstarTranslator.Controllers
         }
 
         [HttpDelete]
-        [Route("/api/sensors/{sensorId}")]
-        public ActionResult DeleteSensor(int sensorId)
+        [Route("/api/sensors/{id}")]
+        public ActionResult DeleteSensor(int id)
         {
-            if (!_db.Sensors.Any(a => a.SensorID == sensorId))
+            if (!_db.Sensors.Any(a => a.SensorID == id))
             {
                 return StatusCode(404, new { message = "Sensor not found." });
             }
 
-            var sensorFilePath = _config.GetValue<string>("SensorFilePath");
 
-            var currentDbSensor = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == sensorId);
+            var currentDbSensor = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == id);
             RecurringJob.RemoveIfExists(currentDbSensor.HangfireJobName);
             _db.Sensors.Remove(currentDbSensor);
             _db.SaveChanges();
 
+            var sensorFilePath = _config.GetValue<string>("SensorFilePath");
             var fileSensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(System.IO.File.ReadAllText(sensorFilePath));
-            fileSensors.RemoveAt(sensorId);
+            fileSensors.RemoveAt(id);
             System.IO.File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(fileSensors, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
             return Ok(new { message = "Successful!" });
+        }
+
+        private static void HangfireCleanup(TranslatedVenstarSensor sensor)
+        {
+            if (sensor.Enabled)
+            {
+                var rjo = new RecurringJobOptions() { TimeZone = TimeZoneInfo.Local };
+                var cronString = sensor.Purpose == SensorPurpose.Outdoor ? "*/5 * * * *" : "* * * * *";
+                RecurringJob.AddOrUpdate<Tasks>(sensor.HangfireJobName, a => a.SendDataPacket(sensor.SensorID), cronString, rjo);
+            }
+            else
+            {
+                RecurringJob.RemoveIfExists(sensor.HangfireJobName);
+            }
         }
     }
 }

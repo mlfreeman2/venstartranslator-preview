@@ -244,7 +244,7 @@ function sendPairingPacket(sensorID) {
     button.classList.add('loading');
     
     $.ajax({
-        url: '/api/pair/' + sensorID,
+        url: '/api/sensors/' + sensorID + '/pair',
         type: 'GET',
         success: function(response) {
             $('#modalMessage').html('<i class="fas fa-check-circle" style="color: var(--success-color); margin-right: 0.5rem;"></i>' + response.message);
