@@ -10,8 +10,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 using Newtonsoft.Json;
-
+using Newtonsoft.Json.Linq;
 using VenstarTranslator.DB;
+using VenstarTranslator.Models;
 
 namespace VenstarTranslator.Controllers
 {
@@ -64,8 +65,16 @@ namespace VenstarTranslator.Controllers
             {
                 return StatusCode(403, new { message = "Sensor not enabled." });
             }
+            try
+            {
+                var reading = sensor.GetLatestReading();
+                return new JsonResult(new { Temperature = reading, sensor.Scale });
+            }
+            catch (InvalidOperationException e)
+            {
+                return StatusCode(400, new { e.Message });
+            }
 
-            return new JsonResult(new { Temperature = sensor.GetLatestReading(), sensor.Scale });
         }
 
         [HttpGet]
@@ -77,99 +86,60 @@ namespace VenstarTranslator.Controllers
 
         [HttpPut]
         [Route("/api/sensors")]
-        public ActionResult UpdateSensor(TranslatedVenstarSensor proposedSensor)
+        public ActionResult UpdateSensor(TranslatedVenstarSensor updated)
         {
-            if (!_db.Sensors.Any(a => a.SensorID == proposedSensor.SensorID))
+            if (!_db.Sensors.Any(a => a.SensorID == updated.SensorID))
             {
                 return StatusCode(404, new { message = "Sensor not found." });
             }
 
             // update working db
-            var currentDbSensor = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == proposedSensor.SensorID);
-            currentDbSensor.Name = proposedSensor.Name;
-            currentDbSensor.Enabled = proposedSensor.Enabled;
-            currentDbSensor.URL = proposedSensor.URL;
-            currentDbSensor.Purpose = proposedSensor.Purpose;
-            currentDbSensor.JSONPath = proposedSensor.JSONPath;
-            currentDbSensor.Scale = proposedSensor.Scale;
-            currentDbSensor.IgnoreSSLErrors = proposedSensor.IgnoreSSLErrors;
-
-            currentDbSensor.Headers.Clear();
+            var current = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == updated.SensorID);
+            current.Name = updated.Name;
+            current.Enabled = updated.Enabled;
+            current.URL = updated.URL;
+            current.Purpose = updated.Purpose;
+            current.JSONPath = updated.JSONPath;
+            current.Scale = updated.Scale;
+            current.IgnoreSSLErrors = updated.IgnoreSSLErrors;
+            current.Headers.Clear();
             _db.SaveChanges();
 
-            if (proposedSensor.Headers != null && proposedSensor.Headers.Any())
+            if (updated.Headers != null && updated.Headers.Any())
             {
-                currentDbSensor.Headers.AddRange(proposedSensor.Headers);
+                current.Headers.AddRange(updated.Headers);
             }
             _db.SaveChanges();
 
-            // update sensors.json
-            var sensorFilePath = _config.GetValue<string>("SensorFilePath");
-            var fileSensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(System.IO.File.ReadAllText(sensorFilePath));
-            var currentFileSensor = fileSensors[proposedSensor.SensorID];
-            currentFileSensor.Name = proposedSensor.Name;
-            currentFileSensor.Enabled = proposedSensor.Enabled;
-            currentFileSensor.URL = proposedSensor.URL;
-            currentFileSensor.Purpose = proposedSensor.Purpose;
-            currentFileSensor.JSONPath = proposedSensor.JSONPath;
-            currentFileSensor.Scale = proposedSensor.Scale;
-            currentFileSensor.IgnoreSSLErrors = proposedSensor.IgnoreSSLErrors;
-
-            if (proposedSensor.Headers != null && proposedSensor.Headers.Any())
-            {
-                if (currentFileSensor.Headers != null)
-                {
-                    currentFileSensor.Headers.Clear();
-                }
-                else
-                {
-                    currentFileSensor.Headers = [];
-                }
-                currentFileSensor.Headers.AddRange(proposedSensor.Headers);
-            }
-            else
-            {
-                currentFileSensor.Headers = null;
-            }
-            System.IO.File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(fileSensors, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
-
-            HangfireCleanup(currentDbSensor);
+            SyncToSensorsJson(_config, _db);
+            current.SyncHangfire();
 
             return Ok(new { message = "Successful!" });
         }
 
         [HttpPost]
         [Route("/api/sensors")]
-        public ActionResult AddSensor(TranslatedVenstarSensor proposedSensor)
+        public ActionResult AddSensor(TranslatedVenstarSensor sensor)
         {
-            var sensorFilePath = _config.GetValue<string>("SensorFilePath");
-
-            if (!_db.Sensors.Any())
+            sensor.SensorID = 20;
+            for (byte i = 0; i <= 19; i++)
             {
-                proposedSensor.SensorID = Convert.ToByte(0);
-                _db.Sensors.Add(proposedSensor);
-                _db.SaveChanges();
-
-                var fileSensors = new List<TranslatedVenstarSensor> { proposedSensor };
-                System.IO.File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(fileSensors, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
-            }
-            else
-            {
-                if (_db.Sensors.Max(a => a.SensorID) >= 19)
+                if (!_db.Sensors.Any(a => a.SensorID == i))
                 {
-                    return StatusCode(400, new { message = "Too many sensors." });
+                    sensor.SensorID = i;
+                    break;
                 }
-
-                proposedSensor.SensorID = Convert.ToByte(_db.Sensors.Any() ? _db.Sensors.Max(a => a.SensorID) + 1 : 0);
-                _db.Sensors.Add(proposedSensor);
-                _db.SaveChanges();
-
-                var fileSensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(System.IO.File.ReadAllText(sensorFilePath));
-                fileSensors.Add(proposedSensor);
-                System.IO.File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(fileSensors, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
             }
 
-            HangfireCleanup(proposedSensor);
+            if (sensor.SensorID > 19)
+            {
+                return StatusCode(400, new { message = "No sensor IDs available. Delete some sensors first." });
+            }
+
+            _db.Sensors.Add(sensor);
+            _db.SaveChanges();
+            SyncToSensorsJson(_config, _db);
+            sensor.SyncHangfire();
 
             return Ok(new { message = "Successful!" });
         }
@@ -183,31 +153,32 @@ namespace VenstarTranslator.Controllers
                 return StatusCode(404, new { message = "Sensor not found." });
             }
 
-
-            var currentDbSensor = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == id);
-            RecurringJob.RemoveIfExists(currentDbSensor.HangfireJobName);
-            _db.Sensors.Remove(currentDbSensor);
+            var sensor = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == id);
+            sensor.Enabled = false;
+            sensor.SyncHangfire();
+            _db.Sensors.Remove(sensor);
             _db.SaveChanges();
 
-            var sensorFilePath = _config.GetValue<string>("SensorFilePath");
-            var fileSensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(System.IO.File.ReadAllText(sensorFilePath));
-            fileSensors.RemoveAt(id);
-            System.IO.File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(fileSensors, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
+            SyncToSensorsJson(_config, _db);
+
             return Ok(new { message = "Successful!" });
         }
 
-        private static void HangfireCleanup(TranslatedVenstarSensor sensor)
+        private static void SyncToSensorsJson(IConfiguration _config, VenstarTranslatorDataCache _db)
         {
-            if (sensor.Enabled)
-            {
-                var rjo = new RecurringJobOptions() { TimeZone = TimeZoneInfo.Local };
-                var cronString = sensor.Purpose == SensorPurpose.Outdoor ? "*/5 * * * *" : "* * * * *";
-                RecurringJob.AddOrUpdate<Tasks>(sensor.HangfireJobName, a => a.SendDataPacket(sensor.SensorID), cronString, rjo);
-            }
-            else
-            {
-                RecurringJob.RemoveIfExists(sensor.HangfireJobName);
-            }
+            // update sensors.json
+            var sensorFilePath = _config.GetValue<string>("SensorFilePath");
+            var dbDump = _db.Sensors.Include(a => a.Headers).AsNoTracking().ToList();
+            System.IO.File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(dbDump, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
+        }
+
+        [HttpPost]
+        [Route("/api/testjsonpath")]
+        public ActionResult TestJsonPath(JSONPathTest test)
+        {
+            var doc = JObject.Parse(test.JSONDocument);
+            var result = doc.SelectTokens(test.Query);
+            return Ok(JsonConvert.SerializeObject(result, Formatting.Indented));
         }
     }
 }

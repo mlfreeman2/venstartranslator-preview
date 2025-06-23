@@ -74,10 +74,40 @@ namespace VenstarTranslator
             if (File.Exists(sensorFilePath))
             {
                 var sensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(File.ReadAllText(sensorFilePath));
-                ValidateSensorCollection(sensors);
+
+                if (sensors.Count > 20)
+                {
+                    throw new InvalidOperationException("Too many sensors specified. Only 20 sensors are supported.");
+                }
+
+                if (sensors.Count == 0)
+                {
+                    throw new InvalidOperationException("No sensors found in the configuration.");
+                }
+
+                // Check if at least one sensor is enabled
+                if (sensors.All(s => s.Enabled == false))
+                {
+                    throw new InvalidOperationException("No sensors enabled in the configuration.");
+                }
+
+                // Check for duplicate names
+                if (sensors.Select(s => s.Name).Distinct().Count() < sensors.Count)
+                {
+                    throw new InvalidOperationException("One or more sensor names appear in multiple sensor entries.");
+                }
+                
                 ValidateIndividualSensors(sensors);
                 UpdateDatabaseSensors(dbContext, sensors);
-                ScheduleSensorJobs(dbContext);
+
+                // update sensors.json
+                var dbDump = dbContext.Sensors.Include(a => a.Headers).AsNoTracking().ToList();
+                File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(dbDump, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
+
+                foreach (var sensor in dbContext.Sensors.ToList())
+                {
+                    sensor.SyncHangfire();
+                }
             }
 
             app.UseFileServer(new FileServerOptions
@@ -120,30 +150,6 @@ namespace VenstarTranslator
             return fakeMacPrefix;
         }
 
-        private static void ValidateSensorCollection(List<TranslatedVenstarSensor> sensors)
-        {
-            if (sensors.Count > 20)
-            {
-                throw new InvalidOperationException("Too many sensors specified. Only 20 sensors are supported.");
-            }
-
-            if (sensors.Count == 0)
-            {
-                throw new InvalidOperationException("No sensors found in the configuration.");
-            }
-
-            // Check if at least one sensor is enabled
-            if (sensors.All(s => s.Enabled == false))
-            {
-                throw new InvalidOperationException("No sensors enabled in the configuration.");
-            }
-
-            // Check for duplicate names
-            if (sensors.Select(s => s.Name).Distinct().Count() < sensors.Count)
-            {
-                throw new InvalidOperationException("One or more sensor names appear in multiple sensor entries.");
-            }
-        }
 
         private static void ValidateIndividualSensors(List<TranslatedVenstarSensor> sensors)
         {
@@ -210,21 +216,6 @@ namespace VenstarTranslator
                 }
             }
             dbContext.SaveChanges();
-        }
-
-        private static void ScheduleSensorJobs(VenstarTranslatorDataCache dbContext)
-        {
-            var rjo = new RecurringJobOptions() { TimeZone = TimeZoneInfo.Local };
-            foreach (var sensor in dbContext.Sensors.ToList())
-            {
-                if (!sensor.Enabled)
-                {
-                    continue;
-                }
-
-                var cronString = sensor.Purpose == SensorPurpose.Outdoor ? "*/5 * * * *" : "* * * * *";
-                RecurringJob.AddOrUpdate<Tasks>(sensor.HangfireJobName, a => a.SendDataPacket(sensor.SensorID), cronString, rjo);
-            }
         }
     }
 }

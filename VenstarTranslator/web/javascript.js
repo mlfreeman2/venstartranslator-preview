@@ -266,14 +266,15 @@ function getLatestTemperature(sensorID) {
     
     $.ajax({
         url: '/api/sensors/' + sensorID + "/latest",
-        type: 'GET',
+        type: 'GET',       
         success: function(response) {
             $('#modalMessage').html('<i class="fas fa-thermometer-half" style="color: var(--primary-color); margin-right: 0.5rem;"></i>' + 
-                                    '<strong>' + response.temperature + "°" + response.scale + '</strong>');
+                                '<strong>' + response.temperature + "°" + response.scale + '</strong>');
             $('#responseModal').dialog('open');
         },
         error: function(xhr, status, error) {
-            $('#modalMessage').html('<i class="fas fa-exclamation-triangle" style="color: var(--error-color); margin-right: 0.5rem;"></i>' + error);
+            let msg = xhr.responseJSON.message ? xhr.responseJSON.message : error;
+            $('#modalMessage').html('<i class="fas fa-exclamation-triangle" style="color: var(--error-color); margin-right: 0.5rem;"></i>' + msg);
             $('#responseModal').dialog('open');
         },
         complete: function() {

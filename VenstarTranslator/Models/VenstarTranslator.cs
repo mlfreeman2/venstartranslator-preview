@@ -17,6 +17,7 @@ using Newtonsoft.Json.Linq;
 
 using VenstarTranslator.Models.Protobuf;
 using Newtonsoft.Json.Converters;
+using Hangfire;
 
 namespace VenstarTranslator.DB
 {
@@ -66,7 +67,7 @@ namespace VenstarTranslator.DB
 
         [JsonIgnore]
         public string HangfireJobName => $"Sensor #{SensorID}: {Name}";
-        
+
         [JsonProperty(Order = 4)]
         [JsonConverter(typeof(StringEnumConverter))]
         [Required(ErrorMessage = "Sensor purpose is required.")]
@@ -168,7 +169,7 @@ namespace VenstarTranslator.DB
             return dataPacket;
         }
 
-        private void Send(byte[] bytes)
+        private static void Send(byte[] bytes)
         {
             using UdpClient udpClient = new() { EnableBroadcast = true };
             udpClient.Connect("255.255.255.255", 5001);
@@ -189,47 +190,55 @@ namespace VenstarTranslator.DB
             Send(ToPairingPacket().Serialize());
         }
 
+        public void SyncHangfire()
+        {
+            if (Enabled)
+            {
+                var rjo = new RecurringJobOptions() { TimeZone = TimeZoneInfo.Local };
+                var cronString = Purpose == SensorPurpose.Outdoor ? "*/5 * * * *" : "* * * * *";
+                RecurringJob.AddOrUpdate<Tasks>(HangfireJobName, a => a.SendDataPacket(SensorID), cronString, rjo);
+            }
+            else
+            {
+                RecurringJob.RemoveIfExists(HangfireJobName);
+            }
+        }
+
         public double GetLatestReading()
         {
-            using (var clientHandler = new HttpClientHandler())
+            using var clientHandler = new HttpClientHandler();
+            if (IgnoreSSLErrors)
             {
-                if (IgnoreSSLErrors)
-                {
-                    clientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-                }
-
-                using (var client = new HttpClient(clientHandler))
-                {
-                    var request = new HttpRequestMessage(HttpMethod.Get, URL);
-                    foreach (var header in Headers)
-                    {
-                        request.Headers.Add(header.Name, header.Value);
-                    }
-
-                    var response = client.SendAsync(request).GetAwaiter().GetResult();
-                    response.EnsureSuccessStatusCode();
-
-                    var responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-
-                    var target = "";
-                    // if we don't have a JSON path expression, just look at the whole response body for the first number
-                    if (!string.IsNullOrWhiteSpace(JSONPath))
-                    {
-                        var jToken = JToken.Parse(responseBody);
-                        var field = jToken.SelectToken(JSONPath).Value<string>();
-                        // extract a positive or negative (brrr) number from the field regardless of other crap in it too
-                        target = Regex.Match(field, @"(-?\d+(.\d+)?)").Value;
-                    }
-                    else
-                    {
-                        // try to extract a positive or negative (brrr) number from the field regardless of other crap in it too
-                        // maybe we can support non-json responses this way
-                        target = Regex.Match(responseBody, @"(-?\d+(.\d+)?)").Value;
-                    }
-
-                    return Convert.ToDouble(target);
-                }
+                clientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
             }
+
+            using var client = new HttpClient(clientHandler);
+            var request = new HttpRequestMessage(HttpMethod.Get, URL);
+            foreach (var header in Headers)
+            {
+                request.Headers.Add(header.Name, header.Value);
+            }
+
+            var response = client.SendAsync(request).GetAwaiter().GetResult();
+            response.EnsureSuccessStatusCode();
+
+            var responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            var jToken = JToken.Parse(responseBody);
+            var field = jToken.SelectToken(JSONPath)?.Value<string>();
+
+            if (string.IsNullOrWhiteSpace(field))
+            {
+                throw new InvalidOperationException("The specified JSON Path failed to find anything.");
+            }
+
+            // extract a positive or negative (brrr) number from the field regardless of other crap in it too
+            var target = Regex.Match(field, @"(-?\d+(.\d+)?)").Value;
+            if (string.IsNullOrWhiteSpace(target))
+            {
+                throw new InvalidOperationException("The specified JSON Path found a non-numeric value.");
+            }
+            return Convert.ToDouble(target);
         }
     }
 
