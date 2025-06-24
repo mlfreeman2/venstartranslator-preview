@@ -176,9 +176,40 @@ namespace VenstarTranslator.Controllers
         [Route("/api/testjsonpath")]
         public ActionResult TestJsonPath(JSONPathTest test)
         {
-            var doc = JObject.Parse(test.JSONDocument);
-            var result = doc.SelectTokens(test.Query);
-            return Ok(JsonConvert.SerializeObject(result, Formatting.Indented));
+            try
+            {
+                if (string.IsNullOrWhiteSpace(test?.JSONDocument))
+                {
+                    return StatusCode(400, "Error: JSON Document is required.");
+                }
+                if (string.IsNullOrWhiteSpace(test?.Query))
+                {
+                    return StatusCode(400, "Error: JSON Path Query is required.");
+                }
+                var doc = JObject.Parse(test.JSONDocument);
+                var result = doc.SelectTokens(test.Query);
+                if (!result.Any())
+                {
+                    return Ok("No results found.");
+                }
+                if (result.Count() > 1)
+                {
+                    return Ok($"Multiple results found. Only the first one would be used.\n====\n{JsonConvert.SerializeObject(result, Formatting.Indented)}");
+                }
+                return Ok($"This is what would be transmitted as the temperature:\n====\n{result.First()}");
+            }
+            catch (JsonReaderException e)
+            {
+                return StatusCode(400, $"JSON Document Error:\n====\n({e.Message})");
+            }
+            catch (JsonException e)
+            {
+                return StatusCode(400, $"JSON Path Error:\n====\n{e.Message}");
+            }
+            catch (Exception e)
+            {
+                return StatusCode(400, $"System Error:\n====\n{e.Message}");
+            }
         }
     }
 }
