@@ -20,7 +20,7 @@
         rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
     <link href="style.css" rel="stylesheet" />
-    
+
     <style>
         .json-path-row {
             display: flex;
@@ -28,30 +28,30 @@
             gap: 15px;
             margin-bottom: 20px;
         }
-        
+
         .json-path-input {
             flex: 1;
         }
-        
+
         .json-path-input .form-label {
             margin-bottom: 5px;
         }
-        
+
         .textareas-container {
             display: flex;
             gap: 20px;
             margin-top: 20px;
         }
-        
+
         .textarea-column {
             flex: 1;
         }
-        
+
         .textarea-column .form-label {
             margin-bottom: 5px;
             font-weight: 600;
         }
-        
+
         .large-textarea {
             width: 100%;
             height: 400px;
@@ -63,17 +63,17 @@
             border-radius: 8px;
             background-color: #f8fafc;
         }
-        
+
         .large-textarea:focus {
             outline: none;
             border-color: #3b82f6;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
-        
+
         #result-textarea {
             background-color: #f1f5f9;
         }
-        
+
         .btn-test {
             white-space: nowrap;
             margin-bottom: 0;
@@ -90,12 +90,12 @@
                 </div>
                 <h2 class="card-title">JSON Path Tester (JSON.Net Syntax)</h2>
                 <div class="card-actions">
-                    <button class="btn btn-secondary" onclick="window.location='./index.html'">
+                    <button class="btn btn-secondary" onclick="window.close()">
                         <i class="fas fa-backward"></i> Back to Sensor Config
                     </button>
                 </div>
             </div>
-            
+
             <div class="json-path-row">
                 <div class="json-path-input">
                     <label class="form-label">JSON Path Query</label>
@@ -105,7 +105,7 @@
                     <i class="fa-brands fa-js"></i> Test JSON Path
                 </button>
             </div>
-            
+
             <div class="textareas-container">
                 <div class="textarea-column">
                     <label class="form-label">JSON Document</label>
@@ -125,37 +125,37 @@
             const query = document.getElementById('query').value.trim();
             const jsonDocument = document.getElementById('json-document').value.trim();
             const resultTextarea = document.getElementById('result-textarea');
-            
+
             // Clear previous results
             resultTextarea.value = '';
-            
+
             // Validate inputs
             if (!query) {
                 resultTextarea.value = 'Error: JSON Path Query is required.';
                 return;
             }
-            
+
             if (!jsonDocument) {
                 resultTextarea.value = 'Error: JSON Document is required.';
                 return;
             }
-            
+
             // Show loading state
             resultTextarea.value = 'Testing JSON Path...';
-            
+
             // Prepare data for POST request
             const requestData = {
                 query: query,
                 jsonDocument: jsonDocument
             };
-            
+
             // Make the HTTP POST request
             $.ajax({
                 url: '/api/testjsonpath',
                 type: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify(requestData),
-                success: function(response) {
+                success: function (response) {
                     // Handle successful response
                     if (typeof response === 'string') {
                         resultTextarea.value = response;
@@ -163,10 +163,10 @@
                         resultTextarea.value = JSON.stringify(response, null, 2);
                     }
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     // Handle error response
                     let errorMessage = '';
-                    
+
                     if (xhr.responseText) {
                         try {
                             const errorResponse = JSON.parse(xhr.responseText);
@@ -177,18 +177,18 @@
                     } else {
                         errorMessage += `HTTP ${xhr.status} - ${error}`;
                     }
-                    
+
                     resultTextarea.value = errorMessage;
                 },
-                complete: function() {
+                complete: function () {
                     // This runs regardless of success or error
                     console.log('JSON Path test completed');
                 }
             });
         }
-        
+
         // Allow Enter key to trigger test in the query input
-        document.getElementById('query').addEventListener('keypress', function(e) {
+        document.getElementById('query').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 testJsonPath();

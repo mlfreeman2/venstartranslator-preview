@@ -113,7 +113,7 @@ namespace VenstarTranslator
             app.UseFileServer(new FileServerOptions
             {
                 FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "web")),
-                RequestPath = "/ui"
+                RequestPath = ""
             });
             app.UseRouting();
             app.UseAuthorization();
