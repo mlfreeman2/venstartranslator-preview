@@ -73,40 +73,44 @@ namespace VenstarTranslator
 
             if (File.Exists(sensorFilePath))
             {
-                var sensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(File.ReadAllText(sensorFilePath));
-
-                if (sensors.Count > 20)
+                var contents = File.ReadAllText(sensorFilePath);
+                if (!string.IsNullOrWhiteSpace(contents))
                 {
-                    throw new InvalidOperationException("Too many sensors specified. Only 20 sensors are supported.");
-                }
+                    var sensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(File.ReadAllText(sensorFilePath));
 
-                if (sensors.Count == 0)
-                {
-                    throw new InvalidOperationException("No sensors found in the configuration.");
-                }
+                    if (sensors.Count > 20)
+                    {
+                        throw new InvalidOperationException("Too many sensors specified. Only 20 sensors are supported.");
+                    }
 
-                // Check if at least one sensor is enabled
-                if (sensors.All(s => s.Enabled == false))
-                {
-                    throw new InvalidOperationException("No sensors enabled in the configuration.");
-                }
+                    if (sensors.Count == 0)
+                    {
+                        throw new InvalidOperationException("No sensors found in the configuration.");
+                    }
 
-                // Check for duplicate names
-                if (sensors.Select(s => s.Name).Distinct().Count() < sensors.Count)
-                {
-                    throw new InvalidOperationException("One or more sensor names appear in multiple sensor entries.");
-                }
-                
-                ValidateIndividualSensors(sensors);
-                UpdateDatabaseSensors(dbContext, sensors);
+                    // Check if at least one sensor is enabled
+                    if (sensors.All(s => s.Enabled == false))
+                    {
+                        throw new InvalidOperationException("No sensors enabled in the configuration.");
+                    }
 
-                // update sensors.json
-                var dbDump = dbContext.Sensors.Include(a => a.Headers).AsNoTracking().ToList();
-                File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(dbDump, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
+                    // Check for duplicate names
+                    if (sensors.Select(s => s.Name).Distinct().Count() < sensors.Count)
+                    {
+                        throw new InvalidOperationException("One or more sensor names appear in multiple sensor entries.");
+                    }
 
-                foreach (var sensor in dbContext.Sensors.ToList())
-                {
-                    sensor.SyncHangfire();
+                    ValidateIndividualSensors(sensors);
+                    UpdateDatabaseSensors(dbContext, sensors);
+
+                    // update sensors.json
+                    var dbDump = dbContext.Sensors.Include(a => a.Headers).AsNoTracking().ToList();
+                    File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(dbDump, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
+
+                    foreach (var sensor in dbContext.Sensors.ToList())
+                    {
+                        sensor.SyncHangfire();
+                    }
                 }
             }
 
