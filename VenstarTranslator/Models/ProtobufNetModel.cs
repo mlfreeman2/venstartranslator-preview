@@ -1,11 +1,74 @@
 using System;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-
+using System.Net;
 using ProtoBuf;
 
 namespace VenstarTranslator.Models.Protobuf
 {
+
+    [ProtoContract]
+    public class SensorMessage
+    {
+        public enum Commands
+        {
+            SETSENSORNAME = 41,
+            SENSORDATA = 42,
+            SENSORPAIR = 43,
+            WIFICONFIG = 44,
+            WIFISCANRESULTS = 45,
+            FIRMWARECHUNK = 46,
+            FIRMWARECOMPLETE = 47,
+            SUCCESS = 126,
+            FAILURE = 127
+        }
+
+        [ProtoMember(1)]
+        public Commands Command { get; set; }
+
+        [ProtoMember(41)]
+        public SENSORNAME SensorName { get; set; }
+
+        [ProtoMember(42)]
+        public SENSORDATA SensorData { get; set; }
+
+        [ProtoMember(44)]
+        public WIFICONFIG WifiConfig { get; set; }
+
+        [ProtoMember(45)]
+        public WIFISCANRESULTS WifiScanResults { get; set; }
+
+        [ProtoMember(46)]
+        public FIRMWARECHUNK FirmwareChunk { get; set; }
+
+        [ProtoMember(47)]
+        public FIRMWARECOMPLETE FirmwareComplete { get; set; }
+
+        public byte[] Serialize()
+        {
+            using (var stream = new System.IO.MemoryStream())
+            {
+                Serializer.Serialize(stream, this);
+                return stream.ToArray();
+            }
+        }
+
+        // Convert byte array to hex string with spaces
+        // useful to debug
+        public string ToHexString()
+        {
+            return BitConverter.ToString(Serialize()).Replace("-", " ");
+        }
+    }
+
+    [ProtoContract]
+    public class SENSORDATA
+    {
+        [ProtoMember(1)]
+        public INFO Info { get; set; } = new INFO();
+
+        [ProtoMember(2)]
+        public string Signature { get; set; } = string.Empty;
+    }
 
     [ProtoContract]
     public class INFO
@@ -36,6 +99,7 @@ namespace VenstarTranslator.Models.Protobuf
         public byte SensorId { get; set; }
 
         [ProtoMember(3, IsRequired = true)]
+        [RegularExpression("^[0-9a-f]{12}$", ErrorMessage = "Must be exactly 12 characters long and contain only 0-9 and a-f. Do not include dashes or colons in the MAC.")]
         public string Mac { get; set; } = string.Empty;
 
         [ProtoMember(4, IsRequired = true)]
@@ -65,42 +129,42 @@ namespace VenstarTranslator.Models.Protobuf
 
         [ProtoMember(12)]
         public byte Humidity { get; set; }
+
+        public byte[] Serialize()
+        {
+            using (var stream = new System.IO.MemoryStream())
+            {
+                Serializer.Serialize(stream, this);
+                return stream.ToArray();
+            }
+        }
     }
 
     [ProtoContract]
     public class SENSORNAME
     {
-        [ProtoMember(8)]
+        [ProtoMember(8, IsRequired = true)]
+        [MaxLength(14)]
         public string Name { get; set; } = string.Empty;
-    }
-
-    [ProtoContract]
-    public class SENSORDATA
-    {
-        [ProtoMember(1)]
-        public INFO Info { get; set; } = new INFO();
-
-        [ProtoMember(2)]
-        public string Signature { get; set; } = string.Empty;
     }
 
     [ProtoContract]
     public class WIFICONFIG
     {
-        [ProtoMember(1)]
+        [ProtoMember(1, IsRequired = true)]
         public string SSID { get; set; } = string.Empty;
 
-        [ProtoMember(2)]
+        [ProtoMember(2, IsRequired = true)]
         public byte SecurityType { get; set; } // 0 = none, 1 = WEP, 2 = WPA, 3 = WPA2
 
-        [ProtoMember(3)]
+        [ProtoMember(3, IsRequired = true)]
         public byte DHCP { get; set; } // 0 = Static IP, 1 = DHCP, 2 = RFC3927 Link Local IP
 
         [ProtoMember(4)]
-        public string? Password { get; set; }
+        public string Password { get; set; }
 
         [ProtoMember(5)]
-        public uint? IPv4Address { get; set; }
+        public uint? IPv4_Address { get; set; }
 
         [ProtoMember(6)]
         public uint? Mask { get; set; }
@@ -110,18 +174,136 @@ namespace VenstarTranslator.Models.Protobuf
 
         [ProtoMember(8)]
         public uint? DnsAddress { get; set; }
+
+        public void SetIPv4_Address(string addr)
+        {
+            IPv4_Address = IPv4ToUInt32(addr);
+        }
+
+        public void SetIPv4_Address(IPAddress addr)
+        {
+            IPv4_Address = IPAddressToUInt32(addr);
+        }
+
+        public IPAddress GetIPv4_Address()
+        {
+            if (IPv4_Address == null)
+            {
+                return null;
+            }
+            return UInt32ToIPAddress(IPv4_Address.Value);
+        }
+
+        public void SetMask(string addr)
+        {
+            Mask = IPv4ToUInt32(addr);
+        }
+
+        public void SetMask(IPAddress addr)
+        {
+            Mask = IPAddressToUInt32(addr);
+        }
+
+        public IPAddress GetMask()
+        {
+            if (Mask == null)
+            {
+                return null;
+            }
+            return UInt32ToIPAddress(Mask.Value);
+        }
+
+        public void SetGateway(string addr)
+        {
+            Gateway = IPv4ToUInt32(addr);
+        }
+
+        public void SetGateway(IPAddress addr)
+        {
+            Gateway = IPAddressToUInt32(addr);
+        }
+
+        public IPAddress GetGateway()
+        {
+            if (Gateway == null)
+            {
+                return null;
+            }
+            return UInt32ToIPAddress(Gateway.Value);
+        }
+        public void SetDnsAddress(string addr)
+        {
+            DnsAddress = IPv4ToUInt32(addr);
+        }
+
+        public void SetDnsAddress(IPAddress addr)
+        {
+            DnsAddress = IPAddressToUInt32(addr);
+        }
+
+        public IPAddress GetDnsAddress()
+        {
+            if (DnsAddress == null)
+            {
+                return null;
+            }
+            return UInt32ToIPAddress(DnsAddress.Value);
+        }
+
+
+        // Convert IPv4 string to uint
+        public static uint IPv4ToUInt32(string ipv4Address)
+        {
+            if (!IPAddress.TryParse(ipv4Address, out var ip))
+            {
+                throw new FormatException("Invalid IP address string format.");
+            }
+
+            return IPAddressToUInt32(ip);
+        }
+
+        // Convert uint to IPv4 string
+        public static string UInt32ToIPv4(uint ipAddress)
+        {
+            return new IPAddress(ipAddress).ToString();
+        }
+
+        // Convert IPAddress to uint
+        public static uint IPAddressToUInt32(IPAddress ip)
+        {
+            if (ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+                throw new ArgumentException("Only IPv4 addresses are supported.", nameof(ip));
+
+            byte[] bytes = ip.GetAddressBytes();
+            return ((uint)bytes[0] << 24) |
+                   ((uint)bytes[1] << 16) |
+                   ((uint)bytes[2] << 8) |
+                   bytes[3];
+        }
+
+        // Convert uint to IPAddress
+        public static IPAddress UInt32ToIPAddress(uint ipAddress)
+        {
+            byte[] bytes = new byte[4];
+            bytes[0] = (byte)((ipAddress >> 24) & 0xFF);
+            bytes[1] = (byte)((ipAddress >> 16) & 0xFF);
+            bytes[2] = (byte)((ipAddress >> 8) & 0xFF);
+            bytes[3] = (byte)(ipAddress & 0xFF);
+
+            return new IPAddress(bytes);
+        }
     }
 
     [ProtoContract]
     public class WIFISCANITEM
     {
-        [ProtoMember(1)]
+        [ProtoMember(1, IsRequired = true)]
         public string SSID { get; set; } = string.Empty;
 
-        [ProtoMember(2)]
+        [ProtoMember(2, IsRequired = true)]
         public byte SecurityType { get; set; } // 0 = none, 1 = WEP, 2 = WPA, 3 = WPA2
 
-        [ProtoMember(3)]
+        [ProtoMember(3, IsRequired = true)]
         public byte SignalStrength { get; set; } // Signal strength % (0-100)
     }
 
@@ -141,190 +323,27 @@ namespace VenstarTranslator.Models.Protobuf
             SERVICEPACK = 3
         }
 
-        [ProtoMember(1)]
+        [ProtoMember(1, IsRequired = true)]
         public ushort Sequence { get; set; }
 
-        [ProtoMember(2)]
+        [ProtoMember(2, IsRequired = true)]
         public FirmwareType Type { get; set; }
 
-        [ProtoMember(3)]
+        [ProtoMember(3, IsRequired = true)]
         public byte[] Data { get; set; } = new byte[0];
     }
 
     [ProtoContract]
     public class FIRMWARECOMPLETE
     {
-        [ProtoMember(1)]
+        [ProtoMember(1, IsRequired = true)]
         public ushort Sequence { get; set; }
 
-        [ProtoMember(2)]
+        [ProtoMember(2, IsRequired = true)]
         public uint ModuleChecksum { get; set; }
 
         [ProtoMember(3)]
-        public byte[]? ServicePackSignature { get; set; }
+        public byte[] ServicePackSignature { get; set; }
     }
 
-    [ProtoContract]
-    public class SensorMessage
-    {
-        public enum Commands
-        {
-            SETSENSORNAME = 41,
-            SENSORDATA = 42,
-            SENSORPAIR = 43,
-            WIFICONFIG = 44,
-            WIFISCANRESULTS = 45,
-            FIRMWARECHUNK = 46,
-            FIRMWARECOMPLETE = 47,
-            SUCCESS = 126,
-            FAILURE = 127
-        }
-
-        [ProtoMember(1)]
-        public Commands Command { get; set; }
-
-        [ProtoMember(41)]
-        public SENSORNAME? SensorName { get; set; }
-
-        [ProtoMember(42)]
-        public SENSORDATA? SensorData { get; set; }
-
-        [ProtoMember(44)]
-        public WIFICONFIG? WifiConfig { get; set; }
-
-        [ProtoMember(45)]
-        public WIFISCANRESULTS? WifiScanResults { get; set; }
-
-        [ProtoMember(46)]
-        public FIRMWARECHUNK? FirmwareChunk { get; set; }
-
-        [ProtoMember(47)]
-        public FIRMWARECOMPLETE? FirmwareComplete { get; set; }
-    }
-
-    // Helper class for working with IP addresses
-    public static class IPHelper
-    {
-        public static uint PackIPAddress(byte a, byte b, byte c, byte d)
-        {
-            return (uint)((a << 24) | (b << 16) | (c << 8) | d);
-        }
-
-        public static (byte a, byte b, byte c, byte d) UnpackIPAddress(uint packed)
-        {
-            return (
-                (byte)((packed >> 24) & 0xFF),
-                (byte)((packed >> 16) & 0xFF),
-                (byte)((packed >> 8) & 0xFF),
-                (byte)(packed & 0xFF)
-            );
-        }
-    }
-
-    // Example usage and serialization helpers
-    public static class SensorMessageSerializer
-    {
-        public static byte[] Serialize<T>(T obj) where T : class
-        {
-            using (var stream = new System.IO.MemoryStream())
-            {
-                Serializer.Serialize(stream, obj);
-                return stream.ToArray();
-            }
-        }
-
-        public static T Deserialize<T>(byte[] data) where T : class
-        {
-            using (var stream = new System.IO.MemoryStream(data))
-            {
-                return Serializer.Deserialize<T>(stream);
-            }
-        }
-
-        // Convert byte array to hex string with spaces
-        public static string ToHexString(byte[] bytes)
-        {
-            return BitConverter.ToString(bytes).Replace("-", " ");
-        }
-
-        // Alternative hex conversion methods
-        public static string ToHexStringLower(byte[] bytes)
-        {
-            return string.Join(" ", bytes.Select(b => b.ToString("x2")));
-        }
-
-        public static string ToHexStringUpper(byte[] bytes)
-        {
-            return string.Join(" ", bytes.Select(b => b.ToString("X2")));
-        }
-
-        // More efficient version for large arrays
-        public static string ToHexStringFast(byte[] bytes)
-        {
-            var sb = new System.Text.StringBuilder(bytes.Length * 3);
-            for (int i = 0; i < bytes.Length; i++)
-            {
-                if (i > 0) sb.Append(' ');
-                sb.Append(bytes[i].ToString("X2"));
-            }
-            return sb.ToString();
-        }
-
-        // Create a sensor data message
-        public static SensorMessage CreateSensorDataMessage(INFO sensorInfo, string signature)
-        {
-            return new SensorMessage
-            {
-                Command = SensorMessage.Commands.SENSORDATA,
-                SensorData = new SENSORDATA
-                {
-                    Info = sensorInfo,
-                    Signature = signature
-                }
-            };
-        }
-
-        // Create a WiFi config message
-        public static SensorMessage CreateWifiConfigMessage(string ssid, byte securityType, 
-            byte dhcp, string? password = null)
-        {
-            return new SensorMessage
-            {
-                Command = SensorMessage.Commands.WIFICONFIG,
-                WifiConfig = new WIFICONFIG
-                {
-                    SSID = ssid,
-                    SecurityType = securityType,
-                    DHCP = dhcp,
-                    Password = password
-                }
-            };
-        }
-
-        // Create a sensor name setting message
-        public static SensorMessage CreateSetSensorNameMessage(string name)
-        {
-            return new SensorMessage
-            {
-                Command = SensorMessage.Commands.SETSENSORNAME,
-                SensorName = new SENSORNAME
-                {
-                    Name = name
-                }
-            };
-        }
-
-        // Print serialized data as hex
-        public static void PrintAsHex<T>(T obj, string? label = null) where T : class
-        {
-            byte[] data = Serialize(obj);
-            string hex = ToHexString(data);
-            
-            if (!string.IsNullOrEmpty(label))
-                Console.WriteLine($"{label}:");
-            
-            Console.WriteLine($"Length: {data.Length} bytes");
-            Console.WriteLine($"Hex: {hex}");
-        }
-    }
 }

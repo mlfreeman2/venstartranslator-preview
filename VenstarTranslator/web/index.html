@@ -1,219 +1,128 @@
-<html>
-	<head>
-			<title>Venstar Sensor Emulator</title>
-			<meta name="viewport" content="width=device-width, initial-scale=1">
+<!DOCTYPE html>
+<html lang="en">
 
-			<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venstar Sensor Emulator</title>
 
-			<script src="https://code.jquery.com/ui/1.14.1/jquery-ui.min.js" integrity="sha256-AlTido85uXPlSyyaZNsjJXeCs07eSv3r43kyCVc8ChI=" crossorigin="anonymous"></script>
-			<link rel="stylesheet" href="https://code.jquery.com/ui/1.14.1/themes/base/jquery-ui.css" />
+    <!-- External Libraries -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/ui/1.14.1/jquery-ui.min.js" integrity="sha256-AlTido85uXPlSyyaZNsjJXeCs07eSv3r43kyCVc8ChI=" crossorigin="anonymous"></script>
+    <link href="https://code.jquery.com/ui/1.14.1/themes/ui-lightness/jquery-ui.css" rel="stylesheet" />
+    <link href="https://cdn.datatables.net/v/ju/dt-2.1.8/datatables.min.css" rel="stylesheet" />
+    <script src="https://cdn.datatables.net/v/ju/dt-2.1.8/datatables.min.js"></script>
 
-			<link href="https://cdn.datatables.net/v/ju/dt-2.1.8/datatables.min.css" rel="stylesheet">
- 			<script src="https://cdn.datatables.net/v/ju/dt-2.1.8/datatables.min.js"></script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <link href="style.css" rel="stylesheet" />
+</head>
 
-			<script type="text/javascript">
-				$(function() {
-					var countdownTime = 30;
-					var table = $('#sensors').DataTable( {
-						ajax: {
-							url: '/api/sensors',
-							dataSrc: ''
-						},
-						pageLength: 20,
-						paging: false,
-						info: false,
-						searching: false,
-						order: [[1, 'asc']],
-						columns: [
-							{ data: 'name' },
-							{ data: 'sensorID' },
-							{ data: 'enabled' },
-							{ data: 'purpose' },
-							{ data: null }
-						],
-						"columnDefs": [
-							{
-								"targets": 2,  // Specify the column index (0 for the first column, etc.)
-								"render": function (data, type, row) {
-									// Check if the data is true or false
-									return data ? '<input type="checkbox" checked disabled>' : '<input type="checkbox" disabled>';
-								}
-							},
-							{
-								"targets": 4,
-								"data": null,
-								"render": function (data, type, row) {
-									if (!row.enabled) {
-										return "";
-									}
-									return '<button class="btn btn-primary pairing-btn" onclick="sendPairingPacket(\''+row.sensorID+'\')">Send Pairing Packet</button><br>'
-											+ '<button class="btn btn-primary pairing-btn" onclick="getLatestTemperature(\''+row.sensorID+'\')">Get Current Temperature</button>';
-								}
-							}
-						]
-					});					
-				});
-				function sendPairingPacket(sensorID) {
-					$.ajax({
-						url: '/api/pair/' + sensorID,
-						type: 'GET',
-						success: function(response) {
-							// If the request is successful
-							$('#modalMessage').text(response.message); // Display success message
-							$('#responseModal').dialog('open');
-						},
-						error: function(xhr, status, error) {
-							// If the request fails
-							$('#modalMessage').text(error); // Display error message
-							$('#responseModal').dialog('open');
-						}
-					});
-				};
-				function getLatestTemperature(sensorID) {
-					$.ajax({
-						url: '/api/sensors/' + sensorID + "/latest",
-						type: 'GET',
-						success: function(response) {
-							// If the request is successful
-							$('#modalMessage').text(response.temperature + "\u00B0" + response.scale); // Display success message
-							$('#responseModal').dialog('open');
-						},
-						error: function(xhr, status, error) {
-							// If the request fails
-							$('#modalMessage').text(error); // Display error message
-							$('#responseModal').dialog('open');
-						}
-					});
-				};				
-			</script>
-			<script>
-				$(document).ready(function(){
-					// Initialize the modal dialog (hidden by default)
-					$('#responseModal').dialog({
-						autoOpen: false,  // Don't open on page load
-						modal: true,      // Make the dialog modal
-						position: {
-							my: "center",
-							at: "center",
-							of: window
-						},
-						title: "Results",
-						buttons: {
-							"Close": function() {
-								$(this).dialog("close");
-							}
-						}
-					});
-				});
-			</script>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon">
+                    <i class="fas fa-list"></i>
+                </div>
+                <h2 class="card-title">Configured Sensors</h2>
+                <div class="card-actions">
+                    <button class="btn btn-secondary" onclick="window.open('./jsonpath.html', '_blank')">
+                        <i class="fa-brands fa-js"></i> Test JSON Path
+                    </button>
+                    <button class="btn btn-success" onclick="addNewSensor()">
+                        <i class="fas fa-plus"></i> Add New Sensor
+                    </button>
+                </div>
+            </div>
 
-			<style>
-					canvas {
-						-moz-user-select: none;
-						-webkit-user-select: none;
-						-ms-user-select: none;
-						user-select: none;
-					}
+            <table id="sensors" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th><i class="fas fa-tag"></i> Name</th>
+                        <th><i class="fas fa-barcode"></i> Sensor ID</th>
+                        <th><i class="fas fa-power-off"></i> Status</th>
+                        <th><i class="fas fa-bullseye"></i> Purpose</th>
+                        <th><i class="fas fa-cogs"></i> Actions</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
 
-					body {
-						background-image: url('');
-						background-repeat: no-repeat;
-						background-attachment: fixed;
-						-webkit-background-size: cover;
-						-moz-background-size: cover;
-						-o-background-size: cover;
-						background-size: cover;
-						filter: progid:DXImageTransform.Microsoft.AlphaImageLoader(src='', sizingMethod='scale');
-						-ms-filter: "progid:DXImageTransform.Microsoft.AlphaImageLoader(src='', sizingMethod='scale')";
-					}
+    <!-- jQuery UI Modal for responses -->
+    <div id="responseModal" title="Sensor Response" style="display:none;">
+        <p id="modalMessage"></p>
+    </div>
 
-					.iGadgetBox {
-						margin-bottom: 20px;
-						display: block;
-						width: 100%;
-					}
+    <!-- Hidden div for dialog content -->
+    <div id="confirmation-dialog" title="Confirm Action" style="display: none;">
+        <p id="confirmation-message"></p>
+    </div>
 
-					.iGadgetBox .iGadgetBoxTitle {
-						background-color: #F7F7F7;
-						border-bottom: 1px solid #DCDCDC;
-						font: 13px arial,sans-serif;
-						font-weight: bold;
-						height: 32px;
-						line-height: 28px;
-						position: relative;
-						color: #111111;
-						overflow: hidden;
-						padding-top: 3px;
-						padding-right: 7px !important;
-						padding-bottom: 0px;
-						padding-left: 7px;
-						text-decoration: none;
-						text-overflow: ellipsis;
-						white-space: nowrap;
-						width: 100%;
-						z-index: 200;
-					}
+    <!-- Edit Modal -->
+    <div id="editModal" title="Edit Sensor" style="display:none;">
+        <form id="editForm">
+            <div class="form-group">
+                <label class="form-label">Name</label>
+                <input type="text" id="edit-name" class="form-input" required maxlength="14">
+            </div>
 
-					.iGadgetBox .iGadgetBoxTitle .iGadgetBoxTitleText a {
-						float: left;
-						cursor: pointer;
-						color: #111111;
-					}
+            <div class="form-group">
+                <label class="form-label">
+                    <input type="checkbox" id="edit-enabled" class="form-checkbox">
+                    Enabled
+                </label>
+            </div>
 
-					.iGadgetBox .iGadgetBoxTitle .iGadgetBoxTitleText a:active,
-					.iGadgetBox .iGadgetBoxTitle .iGadgetBoxTitleText a:visited,
-					.iGadgetBox .iGadgetBoxTitle .iGadgetBoxTitleText a:link {
-						text-decoration: none;
-					}
+            <div class="form-group">
+                <label class="form-label">Purpose</label>
+                <select id="edit-purpose" class="form-select" required>
+                    <option value="Outdoor">Outdoor</option>
+                    <option value="Remote">Remote</option>
+                    <option value="Return">Return</option>
+                    <option value="Supply">Supply</option>
+                </select>
+            </div>
 
-					.iGadgetBox .iGadgetBoxTitle .iGadgetBoxTitleText a:hover {
-						text-decoration: underline;
-					}
+            <div class="form-group">
+                <label class="form-label">Temperature Scale</label>
+                <select id="edit-scale" class="form-select" required>
+                    <option value="F">Fahrenheit (°F)</option>
+                    <option value="C">Celsius (°C)</option>
+                </select>
+            </div>
 
-					.iGadgetBox .iGadgetBoxContent {
-						background-color: #FFFFFF;
-						width: 100%;
-						position: relative;
-						margin: 0;
-						overflow: hidden;
-						padding: 4px 0 0;
-						top: 34px;
-					}
+            <div class="form-group">
+                <label class="form-label">URL</label>
+                <input type="url" id="edit-url" class="form-input" required>
+            </div>
 
-					#countdown {
-						padding: 10px;
-						background-color: rgba(0, 0, 0, 0.6);
-						color: white;
-						font-size: 16px;
-						font-weight: bold;
-						border-radius: 5px;
-					}
-			</style>
-	</head>
-	<body style="height: 100%">
-		<!-- jQuery UI Modal -->
-		<div id="responseModal" title="AJAX Call Result" style="display:none;">
-			<p id="modalMessage"></p>
-		</div>
-		<div id="iGadgetBox1" class='iGadgetBox'>
-			<div class="iGadgetBoxTitle" style="margin: 0 auto;  position: fixed; top: 0;">
-				<div class="iGadgetBoxTitleText" style="float: left; padding-right: 30px; height: 32px;">
-					<span>Configured Sensors</span>
-				</div>
-			</div>
-			<div class="iGadgetBoxContent">
-				<table id="sensors" class="display" style="width:100%">
-					<thead>
-						<tr>
-							<th>Name</th>
-							<th>Sensor ID</th>
-							<th>Enabled</th>
-							<th>Purpose</th>
-							<th>Actions</th>
-						</tr>
-					</thead>
-				</table>
-			</div>
-		</div>
-	</body>
+            <div class="form-group">
+                <label class="form-label">
+                    <input type="checkbox" id="edit-ignoreSSLErrors" class="form-checkbox">
+                    Ignore SSL Errors (e.g. URL uses self signed certicate)
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">JSON Path</label>
+                <input type="text" id="edit-jsonPath" class="form-input" required placeholder="$.path.to.value">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Custom Headers</label>
+                <div id="headers-container">
+                    <!-- Headers will be dynamically added here -->
+                </div>
+                <button type="button" class="add-header-btn" onclick="addHeaderRow()">
+                    <i class="fas fa-plus"></i> Add Header
+                </button>
+            </div>
+        </form>
+    </div>
+    <script type="text/javascript" src="javascript.js"></script>
+</body>
+
 </html>
