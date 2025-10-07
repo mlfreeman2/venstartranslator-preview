@@ -4,7 +4,7 @@ services:
     image: ghcr.io/mlfreeman2/venstartranslator-preview:main
     restart: always
     volumes:
-      - "./sensors.myhouse.json:/data/sensors.json"
+      - "./docker/venstartranslator:/data"
     environment:
       TZ: "America/New_York"
       SensorFilePath: "/data/sensors.json"

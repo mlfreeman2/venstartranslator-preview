@@ -81,14 +81,13 @@ $(function() {
                     buttons += '<button class="btn btn-warning" onclick="editSensor(' + row.sensorID + ')">' +
                                '<i class="fas fa-edit"></i> Edit</button>' +
                                '<button class="btn btn-error" onclick="deleteSensor(' + row.sensorID + ')">' +
-                               '<i class="fas fa-trash"></i> Delete</button>';
+                               '<i class="fas fa-trash"></i> Delete</button>' + 
+                               '<button class="btn btn-secondary" onclick="getLatestTemperature(\'' + row.sensorID + '\')">' +
+                               '<i class="fas fa-thermometer-half"></i> Get Temperature</button>';
                     if (row.enabled) {
                         buttons += '<button class="btn btn-primary" onclick="sendPairingPacket(\'' + row.sensorID + '\')">' +
-                                    '<i class="fas fa-wifi"></i> Send Pairing Packet</button>' +
-                                    '<button class="btn btn-secondary" onclick="getLatestTemperature(\'' + row.sensorID + '\')">' +
-                                    '<i class="fas fa-thermometer-half"></i> Get Temperature</button>';
+                                   '<i class="fas fa-wifi"></i> Send Pairing Packet</button>';
                     }
-                    
                     buttons += '</div>';
                     return buttons;
                 }

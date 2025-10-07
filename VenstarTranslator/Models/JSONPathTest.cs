@@ -1,4 +1,3 @@
-
 namespace VenstarTranslator.Models;
 
 public class JSONPathTest

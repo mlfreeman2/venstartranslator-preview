@@ -19,207 +19,199 @@ using Microsoft.Extensions.Logging;
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using VenstarTranslator.Models;
 
-using VenstarTranslator.DB;
+namespace VenstarTranslator;
 
-namespace VenstarTranslator
+public class Startup
 {
-    public class Startup
+    private readonly IWebHostEnvironment _env;
+    private readonly IConfiguration _config;
+
+    public Startup(IWebHostEnvironment env, IConfiguration config)
     {
-        private readonly IWebHostEnvironment _env;
-        private readonly IConfiguration _config;
+        _env = env;
+        _config = config;
+    }
 
-        public Startup(IWebHostEnvironment env, IConfiguration config)
+    public void ConfigureServices(IServiceCollection services)
+    {
+        var hangfireDatabasePath = _config.GetConnectionString("Hangfire");
+        var sqliteOptions = new SQLiteStorageOptions();
+
+        services.AddControllers().AddNewtonsoftJson(opts => opts.SerializerSettings.Converters.Add(new StringEnumConverter()));
+        services.AddHangfire((provider, configuration) =>
         {
-            _env = env;
-            _config = config;
+            configuration
+            .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+            .UseSimpleAssemblyNameTypeSerializer()
+            .UseRecommendedSerializerSettings()
+            .UseSQLiteStorage(hangfireDatabasePath, sqliteOptions);
+        });
+        services.AddHangfireServer();
+
+        services.AddDbContext<VenstarTranslatorDataCache>(options => options.UseSqlite(_config.GetConnectionString("DataCache")));
+    }
+
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env, VenstarTranslatorDataCache dbContext, ILogger<Startup> _logger)
+    {
+        if (env.IsDevelopment())
+        {
+            app.UseDeveloperExceptionPage();
         }
 
-        public void ConfigureServices(IServiceCollection services)
-        {
-            var hangfireDatabasePath = _config.GetConnectionString("Hangfire");
-            var sqliteOptions = new SQLiteStorageOptions();
+        TranslatedVenstarSensor.macPrefix = ValidateAndGetMacPrefix(_config.GetValue<string>("FakeMacPrefix"));
 
-            services.AddControllers().AddNewtonsoftJson(opts => opts.SerializerSettings.Converters.Add(new StringEnumConverter()));
-            services.AddHangfire((provider, configuration) =>
+        dbContext.Database.EnsureCreated();
+
+        var sensorFilePath = _config.GetValue<string>("SensorFilePath");
+        if (string.IsNullOrWhiteSpace(sensorFilePath))
+        {
+            throw new FileNotFoundException("Sensor JSON file path not provided.");
+        }
+
+        if (File.Exists(sensorFilePath))
+        {
+            var contents = File.ReadAllText(sensorFilePath);
+            if (!string.IsNullOrWhiteSpace(contents))
             {
-                configuration
-                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-                .UseSimpleAssemblyNameTypeSerializer()
-                .UseRecommendedSerializerSettings()
-                .UseSQLiteStorage(hangfireDatabasePath, sqliteOptions);
+                var sensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(File.ReadAllText(sensorFilePath));
+
+                if (sensors.Count > 20)
+                {
+                    throw new InvalidOperationException("Too many sensors specified. Only 20 sensors are supported.");
+                }
+
+                if (sensors.Count == 0)
+                {
+                    throw new InvalidOperationException("No sensors found in the configuration.");
+                }
+
+                // Check for duplicate names
+                if (sensors.Select(s => s.Name).Distinct().Count() < sensors.Count)
+                {
+                    throw new InvalidOperationException("One or more sensor names appear in multiple sensor entries.");
+                }
+
+                ValidateIndividualSensors(sensors);
+                UpdateDatabaseSensors(dbContext, sensors);
+
+                // update sensors.json
+                var dbDump = dbContext.Sensors.Include(a => a.Headers).AsNoTracking().ToList();
+                File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(dbDump, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
+
+                foreach (var sensor in dbContext.Sensors.ToList())
+                {
+                    sensor.SyncHangfire();
+                }
+            }
+        }
+
+        app.UseFileServer(new FileServerOptions
+        {
+            FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "web")),
+            RequestPath = ""
+        });
+        app.UseRouting();
+        app.UseAuthorization();
+
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+            endpoints.MapHangfireDashboard("/hangfire", new DashboardOptions
+            {
+                Authorization = [],
+                DefaultRecordsPerPage = 50,
             });
-            services.AddHangfireServer();
+        });
+    }
 
-            services.AddDbContext<VenstarTranslatorDataCache>(options => options.UseSqlite(_config.GetConnectionString("DataCache")));
-        }
-
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, VenstarTranslatorDataCache dbContext, ILogger<Startup> _logger)
+    private static string ValidateAndGetMacPrefix(string fakeMacPrefix)
+    {
+        if (string.IsNullOrWhiteSpace(fakeMacPrefix))
         {
-            if (env.IsDevelopment())
-            {
-                app.UseDeveloperExceptionPage();
-            }
-
-            TranslatedVenstarSensor.macPrefix = ValidateAndGetMacPrefix(_config.GetValue<string>("FakeMacPrefix"));
-
-            dbContext.Database.EnsureCreated();
-
-            var sensorFilePath = _config.GetValue<string>("SensorFilePath");
-            if (string.IsNullOrWhiteSpace(sensorFilePath))
-            {
-                throw new FileNotFoundException("Sensor JSON file path not provided.");
-            }
-
-            if (File.Exists(sensorFilePath))
-            {
-                var contents = File.ReadAllText(sensorFilePath);
-                if (!string.IsNullOrWhiteSpace(contents))
-                {
-                    var sensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(File.ReadAllText(sensorFilePath));
-
-                    if (sensors.Count > 20)
-                    {
-                        throw new InvalidOperationException("Too many sensors specified. Only 20 sensors are supported.");
-                    }
-
-                    if (sensors.Count == 0)
-                    {
-                        throw new InvalidOperationException("No sensors found in the configuration.");
-                    }
-
-                    // Check if at least one sensor is enabled
-                    if (sensors.All(s => s.Enabled == false))
-                    {
-                        throw new InvalidOperationException("No sensors enabled in the configuration.");
-                    }
-
-                    // Check for duplicate names
-                    if (sensors.Select(s => s.Name).Distinct().Count() < sensors.Count)
-                    {
-                        throw new InvalidOperationException("One or more sensor names appear in multiple sensor entries.");
-                    }
-
-                    ValidateIndividualSensors(sensors);
-                    UpdateDatabaseSensors(dbContext, sensors);
-
-                    // update sensors.json
-                    var dbDump = dbContext.Sensors.Include(a => a.Headers).AsNoTracking().ToList();
-                    File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(dbDump, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
-
-                    foreach (var sensor in dbContext.Sensors.ToList())
-                    {
-                        sensor.SyncHangfire();
-                    }
-                }
-            }
-
-            app.UseFileServer(new FileServerOptions
-            {
-                FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, "web")),
-                RequestPath = ""
-            });
-            app.UseRouting();
-            app.UseAuthorization();
-
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapControllers();
-                endpoints.MapHangfireDashboard("/hangfire", new DashboardOptions
-                {
-                    Authorization = [],
-                    DefaultRecordsPerPage = 50,
-                });
-            });
+            return "428e0486d7";
         }
 
-        private static string ValidateAndGetMacPrefix(string fakeMacPrefix)
+        if (fakeMacPrefix.Length != 10)
         {
-            if (string.IsNullOrWhiteSpace(fakeMacPrefix))
-            {
-                return "428e0486d7";
-            }
-
-            if (fakeMacPrefix.Length != 10)
-            {
-                throw new InvalidOperationException("The prefix to use in the fake MAC addresses included in each data packet has to be exactly 10 characters long.");
-            }
-
-            fakeMacPrefix = fakeMacPrefix.ToLowerInvariant();
-            if (!Regex.IsMatch(fakeMacPrefix, @"[a-f0-9]{10}"))
-            {
-                throw new InvalidOperationException("The prefix to use in the fake MAC addresses included in each data packet can only be numbers and lowercase a-f (in other words, hexadecimal).");
-            }
-
-            return fakeMacPrefix;
+            throw new InvalidOperationException("The prefix to use in the fake MAC addresses included in each data packet has to be exactly 10 characters long.");
         }
 
-
-        private static void ValidateIndividualSensors(List<TranslatedVenstarSensor> sensors)
+        fakeMacPrefix = fakeMacPrefix.ToLowerInvariant();
+        if (!Regex.IsMatch(fakeMacPrefix, @"[a-f0-9]{10}"))
         {
-            foreach (var sensor in sensors)
-            {
-                var validationContext = new ValidationContext(sensor);
-                var validationResults = new List<ValidationResult>();
-
-                if (!Validator.TryValidateObject(sensor, validationContext, validationResults, true))
-                {
-                    var errors = string.Join("; ", validationResults.Select(vr => vr.ErrorMessage));
-                    throw new InvalidOperationException($"Sensor validation failed: {errors}");
-                }
-
-                // Additional validation using IValidatableObject
-                var additionalResults = sensor.Validate(validationContext);
-                if (additionalResults.Any())
-                {
-                    var additionalErrors = string.Join("; ", additionalResults.Select(vr => vr.ErrorMessage));
-                    throw new InvalidOperationException($"Sensor validation failed: {additionalErrors}");
-                }
-            }
+            throw new InvalidOperationException("The prefix to use in the fake MAC addresses included in each data packet can only be numbers and lowercase a-f (in other words, hexadecimal).");
         }
 
-        private static void UpdateDatabaseSensors(VenstarTranslatorDataCache dbContext, List<TranslatedVenstarSensor> sensors)
+        return fakeMacPrefix;
+    }
+
+
+    private static void ValidateIndividualSensors(List<TranslatedVenstarSensor> sensors)
+    {
+        foreach (var sensor in sensors)
         {
-            for (int i = 0; i < sensors.Count; i++)
+            var validationContext = new ValidationContext(sensor);
+            var validationResults = new List<ValidationResult>();
+
+            if (!Validator.TryValidateObject(sensor, validationContext, validationResults, true))
             {
-                sensors[i].SensorID = Convert.ToByte(i);
-
-                if (!dbContext.Sensors.Any(a => a.SensorID == sensors[i].SensorID))
-                {
-                    dbContext.Sensors.Add(sensors[i]);
-                    dbContext.SaveChanges();
-                }
-                else
-                {
-                    var current = dbContext.Sensors.Include(a => a.Headers).Single(a => a.SensorID == sensors[i].SensorID);
-                    current.Name = sensors[i].Name;
-                    current.Enabled = sensors[i].Enabled;
-                    current.URL = sensors[i].URL;
-                    current.Purpose = sensors[i].Purpose;
-                    current.JSONPath = sensors[i].JSONPath;
-                    current.Scale = sensors[i].Scale;
-                    current.IgnoreSSLErrors = sensors[i].IgnoreSSLErrors;
-
-                    current.Headers.Clear();
-                    dbContext.SaveChanges();
-
-                    if (sensors[i].Headers != null && sensors[i].Headers.Any())
-                    {
-                        current.Headers.AddRange(sensors[i].Headers);
-                    }
-                    dbContext.SaveChanges();
-                }
+                var errors = string.Join("; ", validationResults.Select(vr => vr.ErrorMessage));
+                throw new InvalidOperationException($"Sensor validation failed: {errors}");
             }
 
-            // Remove sensors that are no longer in the configuration
-            foreach (var newSensor in dbContext.Sensors.ToList())
+            // Additional validation using IValidatableObject
+            var additionalResults = sensor.Validate(validationContext);
+            if (additionalResults.Any())
             {
-                if (!sensors.Any(a => a.Name == newSensor.Name && a.SensorID == newSensor.SensorID))
-                {
-                    dbContext.Sensors.Remove(newSensor);
-                }
+                var additionalErrors = string.Join("; ", additionalResults.Select(vr => vr.ErrorMessage));
+                throw new InvalidOperationException($"Sensor validation failed: {additionalErrors}");
             }
-            dbContext.SaveChanges();
         }
+    }
+
+    private static void UpdateDatabaseSensors(VenstarTranslatorDataCache dbContext, List<TranslatedVenstarSensor> sensors)
+    {
+        for (int i = 0; i < sensors.Count; i++)
+        {
+            sensors[i].SensorID = Convert.ToByte(i);
+
+            if (!dbContext.Sensors.Any(a => a.SensorID == sensors[i].SensorID))
+            {
+                dbContext.Sensors.Add(sensors[i]);
+                dbContext.SaveChanges();
+            }
+            else
+            {
+                var current = dbContext.Sensors.Include(a => a.Headers).Single(a => a.SensorID == sensors[i].SensorID);
+                current.Name = sensors[i].Name;
+                current.Enabled = sensors[i].Enabled;
+                current.URL = sensors[i].URL;
+                current.Purpose = sensors[i].Purpose;
+                current.JSONPath = sensors[i].JSONPath;
+                current.Scale = sensors[i].Scale;
+                current.IgnoreSSLErrors = sensors[i].IgnoreSSLErrors;
+
+                current.Headers.Clear();
+                dbContext.SaveChanges();
+
+                if (sensors[i].Headers != null && sensors[i].Headers.Any())
+                {
+                    current.Headers.AddRange(sensors[i].Headers);
+                }
+                dbContext.SaveChanges();
+            }
+        }
+
+        // Remove sensors that are no longer in the configuration
+        foreach (var newSensor in dbContext.Sensors.ToList())
+        {
+            if (!sensors.Any(a => a.Name == newSensor.Name && a.SensorID == newSensor.SensorID))
+            {
+                dbContext.Sensors.Remove(newSensor);
+            }
+        }
+        dbContext.SaveChanges();
     }
 }
