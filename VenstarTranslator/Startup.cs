@@ -75,17 +75,15 @@ public class Startup
             var contents = File.ReadAllText(sensorFilePath);
             if (!string.IsNullOrWhiteSpace(contents))
             {
-                var sensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(File.ReadAllText(sensorFilePath));
-
-                if (sensors.Count > 20)
+                var contents = File.ReadAllText(sensorFilePath);
+                if (!string.IsNullOrWhiteSpace(contents))
                 {
-                    throw new InvalidOperationException("Too many sensors specified. Only 20 sensors are supported.");
-                }
+                    var sensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(File.ReadAllText(sensorFilePath));
 
-                if (sensors.Count == 0)
-                {
-                    throw new InvalidOperationException("No sensors found in the configuration.");
-                }
+                    if (sensors.Count > 20)
+                    {
+                        throw new InvalidOperationException("Too many sensors specified. Only 20 sensors are supported.");
+                    }
 
                 // Check for duplicate names
                 if (sensors.Select(s => s.Name).Distinct().Count() < sensors.Count)
@@ -96,13 +94,17 @@ public class Startup
                 ValidateIndividualSensors(sensors);
                 UpdateDatabaseSensors(dbContext, sensors);
 
-                // update sensors.json
-                var dbDump = dbContext.Sensors.Include(a => a.Headers).AsNoTracking().ToList();
-                File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(dbDump, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
+                    ValidateIndividualSensors(sensors);
+                    UpdateDatabaseSensors(dbContext, sensors);
 
-                foreach (var sensor in dbContext.Sensors.ToList())
-                {
-                    sensor.SyncHangfire();
+                    // update sensors.json
+                    var dbDump = dbContext.Sensors.Include(a => a.Headers).AsNoTracking().ToList();
+                    File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(dbDump, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
+
+                    foreach (var sensor in dbContext.Sensors.ToList())
+                    {
+                        sensor.SyncHangfire();
+                    }
                 }
             }
         }
