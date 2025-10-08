@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.Json;
+
 using Newtonsoft.Json.Linq;
 
-namespace VenstarTranslator.DB;
+namespace VenstarTranslator.Models;
 
 public class ValidJsonPathAttribute : ValidationAttribute
 {
