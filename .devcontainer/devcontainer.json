@@ -1,36 +1,78 @@
 {
-	"name": "Venstar Translator DevContainer",
-	"image": "mcr.microsoft.com/devcontainers/dotnet:8.0",
+	"name": ".NET 8 DevContainer with Claude Code",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"args": {
+			"VARIANT": "8.0-bookworm-slim"
+		}
+	},
 	"customizations": {
 		"vscode": {
 			"extensions": [
 				"ms-dotnettools.csharp",
+				"ms-dotnettools.csdevkit",
 				"ms-azuretools.vscode-docker",
 				"redhat.vscode-yaml",
-				"ms-dotnettools.csdevkit",
 				"eamodio.gitlens",
-				"jeremycaron.csharp-organize-usings"
-			]
+				"jeremycaron.csharp-organize-usings",
+				"EditorConfig.EditorConfig"
+			],
+			"settings": {
+				"terminal.integrated.defaultProfile.linux": "bash",
+				"dotnet.defaultSolution": "${workspaceFolder}/*.sln"
+			}
 		}
 	},
-	"runArgs": [
-		"--network=host"
-	],	
 	"mounts": [
-		"source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
-		"source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,readonly"
+		// Docker socket for Docker-in-Docker support (optional, comment out if not needed)
+		"source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind,consistency=cached",
+		// SSH keys for git operations
+		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind,readonly",
+		// Claude configuration persistence
+		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/claude,target=/home/vscode/.config/claude,type=bind,consistency=cached",
+		// NuGet package cache to speed up builds
+		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.nuget,target=/home/vscode/.nuget,type=bind,consistency=cached"
 	],
 	"forwardPorts": [
-		8080
-	],	
+		5000,
+		5001,
+		8080,
+		8081
+	],
 	"remoteEnv": {
 		"PATH": "${containerEnv:PATH}:/home/vscode/.dotnet/tools",
-		"TZ": "America/New_York"
+		"TZ": "${localEnv:TZ:-America/New_York}",
+		"DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+		"DOTNET_NOLOGO": "true"
 	},
 	"remoteUser": "vscode",
 	"features": {
-		"docker-from-docker": "latest",
-		"git": "latest", 
-		"ghcr.io/devcontainers-extra/features/protoc": {}
+		"ghcr.io/devcontainers/features/common-utils:2": {
+			"installZsh": true,
+			"configureZshAsDefaultShell": false,
+			"installOhMyZsh": true,
+			"upgradePackages": true,
+			"username": "vscode",
+			"userUid": "automatic",
+			"userGid": "automatic"
+		},
+		"ghcr.io/devcontainers/features/git:1": {
+			"version": "latest",
+			"ppa": false
+		},
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {
+			"moby": true,
+			"installDockerBuildx": true,
+			"version": "latest",
+			"dockerDashComposeVersion": "v2"
+		},
+		"ghcr.io/devcontainers-extra/features/protoc:1": {}
+	},
+	"postCreateCommand": "sudo bash -c 'npm install -g @anthropic-ai/claude-code && dotnet tool restore 2>/dev/null || true && dotnet restore 2>/dev/null || true && echo \"✅ DevContainer ready! Run 'claude' to start Claude Code.\"'",
+	"postStartCommand": "claude --version || npm install -g @anthropic-ai/claude-code",
+	"updateContentCommand": "dotnet restore 2>/dev/null || true",
+	"containerEnv": {
+		"ASPNETCORE_ENVIRONMENT": "Development",
+		"ASPNETCORE_URLS": "http://+:5000;https://+:5001"
 	}
 }

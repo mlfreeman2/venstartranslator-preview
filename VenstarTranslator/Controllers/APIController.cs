@@ -60,10 +60,6 @@ public class API : ControllerBase
         {
             return StatusCode(404, new { message = "Sensor not found." });
         }
-        if (!sensor.Enabled)
-        {
-            return StatusCode(403, new { message = "Sensor not enabled." });
-        }
         try
         {
             var reading = sensor.GetLatestReading();

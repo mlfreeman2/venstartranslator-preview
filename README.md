@@ -1,37 +1,281 @@
-## About
+# Venstar Translator
 
-### What is this app?
-Venstar Translator is a small C# application that fetches temperature readings from arbitrary JSON endpoints and translates them into the format necessary for Venstar ColorTouch sensors to think they're Venstar's own external temperature sources.
+## What is this?
 
-A single instance of this application can emulate up to 20 of Venstar's ACC-TSENWIFIPRO sensors.
-20 is Venstar's own limit on sensor ID numbers, not a limit on the application end.
+Venstar Translator bridges the gap between your existing temperature sensors and Venstar ColorTouch thermostats. If you have temperature data from Home Assistant, Ecowitt weather stations, or any other system with a JSON API, this app lets you feed that data directly to your Venstar thermostat as if they were official Venstar ACC-TSENWIFIPRO sensors.
 
-### How do I get started?
-This application is meant to be run in Docker Compose. 
-The `docker-compose.yml.sample` file can be used to get you up and running in a docker compose environment.
+**Key Features:**
+- Emulate up to 20 Venstar wireless temperature sensors per instance
+- Pull temperature data from any JSON API endpoint (Home Assistant, Ecowitt, custom APIs, etc.)
+- Web UI for easy sensor configuration and testing
+- Support for custom HTTP headers (authentication tokens, API keys)
+- Both Fahrenheit and Celsius supported
+- Multiple sensor purposes: Outdoor, Remote, Return, Supply
 
-The temperature data protocol is UDP broadcast messages, so the application needs to be on the same VLAN/network as the target thermostat.
+## Quick Start
 
-It has only been tested in Docker Compose with host networking, with the physical Docker Compose host on the same VLAN as the thermostat. 
+### Prerequisites
 
+- Docker and Docker Compose installed
+- Your Docker host **must be on the same VLAN/network** as your Venstar thermostat (UDP broadcast requirement)
+- A source for temperature data with a JSON API (Home Assistant, weather station, etc.)
 
-#### Steps:
-1. In your Docker Compose file, map in an empty folder as a Docker bind mount.   
-The app will write important sensor details to a JSON file in this folder automatically. This is the only file you need to back up.  
-2. Make sure that the environment variable `SensorFilePath` is set to a file inside the Docker bind mount.
-In my examples, it was set to `/data/sensors.json` because `/data` is where I mapped the outside folder to in Docker Compose.
-3. (OPTIONAL): If you have a huge house and you need to run more than one instance of this to handle more than 20 sensors, change `FakeMacPrefix`.  
-The variable takes lowercase a-f and 0-9 (hex) and nothing else and it has to be 10 characters long. If you only run one instance of this app you can delete this (or leave it alone). If you need to change it, just change the last character from `8` to `7` or `9`. Deploying a second copy changed to `7` will give you 20 more sensors. Deploying a third copy changed to `9` will give you 20 more sensors on top of that, for a total of 60.
-If you change this after setting things up, the thermostat will no longer recognize the sensors.
-4. Become familiar with JSONPath and grab a sample response from your data source.  
-See https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html to learn more about JSONPath...or just ask one of the major LLMs for a JSONPath for a sample response.
-5. Run the app. Open a browser to port 8080 (if you used the sample Docker Compose file) to see the UI for managing sensors.  
-Click the "Test JSON Path" button in the upper right of the web UI to open a page where you can run a query against a JSON document to see if it's going to get what you want.  
-Once you have a JSONPath that works, click "Add New Sensor" and fill out the fields to add your first sensor.
-6. Once you have sensors set up (confirmed by clicking "Get Temperature" for each one and seeing the temperature you expect), click on "Send Pairing Packet" and walk over to your thermostat to finish setting the sensor up there.  
-The thermostats hold on to pairing packets for 30-60 seconds, so you can click "Send Pairing Packet" for a couple of sensors at a time and you don't have to run.
+### Installation
 
-#### JSON Path Samples
+1. **Create a directory for your configuration:**
+
+```bash
+mkdir -p ~/venstartranslator/data
+cd ~/venstartranslator
+```
+
+2. **Create a `docker-compose.yml` file:**
+
+```yaml
+services:
+  venstartranslator:
+    container_name: venstartranslator
+    image: ghcr.io/mlfreeman2/venstartranslator-preview:main
+    restart: unless-stopped
+    volumes:
+      - "./data:/data"
+    environment:
+      TZ: "America/New_York"  # Change to your timezone
+      SensorFilePath: "/data/sensors.json"
+      Kestrel__Endpoints__Http__Url: "http://*:8080"
+    network_mode: host  # Required for UDP broadcast
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "5"
+```
+
+3. **Start the container:**
+
+```bash
+docker compose up -d
+```
+
+4. **Open the web UI:**
+
+Navigate to `http://your-docker-host-ip:8080` in your browser.
+
+## Configuration
+
+### Setting Up Your First Sensor
+
+1. **Test your JSONPath query** (recommended):
+   - Click "Test JSON Path" in the upper right corner
+   - Paste a sample JSON response from your temperature API
+   - Test different JSONPath queries until you extract the correct temperature value
+   - See [JSONPath Examples](#jsonpath-examples) below for common patterns
+
+2. **Add a new sensor**:
+   - Click "Add New Sensor"
+   - Fill in the form:
+     - **Name**: Display name (max 14 characters, shown on thermostat)
+     - **Enabled**: Check to activate this sensor
+     - **Purpose**:
+       - `Outdoor` - Broadcasts every 5 minutes
+       - `Remote`, `Return`, `Supply` - Broadcast every minute
+     - **Scale**: `F` (Fahrenheit) or `C` (Celsius)
+     - **URL**: Your JSON API endpoint
+     - **JSONPath**: The path to extract temperature value (e.g., `$.state`)
+     - **Ignore SSL Errors**: Enable for self-signed certificates
+     - **Headers**: Add authentication if needed (e.g., `Authorization: Bearer YOUR_TOKEN`)
+
+3. **Test the sensor**:
+   - Click "Get Temperature" to verify it's pulling the correct value
+   - If it fails, check your URL, JSONPath, and headers
+
+4. **Pair with your thermostat**:
+   - Click "Send Pairing Packet" for the sensor
+   - Walk to your thermostat within 60 seconds
+   - Go to thermostat settings and add the new wireless sensor
+   - It should appear with the name you configured
+
+### JSONPath Examples
+
+**New to JSONPath?** The easiest way to get started is to ask an AI:
+
+1. Get a sample JSON response from your API (copy from browser, curl, or Postman)
+2. Use one of these prompts with ChatGPT, Claude, or any LLM:
+
+```
+I have this JSON response from my temperature sensor API:
+
+[paste your JSON here]
+
+I need a JSONPath query (for Json.NET/Newtonsoft.Json) to extract the temperature value.
+The temperature is [describe where it is, e.g., "in the 'state' field" or "in the
+array of sensors where name equals 'Living Room'"].
+
+Please provide just the JSONPath query.
+```
+
+**Alternative prompt if you're not sure where the temperature is:**
+```
+I have this JSON response:
+
+[paste your JSON here]
+
+Can you identify which field contains the temperature reading and provide a
+JSONPath query (for Json.NET/Newtonsoft.Json) to extract it?
+```
+
+3. Test the JSONPath in VenstarTranslator's web UI:
+   - Click "Test JSON Path" button (upper right)
+   - Paste your full JSON response in the document field
+   - Paste the JSONPath query the LLM gave you
+   - Click "Test" to verify it extracts the right value
+
+**Common JSONPath patterns you'll encounter:**
+
+| Pattern | What it does | Example |
+|---------|--------------|---------|
+| `$.state` | Get the "state" field at root level | Simple sensor value |
+| `$.data.temperature` | Navigate nested objects | Get temperature from data object |
+| `$.sensors[0].temp` | Get first array element | First sensor's temperature |
+| `$.sensors[?(@.name=='Living Room')].temp` | Filter array by field value | Find sensor by name |
+| `$.common_list[?(@.id=='0x02')].val` | Filter by ID | Ecowitt outdoor sensor |
+
+#### Home Assistant API
+
+Home Assistant REST API returns sensor state in a simple format:
+
+```json
+{
+  "state": "72.5",
+  "attributes": { ... }
+}
+```
+
+**JSONPath:** `$.state`
+
+**Full Example:**
+```json
+{
+  "Name": "Living Room",
+  "Enabled": true,
+  "Purpose": "Remote",
+  "Scale": "F",
+  "URL": "http://homeassistant.local:8123/api/states/sensor.living_room_temperature",
+  "JSONPath": "$.state",
+  "Headers": [
+    {
+      "Name": "Authorization",
+      "Value": "Bearer YOUR_LONG_LIVED_ACCESS_TOKEN"
+    }
+  ]
+}
+```
+
+**Getting a Home Assistant Token:**
+1. In Home Assistant, go to your profile (bottom left)
+2. Scroll to "Long-Lived Access Tokens"
+3. Click "Create Token"
+4. Copy the token and use it in the `Authorization` header
+
+#### Ecowitt GW2000/GW1100 Weather Station
+
+Ecowitt stations expose a `/get_livedata_info` endpoint with nested sensor data:
+
+**Outdoor sensor:**
+```json
+{
+  "common_list": [
+    { "id": "0x02", "val": "45.7", "unit": "°F" }
+  ]
+}
+```
+**JSONPath:** `$.common_list[?(@.id=='0x02')].val`
+
+**Named indoor sensor:**
+```json
+{
+  "ch_aisle": [
+    { "channel": "1", "name": "Living Room", "temp": "72.3" }
+  ]
+}
+```
+**JSONPath:** `$.ch_aisle[?(@.name=='Living Room')].temp`
+
+**Station onboard sensor:**
+```json
+{
+  "wh25": [
+    { "intemp": "68.9", "inhumi": "45" }
+  ]
+}
+```
+**JSONPath:** `$.wh25[0].intemp`
+
+See `VenstarTranslator/sensors.ecowitt.json.sample` and `VenstarTranslator/sensors.homeassistant.json.sample` for complete examples.
+
+### Advanced Configuration
+
+#### Multiple Instances (60+ sensors)
+
+If you need more than 20 sensors, run multiple instances with different `FakeMacPrefix` values:
+
+```yaml
+# Instance 1 (sensors 0-19)
+environment:
+  FakeMacPrefix: "428e0486d8"
+
+# Instance 2 (sensors 20-39) - change last character to "7"
+environment:
+  FakeMacPrefix: "428e0486d7"
+
+# Instance 3 (sensors 40-59) - change last character to "9"
+environment:
+  FakeMacPrefix: "428e0486d9"
+```
+
+**⚠️ Warning:** Changing `FakeMacPrefix` after pairing will break existing sensor connections. You'll need to re-pair all sensors.
+
+#### Manual sensors.json Configuration
+
+While the web UI is recommended, you can also edit `./data/sensors.json` directly. The application validates and normalizes the file on startup. If validation fails, check the container logs:
+
+```bash
+docker logs venstartranslator
+```
+
+## Troubleshooting
+
+### Thermostat doesn't see sensors
+
+- **Check network mode**: Must use `network_mode: host` in Docker Compose
+- **Verify VLAN**: Docker host and thermostat must be on the same broadcast domain
+- **Test sensor**: Click "Get Temperature" in web UI to verify data is being fetched
+- **Re-pair**: Click "Send Pairing Packet" and add the sensor on the thermostat within 60 seconds
+
+### "Get Temperature" fails
+
+- **Check URL**: Ensure the API endpoint is reachable from the Docker host
+- **Verify JSONPath**: Use the "Test JSON Path" tool to validate your query
+- **Headers**: Make sure authentication tokens/API keys are correct
+- **SSL errors**: Enable "Ignore SSL Errors" for self-signed certificates
+
+### Sensor data not updating
+
+- Check container logs: `docker logs venstartranslator`
+- Verify sensor is enabled in the web UI
+- Check that the Hangfire dashboard shows scheduled jobs: `http://your-host:8080/hangfire`
+
+## How It Works
+
+1. **Scheduled fetching**: Background jobs query your JSON APIs on a schedule (outdoor sensors every 5 minutes, others every minute)
+2. **Temperature extraction**: JSONPath queries extract the temperature value from the JSON response
+3. **Protocol translation**: Temperature is converted to Venstar's protocol format
+4. **UDP broadcast**: Protobuf-encoded packets are broadcast to `255.255.255.255:5001` where Venstar thermostats listen
+
+The thermostat receives these packets exactly as if they came from genuine Venstar wireless sensors.
+
+## Files and Backup
+
+All sensor configurations are stored in `./data/sensors.json`. This is the only file you need to back up. The application also creates SQLite databases in the container for internal state, but these are regenerated from `sensors.json` on startup.
 
 
 
