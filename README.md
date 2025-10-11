@@ -74,7 +74,7 @@ Navigate to `http://your-docker-host-ip:8080` in your browser.
    - Click "Add New Sensor"
    - Fill in the form:
      - **Name**: Display name (max 14 characters, shown on thermostat)
-     - **Enabled**: Check to activate this sensor
+     - **Broadcast Sensor**: Enable broadcasting temperature data to thermostats
      - **Purpose**:
        - `Outdoor` - Broadcasts every 5 minutes
        - `Remote`, `Return`, `Supply` - Broadcast every minute
@@ -261,7 +261,7 @@ docker logs venstartranslator
 ### Sensor data not updating
 
 - Check container logs: `docker logs venstartranslator`
-- Verify sensor is enabled in the web UI
+- Verify "Broadcast Sensor" is checked for the sensor in the web UI
 - Check that the Hangfire dashboard shows scheduled jobs: `http://your-host:8080/hangfire`
 
 ## How It Works
