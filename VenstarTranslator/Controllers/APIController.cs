@@ -222,28 +222,7 @@ public class API : ControllerBase
                 return StatusCode(400, new { message = "URL not configured" });
             }
 
-            using var clientHandler = new System.Net.Http.HttpClientHandler();
-            if (sensor?.IgnoreSSLErrors == true)
-            {
-                clientHandler.ServerCertificateCustomValidationCallback = System.Net.Http.HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-            }
-
-            using var client = new System.Net.Http.HttpClient(clientHandler);
-            var httpRequest = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, request.Url);
-
-            // Add headers if sensor is found
-            if (sensor?.Headers != null)
-            {
-                foreach (var header in sensor.Headers)
-                {
-                    httpRequest.Headers.Add(header.Name, header.Value);
-                }
-            }
-
-            var response = client.SendAsync(httpRequest).GetAwaiter().GetResult();
-            response.EnsureSuccessStatusCode();
-
-            var responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            var responseBody = sensor.GetDocument();
 
             return Content(responseBody, "application/json");
         }

@@ -204,7 +204,7 @@ public class TranslatedVenstarSensor : IValidatableObject
         }
     }
 
-    public double GetLatestReading()
+    public string GetDocument()
     {
         using var clientHandler = new HttpClientHandler();
         if (IgnoreSSLErrors)
@@ -222,9 +222,12 @@ public class TranslatedVenstarSensor : IValidatableObject
         var response = client.SendAsync(request).GetAwaiter().GetResult();
         response.EnsureSuccessStatusCode();
 
-        var responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+        return response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+    }
 
-        var jToken = JToken.Parse(responseBody);
+    public double ExtractValue(string jsonDocument)
+    {
+        var jToken = JToken.Parse(jsonDocument);
         var field = jToken.SelectToken(JSONPath)?.Value<string>();
 
         if (string.IsNullOrWhiteSpace(field))
@@ -239,6 +242,12 @@ public class TranslatedVenstarSensor : IValidatableObject
             throw new InvalidOperationException("The specified JSON Path found a non-numeric value.");
         }
         return Convert.ToDouble(target);
+    }
+
+    public double GetLatestReading()
+    {
+        var document = GetDocument();
+        return ExtractValue(document);
     }
 }
 
