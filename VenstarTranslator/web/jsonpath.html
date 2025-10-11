@@ -64,6 +64,23 @@
             background-color: #f8fafc;
         }
 
+        #url-selector-container {
+            margin-bottom: 10px;
+        }
+
+        #json-document {
+            height: 488px; /* Default height when no dropdown */
+        }
+
+        #url-selector-container:not([style*="display: none"]) ~ label + #json-document {
+            height: 400px; /* Reduced height when dropdown is visible */
+        }
+
+        #result-textarea {
+            height: 488px;
+            max-height: unset; /* Extend to match left side with dropdown */
+        }
+
         .large-textarea:focus {
             outline: none;
             border-color: #3b82f6;
@@ -108,6 +125,12 @@
 
             <div class="textareas-container">
                 <div class="textarea-column">
+                    <div id="url-selector-container" style="display: none; margin-bottom: 10px;">
+                        <label class="form-label">Document Source</label>
+                        <select id="url-selector" class="form-input">
+                            <option value="">Use Document Below</option>
+                        </select>
+                    </div>
                     <label class="form-label">JSON Document</label>
                     <textarea id="json-document" class="large-textarea" placeholder="Enter your JSON document here..."></textarea>
                 </div>
@@ -121,6 +144,112 @@
     </div>
 
     <script>
+        let sensors = [];
+
+        // Load sensors on page load
+        $(function() {
+            loadSensors();
+        });
+
+        function loadSensors() {
+            $.ajax({
+                url: '/api/sensors',
+                type: 'GET',
+                success: function(response) {
+                    sensors = response;
+                    populateUrlSelector();
+                },
+                error: function(xhr, status, error) {
+                    console.error('Failed to load sensors:', error);
+                }
+            });
+        }
+
+        function populateUrlSelector() {
+            const selector = $('#url-selector');
+            const container = $('#url-selector-container');
+
+            // Clear existing options except the first one
+            selector.find('option:not(:first)').remove();
+
+            if (sensors.length === 0) {
+                container.hide();
+                return;
+            }
+
+            // Group sensors by URL
+            const urlMap = new Map();
+            sensors.forEach(sensor => {
+                if (!urlMap.has(sensor.url)) {
+                    urlMap.set(sensor.url, []);
+                }
+                urlMap.get(sensor.url).push(sensor.sensorID);
+            });
+
+            // Add options for each unique URL
+            urlMap.forEach((sensorIds, url) => {
+                const idsStr = sensorIds.join(', ');
+                const displayText = `Sensor ${idsStr} - ${url}`;
+                selector.append($('<option>', {
+                    value: url,
+                    text: displayText
+                }));
+            });
+
+            container.show();
+        }
+
+        // Handle URL selector change
+        $('#url-selector').on('change', function() {
+            const selectedUrl = $(this).val();
+            const jsonDocument = $('#json-document');
+
+            if (selectedUrl) {
+                // Disable textarea and fetch data from URL
+                jsonDocument.prop('disabled', true);
+                jsonDocument.val('Loading...');
+
+                $.ajax({
+                    url: '/api/fetchurl',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ url: selectedUrl }),
+                    dataType: 'text', // Expect text response, not JSON
+                    success: function(response) {
+                        // Format the JSON for display
+                        try {
+                            const parsed = JSON.parse(response);
+                            jsonDocument.val(JSON.stringify(parsed, null, 2));
+                        } catch (e) {
+                            // If it's not valid JSON, just display as-is
+                            jsonDocument.val(response);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        let errorMessage = 'Failed to fetch URL content: ' + error;
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        } else if (xhr.responseText) {
+                            try {
+                                const errorObj = JSON.parse(xhr.responseText);
+                                if (errorObj.message) {
+                                    errorMessage = errorObj.message;
+                                }
+                            } catch (e) {
+                                // Ignore parse error
+                            }
+                        }
+                        jsonDocument.val(errorMessage);
+                        jsonDocument.prop('disabled', false);
+                    }
+                });
+            } else {
+                // Enable textarea for manual input
+                jsonDocument.prop('disabled', false);
+                jsonDocument.val('');
+            }
+        });
+
         function testJsonPath() {
             const query = document.getElementById('query').value.trim();
             const jsonDocument = document.getElementById('json-document').value.trim();
