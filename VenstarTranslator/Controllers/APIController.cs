@@ -58,7 +58,7 @@ public class API : ControllerBase
         var sensor = _db.Sensors.Include(a => a.Headers).FirstOrDefault(a => a.SensorID == id);
         if (sensor == null)
         {
-            return StatusCode(404, new { message = "Sensor not found." });
+            return StatusCode(404, new { Message = "Sensor not found." });
         }
         try
         {
@@ -85,7 +85,7 @@ public class API : ControllerBase
     {
         if (!_db.Sensors.Any(a => a.SensorID == updated.SensorID))
         {
-            return StatusCode(404, new { message = "Sensor not found." });
+            return StatusCode(404, new { Message = "Sensor not found." });
         }
 
         // update working db
@@ -109,7 +109,7 @@ public class API : ControllerBase
         SyncToSensorsJson(_config, _db);
         current.SyncHangfire();
 
-        return Ok(new { message = "Successful!" });
+        return Ok(new { Message = "Successful!" });
     }
 
     [HttpPost]
@@ -128,7 +128,7 @@ public class API : ControllerBase
 
         if (sensor.SensorID > 19)
         {
-            return StatusCode(400, new { message = "No sensor IDs available. Delete some sensors first." });
+            return StatusCode(400, new { Message = "No sensor IDs available. Delete some sensors first." });
         }
 
         _db.Sensors.Add(sensor);
@@ -136,7 +136,7 @@ public class API : ControllerBase
         SyncToSensorsJson(_config, _db);
         sensor.SyncHangfire();
 
-        return Ok(new { message = "Successful!" });
+        return Ok(new { Message = "Successful!" });
     }
 
     [HttpDelete]
@@ -145,7 +145,7 @@ public class API : ControllerBase
     {
         if (!_db.Sensors.Any(a => a.SensorID == id))
         {
-            return StatusCode(404, new { message = "Sensor not found." });
+            return StatusCode(404, new { Message = "Sensor not found." });
         }
 
         var sensor = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == id);
@@ -156,7 +156,7 @@ public class API : ControllerBase
 
         SyncToSensorsJson(_config, _db);
 
-        return Ok(new { message = "Successful!" });
+        return Ok(new { Message = "Successful!" });
     }
 
     private static void SyncToSensorsJson(IConfiguration _config, VenstarTranslatorDataCache _db)
@@ -215,7 +215,7 @@ public class API : ControllerBase
         {
             if (string.IsNullOrWhiteSpace(request?.Url))
             {
-                return StatusCode(400, new { message = "URL is required." });
+                return StatusCode(400, new { Message = "URL is required." });
             }
 
             // Find a sensor with this URL to get the headers and SSL settings
@@ -223,7 +223,7 @@ public class API : ControllerBase
 
             if (sensor == null)
             {
-                return StatusCode(400, new { message = "URL not configured" });
+                return StatusCode(400, new { Message = "URL not configured" });
             }
 
             var responseBody = _sensorOperations.GetDocument(sensor);
@@ -232,11 +232,11 @@ public class API : ControllerBase
         }
         catch (System.Net.Http.HttpRequestException e)
         {
-            return StatusCode(400, new { message = $"HTTP Error: {e.Message}" });
+            return StatusCode(400, new { Message = $"HTTP Error: {e.Message}" });
         }
         catch (Exception e)
         {
-            return StatusCode(400, new { message = $"Error fetching URL: {e.Message}" });
+            return StatusCode(400, new { Message = $"Error fetching URL: {e.Message}" });
         }
     }
 }
