@@ -2,7 +2,7 @@ using VenstarTranslator.Models;
 
 namespace VenstarTranslator.Services;
 
-public class SensorOperations
+public class SensorOperations : ISensorOperations
 {
     private readonly IHttpDocumentFetcher _documentFetcher;
     private readonly IUdpBroadcaster _udpBroadcaster;

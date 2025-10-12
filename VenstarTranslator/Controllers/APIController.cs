@@ -23,9 +23,9 @@ public class API : ControllerBase
 
     private readonly IConfiguration _config;
 
-    private readonly SensorOperations _sensorOperations;
+    private readonly ISensorOperations _sensorOperations;
 
-    public API(ILogger<API> logger, VenstarTranslatorDataCache db, IConfiguration config, SensorOperations sensorOperations)
+    public API(ILogger<API> logger, VenstarTranslatorDataCache db, IConfiguration config, ISensorOperations sensorOperations)
     {
         _logger = logger;
         _db = db;

@@ -27,7 +27,7 @@ public class Tasks
         using (var dbContext = scope.ServiceProvider.GetRequiredService<VenstarTranslatorDataCache>())
         {
             var sensor = dbContext.Sensors.Include(a => a.Headers).Single(a => a.SensorID == sensorID);
-            var sensorOperations = scope.ServiceProvider.GetRequiredService<SensorOperations>();
+            var sensorOperations = scope.ServiceProvider.GetRequiredService<ISensorOperations>();
             sensorOperations.SendDataPacket(sensor);
             dbContext.SaveChanges();
         }

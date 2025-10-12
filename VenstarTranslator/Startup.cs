@@ -56,7 +56,7 @@ public class Startup
         // Register sensor dependencies
         services.AddSingleton<IHttpDocumentFetcher, HttpDocumentFetcher>();
         services.AddSingleton<IUdpBroadcaster, UdpBroadcaster>();
-        services.AddSingleton<SensorOperations>();
+        services.AddSingleton<ISensorOperations, SensorOperations>();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env, VenstarTranslatorDataCache dbContext, ILogger<Startup> _logger)
