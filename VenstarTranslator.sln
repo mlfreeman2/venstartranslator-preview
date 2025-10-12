@@ -5,6 +5,8 @@ VisualStudioVersion = 17.5.002.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VenstarTranslator", "VenstarTranslator\VenstarTranslator.csproj", "{0077F4DF-87A0-445E-B681-57C8D7C4EED3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VenstarTranslator.Tests", "VenstarTranslator.Tests\VenstarTranslator.Tests.csproj", "{5615838C-8833-4052-B6E5-99D19A9D90DF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{0077F4DF-87A0-445E-B681-57C8D7C4EED3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0077F4DF-87A0-445E-B681-57C8D7C4EED3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0077F4DF-87A0-445E-B681-57C8D7C4EED3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5615838C-8833-4052-B6E5-99D19A9D90DF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5615838C-8833-4052-B6E5-99D19A9D90DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5615838C-8833-4052-B6E5-99D19A9D90DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5615838C-8833-4052-B6E5-99D19A9D90DF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

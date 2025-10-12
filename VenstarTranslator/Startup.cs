@@ -20,6 +20,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using VenstarTranslator.Models;
+using VenstarTranslator.Services;
 
 namespace VenstarTranslator;
 
@@ -51,6 +52,11 @@ public class Startup
         services.AddHangfireServer();
 
         services.AddDbContext<VenstarTranslatorDataCache>(options => options.UseSqlite(_config.GetConnectionString("DataCache")));
+
+        // Register sensor dependencies
+        services.AddSingleton<IHttpDocumentFetcher, HttpDocumentFetcher>();
+        services.AddSingleton<IUdpBroadcaster, UdpBroadcaster>();
+        services.AddSingleton<SensorOperations>();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env, VenstarTranslatorDataCache dbContext, ILogger<Startup> _logger)
@@ -157,14 +163,6 @@ public class Startup
             {
                 var errors = string.Join("; ", validationResults.Select(vr => vr.ErrorMessage));
                 throw new InvalidOperationException($"Sensor validation failed: {errors}");
-            }
-
-            // Additional validation using IValidatableObject
-            var additionalResults = sensor.Validate(validationContext);
-            if (additionalResults.Any())
-            {
-                var additionalErrors = string.Join("; ", additionalResults.Select(vr => vr.ErrorMessage));
-                throw new InvalidOperationException($"Sensor validation failed: {additionalErrors}");
             }
         }
     }

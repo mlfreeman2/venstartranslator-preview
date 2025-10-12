@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.IO;
-using System.Net.Http;
-using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -21,7 +19,7 @@ using VenstarTranslator.Models.Protobuf;
 
 namespace VenstarTranslator.Models;
 
-public class TranslatedVenstarSensor : IValidatableObject
+public class TranslatedVenstarSensor
 {
     public static string macPrefix = "";
 
@@ -95,19 +93,7 @@ public class TranslatedVenstarSensor : IValidatableObject
     [ValidHttpHeaders]
     public List<DataSourceHttpHeader> Headers { get; set; }
 
-
-    // IValidatableObject implementation for complex validation logic
-    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-    {
-        var results = new List<ValidationResult>();
-
-        // Additional context-dependent validation can go here
-        // For example, validation that requires access to other services or configuration
-
-        return results;
-    }
-
-    private SensorMessage BuildProtobufPacket()
+    private SensorMessage BuildProtobufPacket(double latestReading)
     {
         return new SensorMessage
         {
@@ -130,8 +116,8 @@ public class TranslatedVenstarSensor : IValidatableObject
                     Name = Name,
                     Temperature = Scale switch
                     {
-                        TemperatureScale.F => Convert.ToByte(Array.IndexOf(Temperatures_Farenheit, Math.Round(Convert.ToDecimal(GetLatestReading())).ToString())),
-                        TemperatureScale.C => Convert.ToByte(Array.IndexOf(Temperatures_Celsius, Math.Round(Convert.ToDecimal(GetLatestReading())).ToString())),
+                        TemperatureScale.F => Convert.ToByte(Array.IndexOf(Temperatures_Farenheit, Math.Round(Convert.ToDecimal(latestReading)).ToString())),
+                        TemperatureScale.C => Convert.ToByte(Array.IndexOf(Temperatures_Celsius, Math.Round(Convert.ToDecimal(latestReading)).ToString())),
                         _ => throw new InvalidOperationException(),
                     }
                 }
@@ -139,19 +125,19 @@ public class TranslatedVenstarSensor : IValidatableObject
         };
     }
 
-    private SensorMessage ToPairingPacket()
+    public byte[] BuildPairingPacket(double latestReading)
     {
-        var dataPacket = BuildProtobufPacket();
+        var dataPacket = BuildProtobufPacket(latestReading);
         dataPacket.Command = SensorMessage.Commands.SENSORPAIR;
         dataPacket.SensorData.Signature = Signature_Key;
         dataPacket.SensorData.Info.Sequence = 1;
         Sequence = 1;
-        return dataPacket;
+        return dataPacket.Serialize();
     }
 
-    private SensorMessage ToDataPacket()
+    public byte[] BuildDataPacket(double latestReading)
     {
-        var dataPacket = BuildProtobufPacket();
+        var dataPacket = BuildProtobufPacket(latestReading);
 
         using (HMACSHA256 hmac = new(Convert.FromBase64String(Signature_Key)))
         using (MemoryStream ms = new())
@@ -166,28 +152,7 @@ public class TranslatedVenstarSensor : IValidatableObject
             Sequence = 1;
         }
 
-        return dataPacket;
-    }
-
-    private static void Send(byte[] bytes)
-    {
-        using UdpClient udpClient = new() { EnableBroadcast = true };
-        udpClient.Connect("255.255.255.255", 5001);
-        udpClient.Send(bytes);
-        udpClient.Send(bytes);
-        udpClient.Send(bytes);
-        udpClient.Send(bytes);
-        udpClient.Send(bytes);
-    }
-
-    public void SendDataPacket()
-    {
-        Send(ToDataPacket().Serialize());
-    }
-
-    public void SendPairingPacket()
-    {
-        Send(ToPairingPacket().Serialize());
+        return dataPacket.Serialize();
     }
 
     public void SyncHangfire()
@@ -204,27 +169,9 @@ public class TranslatedVenstarSensor : IValidatableObject
         }
     }
 
-    public double GetLatestReading()
+    public double ExtractValue(string jsonDocument)
     {
-        using var clientHandler = new HttpClientHandler();
-        if (IgnoreSSLErrors)
-        {
-            clientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-        }
-
-        using var client = new HttpClient(clientHandler);
-        var request = new HttpRequestMessage(HttpMethod.Get, URL);
-        foreach (var header in Headers)
-        {
-            request.Headers.Add(header.Name, header.Value);
-        }
-
-        var response = client.SendAsync(request).GetAwaiter().GetResult();
-        response.EnsureSuccessStatusCode();
-
-        var responseBody = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-
-        var jToken = JToken.Parse(responseBody);
+        var jToken = JToken.Parse(jsonDocument);
         var field = jToken.SelectToken(JSONPath)?.Value<string>();
 
         if (string.IsNullOrWhiteSpace(field))
