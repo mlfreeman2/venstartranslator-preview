@@ -1,13 +1,12 @@
 using System;
 using System.Linq;
-using System.Net.Sockets;
 
 using Hangfire;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using VenstarTranslator.Models;
+using VenstarTranslator.Services;
 
 namespace VenstarTranslator;
 
@@ -28,7 +27,8 @@ public class Tasks
         using (var dbContext = scope.ServiceProvider.GetRequiredService<VenstarTranslatorDataCache>())
         {
             var sensor = dbContext.Sensors.Include(a => a.Headers).Single(a => a.SensorID == sensorID);
-            sensor.SendDataPacket();
+            var sensorOperations = scope.ServiceProvider.GetRequiredService<SensorOperations>();
+            sensorOperations.SendDataPacket(sensor);
             dbContext.SaveChanges();
         }
     }

@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 using VenstarTranslator.Models;
+using VenstarTranslator.Services;
 
 namespace VenstarTranslator.Controllers;
 
@@ -22,11 +23,14 @@ public class API : ControllerBase
 
     private readonly IConfiguration _config;
 
-    public API(ILogger<API> logger, VenstarTranslatorDataCache db, IConfiguration config)
+    private readonly SensorOperations _sensorOperations;
+
+    public API(ILogger<API> logger, VenstarTranslatorDataCache db, IConfiguration config, SensorOperations sensorOperations)
     {
         _logger = logger;
         _db = db;
         _config = config;
+        _sensorOperations = sensorOperations;
     }
 
     [HttpGet]
@@ -39,7 +43,7 @@ public class API : ControllerBase
             return StatusCode(404, new { message = "Sensor not found." });
         }
 
-        sensor.SendPairingPacket();
+        _sensorOperations.SendPairingPacket(sensor);
         _db.SaveChanges();
 
         return new JsonResult(new { Message = "Pairing packet sent." });
@@ -58,7 +62,7 @@ public class API : ControllerBase
         }
         try
         {
-            var reading = sensor.GetLatestReading();
+            var reading = _sensorOperations.GetLatestReading(sensor);
             return new JsonResult(new { Temperature = reading, sensor.Scale });
         }
         catch (InvalidOperationException e)
@@ -222,7 +226,7 @@ public class API : ControllerBase
                 return StatusCode(400, new { message = "URL not configured" });
             }
 
-            var responseBody = sensor.GetDocument();
+            var responseBody = _sensorOperations.GetDocument(sensor);
 
             return Content(responseBody, "application/json");
         }
