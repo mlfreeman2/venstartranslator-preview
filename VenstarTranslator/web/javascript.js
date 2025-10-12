@@ -282,7 +282,6 @@ function getLatestTemperature(sensorID) {
     });
 }
 
-// Generic jQuery UI confirmation dialog function
 function confirmDialog(message, yesCallback, options = {}) {
     // Default options
     const defaults = {
@@ -347,7 +346,6 @@ function confirmDialog(message, yesCallback, options = {}) {
     });
 }
 
-// Demo functions
 function deleteSensor(sensorId) {
     confirmDialog('Are you sure you want to delete this sensor?', function() {
         $.ajax({

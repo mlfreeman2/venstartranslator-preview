@@ -257,6 +257,7 @@ docker logs venstartranslator
 - **Verify JSONPath**: Use the "Test JSON Path" tool to validate your query
 - **Headers**: Make sure authentication tokens/API keys are correct
 - **SSL errors**: Enable "Ignore SSL Errors" for self-signed certificates
+- **Timeout**: HTTP requests timeout after 10 seconds. If your API is slow to respond, the request will be cancelled and the sensor will fail to update
 
 ### Sensor data not updating
 
@@ -267,7 +268,7 @@ docker logs venstartranslator
 ## How It Works
 
 1. **Scheduled fetching**: Background jobs query your JSON APIs on a schedule (outdoor sensors every 5 minutes, others every minute)
-2. **Temperature extraction**: JSONPath queries extract the temperature value from the JSON response
+2. **Temperature extraction**: JSONPath queries extract the temperature value from the JSON response (HTTP requests have a 10-second timeout)
 3. **Protocol translation**: Temperature is converted to Venstar's protocol format
 4. **UDP broadcast**: Protobuf-encoded packets are broadcast to `255.255.255.255:5001` where Venstar thermostats listen
 
