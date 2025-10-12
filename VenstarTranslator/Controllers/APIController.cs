@@ -40,13 +40,24 @@ public class API : ControllerBase
         var sensor = _db.Sensors.Include(a => a.Headers).FirstOrDefault(a => a.SensorID == id);
         if (sensor == null)
         {
-            return StatusCode(404, new { message = "Sensor not found." });
+            return StatusCode(404, new { Message = "Sensor not found." });
         }
 
-        _sensorOperations.SendPairingPacket(sensor);
-        _db.SaveChanges();
+        try
+        {
+            _sensorOperations.SendPairingPacket(sensor);
+            _db.SaveChanges();
 
-        return new JsonResult(new { Message = "Pairing packet sent." });
+            return new JsonResult(new { Message = "Pairing packet sent." });
+        }
+        catch (System.Net.Http.HttpRequestException e)
+        {
+            return StatusCode(400, new { Message = e.Message });
+        }
+        catch (InvalidOperationException e)
+        {
+            return StatusCode(400, new { Message = e.Message });
+        }
     }
 
 
@@ -65,11 +76,14 @@ public class API : ControllerBase
             var reading = _sensorOperations.GetLatestReading(sensor);
             return new JsonResult(new { Temperature = reading, sensor.Scale });
         }
+        catch (System.Net.Http.HttpRequestException e)
+        {
+            return StatusCode(400, new { Message = e.Message });
+        }
         catch (InvalidOperationException e)
         {
-            return StatusCode(400, new { e.Message });
+            return StatusCode(400, new { Message = e.Message });
         }
-
     }
 
     [HttpGet]
