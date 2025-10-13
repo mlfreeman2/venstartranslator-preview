@@ -1,10 +1,12 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using ProtoBuf;
 
 namespace VenstarTranslator.Models.Protobuf;
 
+[ExcludeFromCodeCoverage]
 [ProtoContract]
 public class SensorMessage
 {
@@ -44,11 +46,9 @@ public class SensorMessage
 
     public byte[] Serialize()
     {
-        using (var stream = new System.IO.MemoryStream())
-        {
-            Serializer.Serialize(stream, this);
-            return stream.ToArray();
-        }
+        using var stream = new System.IO.MemoryStream();
+        Serializer.Serialize(stream, this);
+        return stream.ToArray();
     }
 
     // Convert byte array to hex string with spaces
@@ -59,6 +59,7 @@ public class SensorMessage
     }
 }
 
+[ExcludeFromCodeCoverage]
 [ProtoContract]
 public class SENSORDATA
 {
@@ -69,6 +70,7 @@ public class SENSORDATA
     public string Signature { get; set; } = string.Empty;
 }
 
+[ExcludeFromCodeCoverage]
 [ProtoContract]
 public class INFO
 {
@@ -131,14 +133,13 @@ public class INFO
 
     public byte[] Serialize()
     {
-        using (var stream = new System.IO.MemoryStream())
-        {
-            Serializer.Serialize(stream, this);
-            return stream.ToArray();
-        }
+        using var stream = new System.IO.MemoryStream();
+        Serializer.Serialize(stream, this);
+        return stream.ToArray();
     }
 }
 
+[ExcludeFromCodeCoverage]
 [ProtoContract]
 public class SENSORNAME
 {
@@ -147,6 +148,7 @@ public class SENSORNAME
     public string Name { get; set; } = string.Empty;
 }
 
+[ExcludeFromCodeCoverage]
 [ProtoContract]
 public class WIFICONFIG
 {
@@ -293,6 +295,7 @@ public class WIFICONFIG
     }
 }
 
+[ExcludeFromCodeCoverage]
 [ProtoContract]
 public class WIFISCANITEM
 {
@@ -306,6 +309,7 @@ public class WIFISCANITEM
     public byte SignalStrength { get; set; } // Signal strength % (0-100)
 }
 
+[ExcludeFromCodeCoverage]
 [ProtoContract]
 public class WIFISCANRESULTS
 {
@@ -313,6 +317,7 @@ public class WIFISCANRESULTS
     public WIFISCANITEM[] WifiScanResults { get; set; } = new WIFISCANITEM[0];
 }
 
+[ExcludeFromCodeCoverage]
 [ProtoContract]
 public class FIRMWARECHUNK
 {
@@ -332,6 +337,7 @@ public class FIRMWARECHUNK
     public byte[] Data { get; set; } = new byte[0];
 }
 
+[ExcludeFromCodeCoverage]
 [ProtoContract]
 public class FIRMWARECOMPLETE
 {

@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
-
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace VenstarTranslator.Models.Validation;

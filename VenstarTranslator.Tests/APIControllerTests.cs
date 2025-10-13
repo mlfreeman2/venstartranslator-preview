@@ -19,7 +19,9 @@ public class APIControllerTests : IDisposable
     private readonly VenstarTranslatorDataCache _db;
     private readonly Mock<ILogger<API>> _mockLogger;
     private readonly IConfiguration _config;
-    private readonly Mock<ISensorOperations> _mockSensorOps;
+    private readonly Mock<IHttpDocumentFetcher> _mockDocumentFetcher;
+    private readonly Mock<IUdpBroadcaster> _mockUdpBroadcaster;
+    private readonly ISensorOperations _sensorOps;
     private readonly Mock<IHangfireJobManager> _mockJobManager;
     private readonly API _controller;
 
@@ -33,8 +35,12 @@ public class APIControllerTests : IDisposable
 
         // Setup mocks
         _mockLogger = new Mock<ILogger<API>>();
-        _mockSensorOps = new Mock<ISensorOperations>();
+        _mockDocumentFetcher = new Mock<IHttpDocumentFetcher>();
+        _mockUdpBroadcaster = new Mock<IUdpBroadcaster>();
         _mockJobManager = new Mock<IHangfireJobManager>();
+
+        // Use real SensorOperations with mocked dependencies
+        _sensorOps = new SensorOperations(_mockDocumentFetcher.Object, _mockUdpBroadcaster.Object);
 
         // Use real in-memory configuration instead of mocking
         var configDict = new Dictionary<string, string>
@@ -46,7 +52,7 @@ public class APIControllerTests : IDisposable
             .Build();
 
         // Create controller
-        _controller = new API(_mockLogger.Object, _db, _config, _mockSensorOps.Object, _mockJobManager.Object);
+        _controller = new API(_mockLogger.Object, _db, _config, _sensorOps, _mockJobManager.Object);
     }
 
     public void Dispose()
@@ -92,8 +98,8 @@ public class APIControllerTests : IDisposable
         _db.Sensors.Add(sensor);
         _db.SaveChanges();
 
-        _mockSensorOps.Setup(s => s.GetLatestReading(It.IsAny<TranslatedVenstarSensor>()))
-            .Returns(72.5);
+        _mockDocumentFetcher.Setup(f => f.FetchDocument(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<List<DataSourceHttpHeader>>()))
+            .Returns("{\"temperature\": 72.5}");
 
         // Act
         var result = _controller.GetReading(0);
@@ -113,7 +119,7 @@ public class APIControllerTests : IDisposable
         _db.Sensors.Add(sensor);
         _db.SaveChanges();
 
-        _mockSensorOps.Setup(s => s.GetLatestReading(It.IsAny<TranslatedVenstarSensor>()))
+        _mockDocumentFetcher.Setup(f => f.FetchDocument(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<List<DataSourceHttpHeader>>()))
             .Throws(new HttpRequestException("Connection refused. The server is not accepting connections."));
 
         // Act
@@ -134,8 +140,8 @@ public class APIControllerTests : IDisposable
         _db.Sensors.Add(sensor);
         _db.SaveChanges();
 
-        _mockSensorOps.Setup(s => s.GetLatestReading(It.IsAny<TranslatedVenstarSensor>()))
-            .Throws(new InvalidOperationException("JSONPath error"));
+        _mockDocumentFetcher.Setup(f => f.FetchDocument(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<List<DataSourceHttpHeader>>()))
+            .Returns("{\"temperature\": \"invalid\"}");
 
         // Act
         var result = _controller.GetReading(0);
@@ -144,7 +150,7 @@ public class APIControllerTests : IDisposable
         var statusCodeResult = Assert.IsType<ObjectResult>(result);
         Assert.Equal(400, statusCodeResult.StatusCode);
         var response = Assert.IsType<MessageResponse>(statusCodeResult.Value);
-        Assert.Equal("JSONPath error", response.Message);
+        Assert.Contains("non-numeric value", response.Message);
     }
 
     #endregion
@@ -170,7 +176,8 @@ public class APIControllerTests : IDisposable
         _db.Sensors.Add(sensor);
         _db.SaveChanges();
 
-        _mockSensorOps.Setup(s => s.SendPairingPacket(It.IsAny<TranslatedVenstarSensor>()));
+        _mockDocumentFetcher.Setup(f => f.FetchDocument(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<List<DataSourceHttpHeader>>()))
+            .Returns("{\"temperature\": 72.5}");
 
         // Act
         var result = _controller.SendPairingPacket(0);
@@ -179,7 +186,7 @@ public class APIControllerTests : IDisposable
         var jsonResult = Assert.IsType<JsonResult>(result);
         var response = Assert.IsType<MessageResponse>(jsonResult.Value);
         Assert.Equal("Pairing packet sent.", response.Message);
-        _mockSensorOps.Verify(s => s.SendPairingPacket(It.IsAny<TranslatedVenstarSensor>()), Times.Once);
+        _mockUdpBroadcaster.Verify(b => b.Broadcast(It.IsAny<byte[]>()), Times.Once);
     }
 
     [Fact]
@@ -190,7 +197,7 @@ public class APIControllerTests : IDisposable
         _db.Sensors.Add(sensor);
         _db.SaveChanges();
 
-        _mockSensorOps.Setup(s => s.SendPairingPacket(It.IsAny<TranslatedVenstarSensor>()))
+        _mockDocumentFetcher.Setup(f => f.FetchDocument(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<List<DataSourceHttpHeader>>()))
             .Throws(new HttpRequestException("Request timed out after 10 seconds."));
 
         // Act
@@ -211,8 +218,8 @@ public class APIControllerTests : IDisposable
         _db.Sensors.Add(sensor);
         _db.SaveChanges();
 
-        _mockSensorOps.Setup(s => s.SendPairingPacket(It.IsAny<TranslatedVenstarSensor>()))
-            .Throws(new InvalidOperationException("JSONPath extraction failed"));
+        _mockDocumentFetcher.Setup(f => f.FetchDocument(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<List<DataSourceHttpHeader>>()))
+            .Returns("{}");
 
         // Act
         var result = _controller.SendPairingPacket(0);
@@ -221,7 +228,7 @@ public class APIControllerTests : IDisposable
         var statusCodeResult = Assert.IsType<ObjectResult>(result);
         Assert.Equal(400, statusCodeResult.StatusCode);
         var response = Assert.IsType<MessageResponse>(statusCodeResult.Value);
-        Assert.Equal("JSONPath extraction failed", response.Message);
+        Assert.Contains("failed to find anything", response.Message);
     }
 
     #endregion

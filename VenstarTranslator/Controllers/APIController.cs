@@ -127,7 +127,7 @@ public class API : ControllerBase
 
         if (current.Enabled)
         {
-            _jobManager.AddOrUpdateRecurringJob(current.HangfireJobName, current.Purpose, current.SensorID);
+            _jobManager.AddOrUpdateRecurringJob(current.HangfireJobName, current.CronExpression, current.SensorID);
         }
         else
         {
@@ -162,7 +162,7 @@ public class API : ControllerBase
 
         if (sensor.Enabled)
         {
-            _jobManager.AddOrUpdateRecurringJob(sensor.HangfireJobName, sensor.Purpose, sensor.SensorID);
+            _jobManager.AddOrUpdateRecurringJob(sensor.HangfireJobName, sensor.CronExpression, sensor.SensorID);
         }
 
         return Ok(new MessageResponse { Message = "Successful!" });

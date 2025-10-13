@@ -98,9 +98,6 @@ public class Startup
                 ValidateIndividualSensors(sensors);
                 UpdateDatabaseSensors(dbContext, sensors);
 
-                ValidateIndividualSensors(sensors);
-                UpdateDatabaseSensors(dbContext, sensors);
-
                 // update sensors.json
                 var dbDump = dbContext.Sensors.Include(a => a.Headers).AsNoTracking().ToList();
                 File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(dbDump, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
@@ -109,7 +106,7 @@ public class Startup
                 {
                     if (sensor.Enabled)
                     {
-                        jobManager.AddOrUpdateRecurringJob(sensor.HangfireJobName, sensor.Purpose, sensor.SensorID);
+                        jobManager.AddOrUpdateRecurringJob(sensor.HangfireJobName, sensor.CronExpression, sensor.SensorID);
                     }
                 }
             }
@@ -154,7 +151,6 @@ public class Startup
 
         return fakeMacPrefix;
     }
-
 
     private static void ValidateIndividualSensors(List<TranslatedVenstarSensor> sensors)
     {

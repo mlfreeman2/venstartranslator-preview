@@ -17,7 +17,7 @@ public class HttpDocumentFetcher : IHttpDocumentFetcher
     {
     }
 
-    public HttpDocumentFetcher(Func<HttpClientHandler>? handlerFactory)
+    public HttpDocumentFetcher(Func<HttpClientHandler> handlerFactory)
     {
         _handlerFactory = handlerFactory ?? (() => new HttpClientHandler());
     }

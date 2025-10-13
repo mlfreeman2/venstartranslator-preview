@@ -7,6 +7,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 
+using Hangfire;
+
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
@@ -62,6 +64,9 @@ public class TranslatedVenstarSensor
 
     [JsonIgnore]
     public string HangfireJobName => $"Sensor #{SensorID}: {Name}";
+
+    [JsonIgnore]
+    public string CronExpression => Purpose == SensorPurpose.Outdoor ? "*/5 * * * *" : "* * * * *";
 
     [JsonProperty(Order = 4)]
     [JsonConverter(typeof(StringEnumConverter))]
@@ -151,7 +156,6 @@ public class TranslatedVenstarSensor
 
         return dataPacket.Serialize();
     }
-
 
     public double ExtractValue(string jsonDocument)
     {
