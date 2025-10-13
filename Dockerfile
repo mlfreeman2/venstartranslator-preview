@@ -21,8 +21,8 @@ WORKDIR /app
 COPY --from=build /app ./
 COPY VenstarTranslator/web/. ./web
 
-# Create data directory with proper permissions before switching to non-root user
-RUN mkdir -p /app/data && chown -R $APP_UID /app/data
+# Create data directories with proper permissions before switching to non-root user
+RUN mkdir -p /app/data /data && chown -R $APP_UID /app/data /data
 
 # Run as non-root user
 USER $APP_UID
