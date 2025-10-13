@@ -56,10 +56,11 @@ public class Startup
         // Register sensor dependencies
         services.AddSingleton<IHttpDocumentFetcher, HttpDocumentFetcher>();
         services.AddSingleton<IUdpBroadcaster, UdpBroadcaster>();
-        services.AddSingleton<SensorOperations>();
+        services.AddSingleton<ISensorOperations, SensorOperations>();
+        services.AddSingleton<IHangfireJobManager, HangfireJobManager>();
     }
 
-    public void Configure(IApplicationBuilder app, IWebHostEnvironment env, VenstarTranslatorDataCache dbContext, ILogger<Startup> _logger)
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env, VenstarTranslatorDataCache dbContext, ILogger<Startup> _logger, IHangfireJobManager jobManager)
     {
         if (env.IsDevelopment())
         {
@@ -97,16 +98,15 @@ public class Startup
                 ValidateIndividualSensors(sensors);
                 UpdateDatabaseSensors(dbContext, sensors);
 
-                ValidateIndividualSensors(sensors);
-                UpdateDatabaseSensors(dbContext, sensors);
-
                 // update sensors.json
-                var dbDump = dbContext.Sensors.Include(a => a.Headers).AsNoTracking().ToList();
-                File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(dbDump, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
+                SensorOperations.SyncToJsonFile(_config, dbContext);
 
                 foreach (var sensor in dbContext.Sensors.ToList())
                 {
-                    sensor.SyncHangfire();
+                    if (sensor.Enabled)
+                    {
+                        jobManager.AddOrUpdateRecurringJob(sensor.HangfireJobName, sensor.CronExpression, sensor.SensorID);
+                    }
                 }
             }
         }
@@ -150,7 +150,6 @@ public class Startup
 
         return fakeMacPrefix;
     }
-
 
     private static void ValidateIndividualSensors(List<TranslatedVenstarSensor> sensors)
     {

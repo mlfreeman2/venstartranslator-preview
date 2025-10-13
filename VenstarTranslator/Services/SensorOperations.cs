@@ -1,8 +1,14 @@
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using VenstarTranslator.Models;
 
 namespace VenstarTranslator.Services;
 
-public class SensorOperations
+public class SensorOperations : ISensorOperations
 {
     private readonly IHttpDocumentFetcher _documentFetcher;
     private readonly IUdpBroadcaster _udpBroadcaster;
@@ -36,5 +42,17 @@ public class SensorOperations
         var latestReading = GetLatestReading(sensor);
         var bytes = sensor.BuildPairingPacket(latestReading);
         _udpBroadcaster.Broadcast(bytes);
+    }
+
+    [ExcludeFromCodeCoverage]
+    public static void SyncToJsonFile(IConfiguration config, VenstarTranslatorDataCache dbContext)
+    {
+        var sensorFilePath = config.GetValue<string>("SensorFilePath");
+        var sensors = dbContext.Sensors.Include(a => a.Headers).AsNoTracking().ToList();
+        var json = JsonConvert.SerializeObject(sensors, Formatting.Indented, new JsonSerializerSettings
+        {
+            DefaultValueHandling = DefaultValueHandling.Ignore
+        });
+        File.WriteAllText(sensorFilePath, json);
     }
 }

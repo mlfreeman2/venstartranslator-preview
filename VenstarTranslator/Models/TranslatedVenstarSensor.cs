@@ -9,13 +9,12 @@ using System.Text.RegularExpressions;
 
 using Hangfire;
 
-using Microsoft.EntityFrameworkCore;
-
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
 
 using VenstarTranslator.Models.Protobuf;
+using VenstarTranslator.Models.Validation;
 
 namespace VenstarTranslator.Models;
 
@@ -65,6 +64,9 @@ public class TranslatedVenstarSensor
 
     [JsonIgnore]
     public string HangfireJobName => $"Sensor #{SensorID}: {Name}";
+
+    [JsonIgnore]
+    public string CronExpression => Purpose == SensorPurpose.Outdoor ? "*/5 * * * *" : "* * * * *";
 
     [JsonProperty(Order = 4)]
     [JsonConverter(typeof(StringEnumConverter))]
@@ -155,20 +157,6 @@ public class TranslatedVenstarSensor
         return dataPacket.Serialize();
     }
 
-    public void SyncHangfire()
-    {
-        if (Enabled)
-        {
-            var rjo = new RecurringJobOptions() { TimeZone = TimeZoneInfo.Local };
-            var cronString = Purpose == SensorPurpose.Outdoor ? "*/5 * * * *" : "* * * * *";
-            RecurringJob.AddOrUpdate<Tasks>(HangfireJobName, a => a.SendDataPacket(SensorID), cronString, rjo);
-        }
-        else
-        {
-            RecurringJob.RemoveIfExists(HangfireJobName);
-        }
-    }
-
     public double ExtractValue(string jsonDocument)
     {
         var jToken = JToken.Parse(jsonDocument);
@@ -187,34 +175,4 @@ public class TranslatedVenstarSensor
         }
         return Convert.ToDouble(target);
     }
-}
-
-[Owned]
-public class DataSourceHttpHeader
-{
-    [JsonIgnore]
-    [Key]
-    public int ID { get; set; }
-
-    [JsonProperty(Order = 1)]
-    [Required(AllowEmptyStrings = false, ErrorMessage = "Header name is required.")]
-    public string Name { get; set; }
-
-    [JsonProperty(Order = 2)]
-    [Required(AllowEmptyStrings = false, ErrorMessage = "Header value is required.")]
-    public string Value { get; set; }
-}
-
-public enum SensorPurpose
-{
-    Outdoor = 1,
-    Return = 2,
-    Remote = 3,
-    Supply = 4,
-}
-
-public enum TemperatureScale
-{
-    F = 1,
-    C = 2
 }

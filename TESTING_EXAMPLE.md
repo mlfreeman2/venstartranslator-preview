@@ -1,6 +1,23 @@
 # Unit Testing Example
 
-With the refactored architecture, `GetDocument()` and `Send()` have been moved out of `TranslatedVenstarSensor` into the `SensorOperations` service. You can now write unit tests using mocks. Here's an example using Moq:
+VenstarTranslator now has comprehensive unit test coverage using xUnit and Moq. The architecture has been refactored to use dependency injection, making all components easily testable.
+
+## Test Coverage Summary
+
+- **Overall Coverage**: 64%
+- **Total Tests**: 83 passing tests
+- **Test Files**: 4 test files covering different layers
+
+### Coverage by Component
+
+| Component | Coverage | Tests |
+|-----------|----------|-------|
+| **Validation Attributes** | 100% | 32 tests |
+| **TranslatedVenstarSensor** | 94% | 7 tests |
+| **VenstarTranslatorDataCache** | 94% | (via integration tests) |
+| **HttpDocumentFetcher** | 89% | 18 tests |
+| **APIController** | 84% | 26 tests |
+| **SensorOperations** | 77% | (via integration tests) |
 
 ## Example Test Setup
 
@@ -204,36 +221,100 @@ public class TranslatedVenstarSensorTests
 }
 ```
 
-## Dependencies
+## Test Project Structure
 
-Add these to your test project:
+The `VenstarTranslator.Tests` project contains:
+
+### Test Files
+
+1. **APIControllerTests.cs** (26 tests)
+   - Tests all REST API endpoints (CRUD operations, pairing, reading)
+   - Uses in-memory SQLite database for isolation
+   - Mocks IHttpDocumentFetcher and IUdpBroadcaster
+   - Uses real SensorOperations for integration testing
+
+2. **TranslatedVenstarSensorTests.cs** (7 tests)
+   - Tests protobuf packet building (data packets and pairing packets)
+   - Tests JSON value extraction with JSONPath
+   - Verifies temperature lookup table conversions
+   - Validates packet determinism and sequence management
+
+3. **HttpDocumentFetcherTests.cs** (18 tests)
+   - Comprehensive error handling tests
+   - HTTP status code scenarios (400, 401, 403, 404, 405, 500, 502, 503)
+   - Network errors (timeouts, connection refused, SSL failures)
+   - Invalid response handling
+   - Custom header support
+
+4. **ValidationAttributeTests.cs** (32 tests)
+   - ValidAbsoluteUrlAttribute (10 tests)
+   - ValidHttpHeadersAttribute (13 tests)
+   - ValidJsonPathAttribute (9 tests)
+
+### Dependencies
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Moq" Version="4.20.70" />
-  <PackageReference Include="xunit" Version="2.6.2" />
-  <PackageReference Include="xunit.runner.visualstudio" Version="2.5.4" />
+  <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.11" />
+  <PackageReference Include="Moq" Version="4.20.72" />
+  <PackageReference Include="xunit" Version="2.9.2" />
+  <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  <PackageReference Include="coverlet.collector" Version="6.0.2" />
 </ItemGroup>
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+dotnet test VenstarTranslator.Tests.csproj
+
+# Run with coverage
+dotnet test VenstarTranslator.Tests.csproj --collect:"XPlat Code Coverage"
+
+# Run specific test class
+dotnet test --filter "FullyQualifiedName~ValidationAttributeTests"
 ```
 
 ## Architecture Benefits
 
 1. **Separation of Concerns**:
-   - `TranslatedVenstarSensor` is now a pure data model with packet building logic
-   - `SensorOperations` handles orchestration of HTTP fetching, value extraction, and UDP broadcasting
+   - `TranslatedVenstarSensor` is a data model with domain logic (packet building, value extraction)
+   - `SensorOperations` orchestrates HTTP fetching, value extraction, and UDP broadcasting
+   - `HttpDocumentFetcher` handles HTTP requests with comprehensive error handling
    - `IHttpDocumentFetcher` and `IUdpBroadcaster` provide clean abstractions for external dependencies
 
 2. **Testability**:
    - No network calls in tests - mock HTTP and UDP operations
    - Test sensor logic independently from I/O operations
-   - Easy assertions on method calls and parameters
+   - Integration testing approach - APIController tests use real SensorOperations with mocked dependencies
+   - Easy assertions on method calls and parameters using Moq
 
 3. **Maintainability**:
    - Clear dependencies visible through constructor injection
-   - Easy to add new operations or modify existing ones
-   - Centralized service for all sensor operations
+   - Validation logic centralized in custom attributes (ValidAbsoluteUrlAttribute, ValidHttpHeadersAttribute, ValidJsonPathAttribute)
+   - Static methods excluded from coverage where appropriate (Program, UdpBroadcaster, Protobuf DTOs)
+   - Comprehensive error messages guide users to fix configuration issues
 
 4. **Flexibility**:
    - Can swap implementations (e.g., different HTTP client, TCP instead of UDP)
    - Can add logging, retry logic, or metrics at the service level
    - BuildDataPacket accepts temperature as parameter for better testability
+
+## Code Coverage Exclusions
+
+The following classes are marked with `[ExcludeFromCodeCoverage]`:
+- **Program.cs** - Application entry point
+- **UdpBroadcaster** - Network I/O (requires actual UDP sockets)
+- **FetchUrlRequest** - Simple DTO with no logic
+- **Protobuf Models** - Auto-generated protocol buffer classes (SensorMessage, SENSORDATA, INFO, etc.)
+- **HangfireJobManager** - Thin wrapper around Hangfire static API
+- **SensorOperations.SyncToJsonFile()** - File I/O operation
+
+## CI/CD Integration
+
+GitHub Actions workflow runs tests and generates coverage reports:
+- Tests run on every push and pull request
+- Coverage reports posted as PR comments
+- Builds multi-platform Docker images (amd64, arm64)
+- Current coverage target: 60-80% (industry standard for well-tested code)

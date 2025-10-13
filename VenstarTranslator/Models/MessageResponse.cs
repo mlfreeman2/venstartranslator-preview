@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace VenstarTranslator.Models;
 
 [ExcludeFromCodeCoverage]
-public class FetchUrlRequest
+public class MessageResponse
 {
-    public string Url { get; set; }
+    public string Message { get; set; } = string.Empty;
 }

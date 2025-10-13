@@ -1,7 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
 
 namespace VenstarTranslator.Services;
 
+[ExcludeFromCodeCoverage]
 public class UdpBroadcaster : IUdpBroadcaster
 {
     public void Broadcast(byte[] data)

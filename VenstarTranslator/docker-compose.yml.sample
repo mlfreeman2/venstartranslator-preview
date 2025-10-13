@@ -2,15 +2,14 @@ services:
   venstartranslator:
     container_name: venstartranslator
     image: ghcr.io/mlfreeman2/venstartranslator-preview:main
-    restart: always
+    restart: unless-stopped
     volumes:
-      - "./docker/venstartranslator:/data"
+      - "./data:/data"
     environment:
-      TZ: "America/New_York"
+      TZ: "America/New_York"  # Change to your timezone
       SensorFilePath: "/data/sensors.json"
       Kestrel__Endpoints__Http__Url: "http://*:8080"
-      FakeMacPrefix: "428e0486d8" #keep this line if you want, delete this line if you want - it's really only needed if you want to run multiple copies of this app
-    network_mode: host
+    network_mode: host  # Required for UDP broadcast
     logging:
       options:
         max-size: "10m"

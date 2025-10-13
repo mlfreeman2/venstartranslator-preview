@@ -12,6 +12,25 @@ Venstar Translator bridges the gap between your existing temperature sensors and
 - Both Fahrenheit and Celsius supported
 - Multiple sensor purposes: Outdoor, Remote, Return, Supply
 
+### Compatible Thermostats
+
+This application emulates one or more **Venstar ACC-TSENWIFIPRO** Wi-Fi temperature sensors. Compatible thermostat models include:
+
+**ColorTouch Series:**
+- T7850, T7900, T8850, T8900
+
+**Explorer IAQ Series:**
+- T3950-IAQ, T4950-IAQ, T4950-TMS, T4975-IAQ, T4950SCH-IAQ
+
+**Explorer Series:**
+- T3700, T3800, T3900, T4700, T4800, T4900, T4900SCH
+  - *Note: Requires ACC-VWF2 accessory*
+
+**Explorer Mini Series:**
+- T2000, T2050, T2100, T2150
+
+**⚠️ Not Compatible:** Older ColorTouch models (T5800, T5900, T6800, T6900) use a different protocol and are not supported.
+
 ## Quick Start
 
 ### Prerequisites
@@ -76,8 +95,10 @@ Navigate to `http://your-docker-host-ip:8080` in your browser.
      - **Name**: Display name (max 14 characters, shown on thermostat)
      - **Broadcast Sensor**: Enable broadcasting temperature data to thermostats
      - **Purpose**:
-       - `Outdoor` - Broadcasts every 5 minutes
-       - `Remote`, `Return`, `Supply` - Broadcast every minute
+       - `Outdoor` - Broadcasts every 5 minutes (display only, not used for HVAC control)
+       - `Remote` - Broadcasts every minute (used for HVAC control)
+       - `Return` - Broadcasts every minute (return air monitoring)
+       - `Supply` - Broadcasts every minute (supply air monitoring)
      - **Scale**: `F` (Fahrenheit) or `C` (Celsius)
      - **URL**: Your JSON API endpoint
      - **JSONPath**: The path to extract temperature value (e.g., `$.state`)
@@ -257,6 +278,7 @@ docker logs venstartranslator
 - **Verify JSONPath**: Use the "Test JSON Path" tool to validate your query
 - **Headers**: Make sure authentication tokens/API keys are correct
 - **SSL errors**: Enable "Ignore SSL Errors" for self-signed certificates
+- **Timeout**: HTTP requests timeout after 10 seconds. If your API is slow to respond, the request will be cancelled and the sensor will fail to update
 
 ### Sensor data not updating
 
@@ -267,11 +289,16 @@ docker logs venstartranslator
 ## How It Works
 
 1. **Scheduled fetching**: Background jobs query your JSON APIs on a schedule (outdoor sensors every 5 minutes, others every minute)
-2. **Temperature extraction**: JSONPath queries extract the temperature value from the JSON response
+2. **Temperature extraction**: JSONPath queries extract the temperature value from the JSON response (HTTP requests have a 10-second timeout)
 3. **Protocol translation**: Temperature is converted to Venstar's protocol format
 4. **UDP broadcast**: Protobuf-encoded packets are broadcast to `255.255.255.255:5001` where Venstar thermostats listen
 
 The thermostat receives these packets exactly as if they came from genuine Venstar wireless sensors.
+
+**Important Notes:**
+- **Outdoor sensors** are for display only - the thermostat does **not** use them for HVAC control decisions
+- **Remote sensors** are used by the thermostat to control heating/cooling when enabled in thermostat settings
+- **Return/Supply sensors** are for monitoring air temperature in ductwork
 
 ## Files and Backup
 

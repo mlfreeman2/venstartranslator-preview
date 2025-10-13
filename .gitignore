@@ -5,3 +5,8 @@ obj/
 *.db-wal
 .DS_Store
 VenstarTranslator/VenstarTranslator.db;
+
+# Test coverage reports
+coverage/
+TestResults/
+*.cobertura.xml

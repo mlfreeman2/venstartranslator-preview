@@ -241,7 +241,7 @@ function saveSensor() {
 function sendPairingPacket(sensorID) {
     const button = event.target;
     button.classList.add('loading');
-    
+
     $.ajax({
         url: '/api/sensors/' + sensorID + '/pair',
         type: 'GET',
@@ -250,7 +250,8 @@ function sendPairingPacket(sensorID) {
             $('#responseModal').dialog('open');
         },
         error: function(xhr, status, error) {
-            $('#modalMessage').html('<i class="fas fa-exclamation-triangle" style="color: var(--error-color); margin-right: 0.5rem;"></i>' + error);
+            let msg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : error;
+            $('#modalMessage').html('<i class="fas fa-exclamation-triangle" style="color: var(--error-color); margin-right: 0.5rem;"></i>' + msg);
             $('#responseModal').dialog('open');
         },
         complete: function() {
@@ -282,7 +283,6 @@ function getLatestTemperature(sensorID) {
     });
 }
 
-// Generic jQuery UI confirmation dialog function
 function confirmDialog(message, yesCallback, options = {}) {
     // Default options
     const defaults = {
@@ -347,7 +347,6 @@ function confirmDialog(message, yesCallback, options = {}) {
     });
 }
 
-// Demo functions
 function deleteSensor(sensorId) {
     confirmDialog('Are you sure you want to delete this sensor?', function() {
         $.ajax({

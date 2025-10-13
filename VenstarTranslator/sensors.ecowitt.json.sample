@@ -1,34 +1,41 @@
 [
-	{
-		"Name": "Outside",
-		"Enabled": true,
-		"Purpose": "Outdoor",
-		"Scale": "F",
-		"URL": "http://172.17.21.11/get_livedata_info",
-		"JSONPath": "$.common_list[?(@.id=='0x02')].val"
-	},
-	{
-		"Name": "Living Room",
-		"Enabled": true,
-		"Purpose": "Remote",
-		"Scale": "F",
-		"URL": "http://172.17.21.11/get_livedata_info",
-		"JSONPath": "$.ch_aisle[?(@.name=='Living Room')].temp"
-	},
-	{
-		"Name": "Fridge",
-		"Enabled": true,
-		"Purpose": "Remote",
-		"Scale": "F",
-		"URL": "http://172.17.21.11/get_livedata_info",
-		"JSONPath": "$.ch_temp[?(@.name=='Fridge')].temp"
-	},
-	{
-		"Name": "GW2000 Onboard",
-		"Enabled": true,
-		"Purpose": "Remote",
-		"Scale": "F",
-		"URL": "http://172.17.21.11/get_livedata_info",
-		"JSONPath": "$.wh25[0].intemp"
-	}
+  {
+    "Name": "Outside",
+    "Enabled": true,
+    "Purpose": "Outdoor",
+    "Scale": "F",
+    "URL": "http://172.17.21.11/get_livedata_info",
+    "JSONPath": "$.common_list[?(@.id=='0x02')].val",
+    "Headers": []
+  },
+  {
+    "SensorID": 1,
+    "Name": "Living Room",
+    "Enabled": true,
+    "Purpose": "Remote",
+    "Scale": "F",
+    "URL": "http://172.17.21.11/get_livedata_info",
+    "JSONPath": "$.ch_aisle[?(@.name=='Living Room')].temp",
+    "Headers": []
+  },
+  {
+    "SensorID": 2,
+    "Name": "Fridge",
+    "Enabled": true,
+    "Purpose": "Remote",
+    "Scale": "F",
+    "URL": "http://172.17.21.11/get_livedata_info",
+    "JSONPath": "$.ch_temp[?(@.name=='Fridge')].temp",
+    "Headers": []
+  },
+  {
+    "SensorID": 3,
+    "Name": "GW2000 Onboard",
+    "Enabled": true,
+    "Purpose": "Remote",
+    "Scale": "F",
+    "URL": "http://172.17.21.11/get_livedata_info",
+    "JSONPath": "$.wh25[0].intemp",
+    "Headers": []
+  }
 ]

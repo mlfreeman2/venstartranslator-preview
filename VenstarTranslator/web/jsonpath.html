@@ -285,26 +285,34 @@
                 contentType: 'application/json',
                 data: JSON.stringify(requestData),
                 success: function (response) {
-                    // Handle successful response
-                    if (typeof response === 'string') {
+                    // Handle successful response - extract Message property
+                    if (response && response.message) {
+                        resultTextarea.value = response.message;
+                    } else if (typeof response === 'string') {
                         resultTextarea.value = response;
                     } else {
                         resultTextarea.value = JSON.stringify(response, null, 2);
                     }
                 },
                 error: function (xhr, status, error) {
-                    // Handle error response
+                    // Handle error response - extract Message property
                     let errorMessage = '';
 
-                    if (xhr.responseText) {
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    } else if (xhr.responseText) {
                         try {
                             const errorResponse = JSON.parse(xhr.responseText);
-                            errorMessage += JSON.stringify(errorResponse, null, 2);
+                            if (errorResponse.message) {
+                                errorMessage = errorResponse.message;
+                            } else {
+                                errorMessage = JSON.stringify(errorResponse, null, 2);
+                            }
                         } catch (e) {
-                            errorMessage += xhr.responseText;
+                            errorMessage = xhr.responseText;
                         }
                     } else {
-                        errorMessage += `HTTP ${xhr.status} - ${error}`;
+                        errorMessage = `HTTP ${xhr.status} - ${error}`;
                     }
 
                     resultTextarea.value = errorMessage;
