@@ -103,7 +103,11 @@ Sensors are defined in `sensors.json` and validated on startup. The web UI at po
 - **SensorID** (0-19): Auto-assigned by the application
 - **Name**: Max 14 characters, must be unique
 - **Enabled**: Controls Hangfire job scheduling
-- **Purpose**: `Outdoor`, `Return`, `Remote`, or `Supply` (affects broadcast frequency)
+- **Purpose**: Affects broadcast frequency and thermostat behavior
+  - `Outdoor` - Every 5 minutes (display only, NOT used for HVAC control)
+  - `Remote` - Every minute (used for HVAC control when enabled on thermostat)
+  - `Return` - Every minute (return air temperature monitoring)
+  - `Supply` - Every minute (supply air temperature monitoring)
 - **Scale**: `F` (Fahrenheit) or `C` (Celsius)
 - **URL**: HTTP/HTTPS endpoint returning JSON
 - **JSONPath**: Query to extract temperature value (supports Newtonsoft.Json syntax)
