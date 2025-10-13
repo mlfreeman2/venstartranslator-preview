@@ -123,7 +123,7 @@ public class API : ControllerBase
         }
         _db.SaveChanges();
 
-        SyncToSensorsJson(_config, _db);
+        SensorOperations.SyncToJsonFile(_config, _db);
 
         if (current.Enabled)
         {
@@ -158,7 +158,7 @@ public class API : ControllerBase
 
         _db.Sensors.Add(sensor);
         _db.SaveChanges();
-        SyncToSensorsJson(_config, _db);
+        SensorOperations.SyncToJsonFile(_config, _db);
 
         if (sensor.Enabled)
         {
@@ -182,17 +182,9 @@ public class API : ControllerBase
         _db.Sensors.Remove(sensor);
         _db.SaveChanges();
 
-        SyncToSensorsJson(_config, _db);
+        SensorOperations.SyncToJsonFile(_config, _db);
 
         return Ok(new MessageResponse { Message = "Successful!" });
-    }
-
-    private static void SyncToSensorsJson(IConfiguration _config, VenstarTranslatorDataCache _db)
-    {
-        // update sensors.json
-        var sensorFilePath = _config.GetValue<string>("SensorFilePath");
-        var dbDump = _db.Sensors.Include(a => a.Headers).AsNoTracking().ToList();
-        System.IO.File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(dbDump, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
     }
 
     [HttpPost]

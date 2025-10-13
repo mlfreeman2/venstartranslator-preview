@@ -99,8 +99,7 @@ public class Startup
                 UpdateDatabaseSensors(dbContext, sensors);
 
                 // update sensors.json
-                var dbDump = dbContext.Sensors.Include(a => a.Headers).AsNoTracking().ToList();
-                File.WriteAllText(sensorFilePath, JsonConvert.SerializeObject(dbDump, Formatting.Indented, new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore }));
+                SensorOperations.SyncToJsonFile(_config, dbContext);
 
                 foreach (var sensor in dbContext.Sensors.ToList())
                 {
