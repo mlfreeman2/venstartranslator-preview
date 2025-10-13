@@ -18,11 +18,17 @@ RUN dotnet publish -c Release -o /app -a $TARGETARCH --no-restore
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 
+COPY --from=build /app ./
+COPY VenstarTranslator/web/. ./web
+
+# Create data directory with proper permissions before switching to non-root user
+RUN mkdir -p /app/data && chown -R $APP_UID /app/data
+
 # Run as non-root user
 USER $APP_UID
 
-COPY --from=build /app ./
-COPY VenstarTranslator/web/. ./web
+# Set production environment
+ENV ASPNETCORE_ENVIRONMENT=Production
 
 EXPOSE 8080
 ENTRYPOINT ["/app/VenstarTranslator"]
