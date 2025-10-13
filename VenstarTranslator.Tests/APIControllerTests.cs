@@ -362,6 +362,7 @@ public class APIControllerTests : IDisposable
 
         // Verify changes
         var dbSensor = _db.Sensors.Find((byte)0);
+        Assert.NotNull(dbSensor);
         Assert.Equal("Updated Name", dbSensor.Name);
         Assert.Equal("http://newurl.com/api", dbSensor.URL);
     }

@@ -11,12 +11,22 @@ namespace VenstarTranslator.Services;
 public class HttpDocumentFetcher : IHttpDocumentFetcher
 {
     private const int TimeoutSeconds = 10;
+    private readonly Func<HttpClientHandler> _handlerFactory;
+
+    public HttpDocumentFetcher() : this(null)
+    {
+    }
+
+    public HttpDocumentFetcher(Func<HttpClientHandler>? handlerFactory)
+    {
+        _handlerFactory = handlerFactory ?? (() => new HttpClientHandler());
+    }
 
     public string FetchDocument(string url, bool ignoreSSLErrors, List<DataSourceHttpHeader> headers)
     {
         try
         {
-            using var clientHandler = new HttpClientHandler();
+            using var clientHandler = _handlerFactory();
             if (ignoreSSLErrors)
             {
                 clientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
