@@ -10,6 +10,7 @@ RUN dotnet restore VenstarTranslator/VenstarTranslator.csproj -a $TARGETARCH
 
 # Copy source code and build
 COPY VenstarTranslator/. ./VenstarTranslator/
+
 WORKDIR /source/VenstarTranslator
 RUN dotnet publish -c Release -o /app -a $TARGETARCH --no-restore
 
@@ -21,6 +22,7 @@ WORKDIR /app
 USER $APP_UID
 
 COPY --from=build /app ./
+COPY VenstarTranslator/web/. ./web
 
 EXPOSE 8080
 ENTRYPOINT ["/app/VenstarTranslator"]
