@@ -7,8 +7,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 
-using Hangfire;
-
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
@@ -154,19 +152,6 @@ public class TranslatedVenstarSensor
         return dataPacket.Serialize();
     }
 
-    public void SyncHangfire()
-    {
-        if (Enabled)
-        {
-            var rjo = new RecurringJobOptions() { TimeZone = TimeZoneInfo.Local };
-            var cronString = Purpose == SensorPurpose.Outdoor ? "*/5 * * * *" : "* * * * *";
-            RecurringJob.AddOrUpdate<Tasks>(HangfireJobName, a => a.SendDataPacket(SensorID), cronString, rjo);
-        }
-        else
-        {
-            RecurringJob.RemoveIfExists(HangfireJobName);
-        }
-    }
 
     public double ExtractValue(string jsonDocument)
     {

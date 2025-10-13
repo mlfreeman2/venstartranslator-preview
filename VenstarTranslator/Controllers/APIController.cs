@@ -25,12 +25,15 @@ public class API : ControllerBase
 
     private readonly ISensorOperations _sensorOperations;
 
-    public API(ILogger<API> logger, VenstarTranslatorDataCache db, IConfiguration config, ISensorOperations sensorOperations)
+    private readonly IHangfireJobManager _jobManager;
+
+    public API(ILogger<API> logger, VenstarTranslatorDataCache db, IConfiguration config, ISensorOperations sensorOperations, IHangfireJobManager jobManager)
     {
         _logger = logger;
         _db = db;
         _config = config;
         _sensorOperations = sensorOperations;
+        _jobManager = jobManager;
     }
 
     [HttpGet]
@@ -40,7 +43,7 @@ public class API : ControllerBase
         var sensor = _db.Sensors.Include(a => a.Headers).FirstOrDefault(a => a.SensorID == id);
         if (sensor == null)
         {
-            return StatusCode(404, new { Message = "Sensor not found." });
+            return StatusCode(404, new MessageResponse { Message = "Sensor not found." });
         }
 
         try
@@ -48,15 +51,15 @@ public class API : ControllerBase
             _sensorOperations.SendPairingPacket(sensor);
             _db.SaveChanges();
 
-            return new JsonResult(new { Message = "Pairing packet sent." });
+            return new JsonResult(new MessageResponse { Message = "Pairing packet sent." });
         }
         catch (System.Net.Http.HttpRequestException e)
         {
-            return StatusCode(400, new { Message = e.Message });
+            return StatusCode(400, new MessageResponse { Message = e.Message });
         }
         catch (InvalidOperationException e)
         {
-            return StatusCode(400, new { Message = e.Message });
+            return StatusCode(400, new MessageResponse { Message = e.Message });
         }
     }
 
@@ -69,20 +72,20 @@ public class API : ControllerBase
         var sensor = _db.Sensors.Include(a => a.Headers).FirstOrDefault(a => a.SensorID == id);
         if (sensor == null)
         {
-            return StatusCode(404, new { Message = "Sensor not found." });
+            return StatusCode(404, new MessageResponse { Message = "Sensor not found." });
         }
         try
         {
             var reading = _sensorOperations.GetLatestReading(sensor);
-            return new JsonResult(new { Temperature = reading, sensor.Scale });
+            return new JsonResult(new TemperatureResponse { Temperature = reading, Scale = sensor.Scale });
         }
         catch (System.Net.Http.HttpRequestException e)
         {
-            return StatusCode(400, new { Message = e.Message });
+            return StatusCode(400, new MessageResponse { Message = e.Message });
         }
         catch (InvalidOperationException e)
         {
-            return StatusCode(400, new { Message = e.Message });
+            return StatusCode(400, new MessageResponse { Message = e.Message });
         }
     }
 
@@ -99,7 +102,7 @@ public class API : ControllerBase
     {
         if (!_db.Sensors.Any(a => a.SensorID == updated.SensorID))
         {
-            return StatusCode(404, new { Message = "Sensor not found." });
+            return StatusCode(404, new MessageResponse { Message = "Sensor not found." });
         }
 
         // update working db
@@ -121,9 +124,17 @@ public class API : ControllerBase
         _db.SaveChanges();
 
         SyncToSensorsJson(_config, _db);
-        current.SyncHangfire();
 
-        return Ok(new { Message = "Successful!" });
+        if (current.Enabled)
+        {
+            _jobManager.AddOrUpdateRecurringJob(current.HangfireJobName, current.Purpose, current.SensorID);
+        }
+        else
+        {
+            _jobManager.RemoveRecurringJob(current.HangfireJobName);
+        }
+
+        return Ok(new MessageResponse { Message = "Successful!" });
     }
 
     [HttpPost]
@@ -142,15 +153,19 @@ public class API : ControllerBase
 
         if (sensor.SensorID > 19)
         {
-            return StatusCode(400, new { Message = "No sensor IDs available. Delete some sensors first." });
+            return StatusCode(400, new MessageResponse { Message = "No sensor IDs available. Delete some sensors first." });
         }
 
         _db.Sensors.Add(sensor);
         _db.SaveChanges();
         SyncToSensorsJson(_config, _db);
-        sensor.SyncHangfire();
 
-        return Ok(new { Message = "Successful!" });
+        if (sensor.Enabled)
+        {
+            _jobManager.AddOrUpdateRecurringJob(sensor.HangfireJobName, sensor.Purpose, sensor.SensorID);
+        }
+
+        return Ok(new MessageResponse { Message = "Successful!" });
     }
 
     [HttpDelete]
@@ -159,18 +174,17 @@ public class API : ControllerBase
     {
         if (!_db.Sensors.Any(a => a.SensorID == id))
         {
-            return StatusCode(404, new { Message = "Sensor not found." });
+            return StatusCode(404, new MessageResponse { Message = "Sensor not found." });
         }
 
         var sensor = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == id);
-        sensor.Enabled = false;
-        sensor.SyncHangfire();
+        _jobManager.RemoveRecurringJob(sensor.HangfireJobName);
         _db.Sensors.Remove(sensor);
         _db.SaveChanges();
 
         SyncToSensorsJson(_config, _db);
 
-        return Ok(new { Message = "Successful!" });
+        return Ok(new MessageResponse { Message = "Successful!" });
     }
 
     private static void SyncToSensorsJson(IConfiguration _config, VenstarTranslatorDataCache _db)
@@ -189,35 +203,35 @@ public class API : ControllerBase
         {
             if (string.IsNullOrWhiteSpace(test?.JSONDocument))
             {
-                return StatusCode(400, new { Message = "JSON Document is required." });
+                return StatusCode(400, new MessageResponse { Message = "JSON Document is required." });
             }
             if (string.IsNullOrWhiteSpace(test?.Query))
             {
-                return StatusCode(400, new { Message = "JSON Path Query is required." });
+                return StatusCode(400, new MessageResponse { Message = "JSON Path Query is required." });
             }
             var doc = JObject.Parse(test.JSONDocument);
             var result = doc.SelectTokens(test.Query);
             if (!result.Any())
             {
-                return Ok(new { Message = "No results found." });
+                return Ok(new MessageResponse { Message = "No results found." });
             }
             if (result.Count() > 1)
             {
-                return Ok(new { Message = $"Multiple results found. Only the first one would be used.\n====\n{JsonConvert.SerializeObject(result, Formatting.Indented)}" });
+                return Ok(new MessageResponse { Message = $"Multiple results found. Only the first one would be used.\n====\n{JsonConvert.SerializeObject(result, Formatting.Indented)}" });
             }
-            return Ok(new { Message = $"This is what would be transmitted as the temperature:\n====\n{result.First()}" });
+            return Ok(new MessageResponse { Message = $"This is what would be transmitted as the temperature:\n====\n{result.First()}" });
         }
         catch (JsonReaderException e)
         {
-            return StatusCode(400, new { Message = $"JSON Document Error:\n====\n{e.Message}" });
+            return StatusCode(400, new MessageResponse { Message = $"JSON Document Error:\n====\n{e.Message}" });
         }
         catch (JsonException e)
         {
-            return StatusCode(400, new { Message = $"JSON Path Error:\n====\n{e.Message}" });
+            return StatusCode(400, new MessageResponse { Message = $"JSON Path Error:\n====\n{e.Message}" });
         }
         catch (Exception e)
         {
-            return StatusCode(400, new { Message = $"System Error:\n====\n{e.Message}" });
+            return StatusCode(400, new MessageResponse { Message = $"System Error:\n====\n{e.Message}" });
         }
     }
 
@@ -229,7 +243,7 @@ public class API : ControllerBase
         {
             if (string.IsNullOrWhiteSpace(request?.Url))
             {
-                return StatusCode(400, new { Message = "URL is required." });
+                return StatusCode(400, new MessageResponse { Message = "URL is required." });
             }
 
             // Find a sensor with this URL to get the headers and SSL settings
@@ -237,7 +251,7 @@ public class API : ControllerBase
 
             if (sensor == null)
             {
-                return StatusCode(400, new { Message = "URL not configured" });
+                return StatusCode(400, new MessageResponse { Message = "URL not configured" });
             }
 
             var responseBody = _sensorOperations.GetDocument(sensor);
@@ -246,11 +260,11 @@ public class API : ControllerBase
         }
         catch (System.Net.Http.HttpRequestException e)
         {
-            return StatusCode(400, new { Message = $"HTTP Error: {e.Message}" });
+            return StatusCode(400, new MessageResponse { Message = $"HTTP Error: {e.Message}" });
         }
         catch (Exception e)
         {
-            return StatusCode(400, new { Message = $"Error fetching URL: {e.Message}" });
+            return StatusCode(400, new MessageResponse { Message = $"Error fetching URL: {e.Message}" });
         }
     }
 }

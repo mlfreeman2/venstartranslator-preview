@@ -57,9 +57,10 @@ public class Startup
         services.AddSingleton<IHttpDocumentFetcher, HttpDocumentFetcher>();
         services.AddSingleton<IUdpBroadcaster, UdpBroadcaster>();
         services.AddSingleton<ISensorOperations, SensorOperations>();
+        services.AddSingleton<IHangfireJobManager, HangfireJobManager>();
     }
 
-    public void Configure(IApplicationBuilder app, IWebHostEnvironment env, VenstarTranslatorDataCache dbContext, ILogger<Startup> _logger)
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env, VenstarTranslatorDataCache dbContext, ILogger<Startup> _logger, IHangfireJobManager jobManager)
     {
         if (env.IsDevelopment())
         {
@@ -106,7 +107,10 @@ public class Startup
 
                 foreach (var sensor in dbContext.Sensors.ToList())
                 {
-                    sensor.SyncHangfire();
+                    if (sensor.Enabled)
+                    {
+                        jobManager.AddOrUpdateRecurringJob(sensor.HangfireJobName, sensor.Purpose, sensor.SensorID);
+                    }
                 }
             }
         }
