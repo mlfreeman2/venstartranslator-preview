@@ -1,9 +1,9 @@
 {
-	"name": ".NET 8 DevContainer with Claude Code",
+	"name": ".NET 9 DevContainer with Claude Code",
 	"build": {
 		"dockerfile": "Dockerfile",
 		"args": {
-			"VARIANT": "8.0-bookworm-slim"
+			"VARIANT": "9.0-bookworm-slim"
 		}
 	},
 	"customizations": {
