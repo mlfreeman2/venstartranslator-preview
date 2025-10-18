@@ -1,0 +1,25 @@
+services:
+  venstartranslator:
+    container_name: venstartranslator
+    image: ghcr.io/mlfreeman2/venstartranslator-preview:main
+    restart: unless-stopped
+    volumes:
+      - "./data:/data"
+      # Optional: Mount custom certificate (uncomment if using your own cert)
+      # - "./certs/mycert.pfx:/certs/mycert.pfx:ro"
+    environment:
+      TZ: "America/New_York"  # Change to your timezone
+      SensorFilePath: "/data/sensors.json"
+      Kestrel__Endpoints__Http__Url: "http://*:8080"
+      # Optional: Enable HTTPS (uncomment to enable)
+      # Kestrel__Endpoints__Https__Url: "https://*:8443"
+      # Optional: Provide custom certificate (uncomment if using your own cert)
+      # HTTPS_CERTIFICATE_PATH: "/certs/mycert.pfx"
+      # HTTPS_CERTIFICATE_PASSWORD: "your-password-here"
+      # Note: If HTTPS is enabled but no certificate is provided, a self-signed
+      # certificate will be auto-generated and saved to /data/self-signed-cert.pfx
+    network_mode: host  # Required for UDP broadcast
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "5"

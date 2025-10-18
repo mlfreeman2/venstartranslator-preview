@@ -33,7 +33,8 @@
 		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.nuget,target=/home/vscode/.nuget,type=bind,consistency=cached"
 	],
 	"forwardPorts": [
-		8080
+		8080,
+		8443
 	],
 	"remoteEnv": {
 		"PATH": "${containerEnv:PATH}:/home/vscode/.dotnet/tools",

@@ -11,6 +11,7 @@ Venstar Translator bridges the gap between your existing temperature sensors and
 - Support for custom HTTP headers (authentication tokens, API keys)
 - Both Fahrenheit and Celsius supported
 - Multiple sensor purposes: Outdoor, Remote, Return, Supply
+- Optional HTTPS support with custom or auto-generated self-signed certificates
 
 ### Compatible Thermostats
 
@@ -78,6 +79,33 @@ docker compose up -d
 4. **Open the web UI:**
 
 Navigate to `http://your-docker-host-ip:8080` in your browser.
+
+### Optional: Enable HTTPS
+
+To enable HTTPS with an auto-generated self-signed certificate, add the following to your `docker-compose.yml`:
+
+```yaml
+environment:
+  Kestrel__Endpoints__Https__Url: "https://*:8443"
+```
+
+The application will automatically generate a self-signed certificate and save it to `/data/self-signed-cert.pfx`. You can then access the web UI at `https://your-docker-host-ip:8443`.
+
+**Using a custom certificate:**
+
+```yaml
+services:
+  venstartranslator:
+    volumes:
+      - "./data:/data"
+      - "./certs/mycert.pfx:/certs/mycert.pfx:ro"
+    environment:
+      Kestrel__Endpoints__Https__Url: "https://*:8443"
+      HTTPS_CERTIFICATE_PATH: "/certs/mycert.pfx"
+      HTTPS_CERTIFICATE_PASSWORD: "your-password-here"
+```
+
+See the full `docker-compose.yml.sample` in the root directory for a complete example.
 
 ## Configuration
 
@@ -231,7 +259,7 @@ Ecowitt stations expose a `/get_livedata_info` endpoint with nested sensor data:
 ```
 **JSONPath:** `$.wh25[0].intemp`
 
-See `VenstarTranslator/sensors.ecowitt.json.sample` and `VenstarTranslator/sensors.homeassistant.json.sample` for complete examples.
+See `sensors.ecowitt.json.sample` and `sensors.homeassistant.json.sample` in the root directory for complete examples.
 
 ### Advanced Configuration
 
