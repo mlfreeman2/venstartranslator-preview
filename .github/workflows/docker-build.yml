@@ -2,10 +2,9 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: [ main, develop ]
-    tags: [ 'v*' ]
+    branches: [ main, beta ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, beta ]
 
 env:
   REGISTRY: ghcr.io
@@ -25,7 +24,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: '9.0.x'
 
     - name: Restore dependencies
       run: dotnet restore ../VenstarTranslator.sln
@@ -81,23 +80,32 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Generate timestamp
+      id: timestamp
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta')
+      run: |
+        echo "timestamp=$(TZ='America/New_York' date +'%Y%m%d%H%M')" >> $GITHUB_OUTPUT
+
+    - name: Extract branch name
+      id: branch
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta')
+      run: |
+        echo "name=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v5
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
-          type=ref,event=branch
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=sha
+          type=raw,value=${{ steps.branch.outputs.name }}-${{ steps.timestamp.outputs.timestamp }},enable=${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta') }}
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v6
       with:
         context: .
-        platforms: ${{ github.event_name != 'pull_request' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
-        push: ${{ github.event_name != 'pull_request' }}
+        platforms: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta') && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+        push: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta') }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha

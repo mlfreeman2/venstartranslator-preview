@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VenstarTranslator is an ASP.NET Core 8.0 application that fetches temperature readings from arbitrary JSON endpoints and translates them into the format expected by Venstar ColorTouch thermostats. It emulates up to 20 Venstar ACC-TSENWIFIPRO sensors by broadcasting UDP packets on port 5001. The application uses Protocol Buffers for data serialization and broadcasts packets to `255.255.255.255:5001`.
+VenstarTranslator is an ASP.NET Core 9.0 application that fetches temperature readings from arbitrary JSON endpoints and translates them into the format expected by Venstar ColorTouch thermostats. It emulates up to 20 Venstar ACC-TSENWIFIPRO sensors by broadcasting UDP packets on port 5001. The application uses Protocol Buffers for data serialization and broadcasts packets to `255.255.255.255:5001`.
 
 ## Build and Run Commands
 
@@ -27,11 +27,11 @@ dotnet clean VenstarTranslator.sln
 docker build --platform linux/amd64 -f Dockerfile -t venstartranslator .
 
 # Run with Docker Compose (requires sensors.json file)
-# See docker-compose.yml.sample for reference configuration
+# See docker-compose.yml.sample in the root directory for reference configuration
 docker compose up
 ```
 
-The application runs on port 8080 by default. The web UI is accessible at `http://localhost:8080`.
+The application runs on port 8080 by default (HTTP). The web UI is accessible at `http://localhost:8080`. HTTPS support is available on port 8443 when enabled via environment variables (see Configuration section).
 
 ## Architecture
 
@@ -44,12 +44,13 @@ The application runs on port 8080 by default. The web UI is accessible at `http:
 - Manages HMAC-SHA256 signatures for authenticated sensor communications
 - Temperature lookup tables map sensor readings to Venstar's expected format (Fahrenheit and Celsius)
 
-**Startup.cs**
+**Program.cs**
 - Application configuration and dependency injection setup
 - On startup, loads `sensors.json` (configured via `SensorFilePath` environment variable)
 - Validates all sensors (JSONPath syntax, URL format, duplicate names, 20 sensor limit)
 - Syncs validated sensors to SQLite database (`VenstarTranslatorDataCache`)
 - Configures Hangfire for scheduled UDP broadcasts
+- Configures optional HTTPS support with user-provided or auto-generated self-signed certificates
 
 **Tasks.cs**
 - Background job definitions executed by Hangfire
@@ -76,7 +77,7 @@ The application runs on port 8080 by default. The web UI is accessible at `http:
 
 ### Key Technologies
 
-- **ASP.NET Core 8.0**: Web framework and API
+- **ASP.NET Core 9.0**: Web framework and API
 - **Entity Framework Core**: SQLite database for sensor persistence
 - **Hangfire**: Background job scheduling with SQLite storage
 - **Newtonsoft.Json**: JSON parsing and JSONPath queries (`SelectToken`)
@@ -87,9 +88,24 @@ The application runs on port 8080 by default. The web UI is accessible at `http:
 
 Environment variables (can be set in `appsettings.json` or Docker Compose):
 
+### Required Configuration
 - `SensorFilePath`: Path to sensors.json file (required, e.g., `/data/sensors.json`)
-- `FakeMacPrefix`: 10-character hex prefix for fake MAC addresses (default: `428e0486d8`)
+
+### HTTP/HTTPS Configuration
 - `Kestrel__Endpoints__Http__Url`: HTTP endpoint (default: `http://*:8080`)
+- `Kestrel__Endpoints__Https__Url`: HTTPS endpoint (optional, e.g., `https://*:8443`)
+- `HTTPS_CERTIFICATE_PATH`: Path to custom SSL/TLS certificate in PFX format (optional)
+- `HTTPS_CERTIFICATE_PASSWORD`: Password for custom certificate (optional)
+
+**HTTPS Behavior:**
+- HTTPS is **disabled by default**. Enable by setting `Kestrel__Endpoints__Https__Url`
+- If HTTPS is enabled but no certificate is provided via `HTTPS_CERTIFICATE_PATH`, a self-signed certificate will be auto-generated and saved to `/data/self-signed-cert.pfx`
+- Self-signed certificates are valid for 5 years and include Subject Alternative Names for localhost
+- For production use, provide a proper CA-signed certificate via `HTTPS_CERTIFICATE_PATH`
+- Self-signed certificates will trigger browser warnings and require manual trust/import
+
+### Other Configuration
+- `FakeMacPrefix`: 10-character hex prefix for fake MAC addresses (default: `428e0486d8`)
 - `ConnectionStrings__Hangfire`: Hangfire SQLite database path
 - `ConnectionStrings__DataCache`: Sensor data SQLite database path
 
@@ -114,11 +130,11 @@ Sensors are defined in `sensors.json` and validated on startup. The web UI at po
 - **IgnoreSSLErrors**: Skip certificate validation (e.g. for self-signed HTTPS data sources)
 - **Headers**: Array of HTTP headers (`Name`, `Value`) for authenticated endpoints
 
-See `sensors.json.template`, `sensors.ecowitt.json.sample`, or `sensors.homeassistant.json.sample` for examples.
+See `sensors.json.template`, `sensors.ecowitt.json.sample`, or `sensors.homeassistant.json.sample` in the root directory for examples.
 
 ## Important Implementation Details
 
-### Sensor Validation (`Startup.cs:151-172`)
+### Sensor Validation (`Program.cs:145-158`)
 - Enforced via Data Annotations and `IValidatableObject`
 - JSONPath validation uses custom `ValidJsonPath` attribute
 - URL validation via `ValidAbsoluteUrl` attribute

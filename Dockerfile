@@ -30,5 +30,5 @@ USER $APP_UID
 # Set production environment
 ENV ASPNETCORE_ENVIRONMENT=Production
 
-EXPOSE 8080
+EXPOSE 8080 8443
 ENTRYPOINT ["/app/VenstarTranslator"]
