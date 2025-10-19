@@ -7,13 +7,20 @@ namespace VenstarTranslator.Services;
 [ExcludeFromCodeCoverage]
 public class HangfireJobManager : IHangfireJobManager
 {
+    private readonly IRecurringJobManager _recurringJobManager;
+
+    public HangfireJobManager(IRecurringJobManager recurringJobManager)
+    {
+        _recurringJobManager = recurringJobManager;
+    }
+
     public void AddOrUpdateRecurringJob(string jobId, string cronExpression, uint sensorID)
     {
-        RecurringJob.AddOrUpdate<Tasks>(jobId, tasks => tasks.SendDataPacket(sensorID), cronExpression);
+        _recurringJobManager.AddOrUpdate<Tasks>(jobId, tasks => tasks.SendDataPacket(sensorID), cronExpression);
     }
 
     public void RemoveRecurringJob(string jobId)
     {
-        RecurringJob.RemoveIfExists(jobId);
+        _recurringJobManager.RemoveIfExists(jobId);
     }
 }

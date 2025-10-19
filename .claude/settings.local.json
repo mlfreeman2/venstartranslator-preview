@@ -2,19 +2,13 @@
   "permissions": {
     "allow": [
       "WebSearch",
-      "Bash(dotnet build:*)",
+      "Bash(dotnet:*)",
       "Bash(test:*)",
-      "Bash(dotnet sln add:*)",
-      "Bash(dotnet test:*)",
       "Bash(for i in {1..3})",
       "Bash(do echo \"Run $i:\")",
       "Bash(done)",
-      "Bash(dotnet list package:*)",
-      "Bash(dotnet restore:*)",
-      "Bash(dotnet clean:*)",
       "Bash(find:*)",
-      "Bash(dotnet list /workspaces/venstartranslator-preview/VenstarTranslator/VenstarTranslator.csproj package --outdated)",
-      "Bash(dotnet list:*)"
+      "Bash(timeout 5 dotnet run -- --urls \"http://localhost:8080\")"
     ],
     "deny": [],
     "ask": []
