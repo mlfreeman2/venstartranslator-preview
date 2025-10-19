@@ -1,7 +1,9 @@
 services:
   venstartranslator:
     container_name: venstartranslator
-    image: ghcr.io/mlfreeman2/venstartranslator-preview:main
+    # Replace with the latest version from:
+    # https://github.com/mlfreeman2/venstartranslator-preview/pkgs/container/venstartranslator-preview
+    image: ghcr.io/mlfreeman2/venstartranslator-preview:main-202510171732
     restart: unless-stopped
     volumes:
       - "./data:/data"

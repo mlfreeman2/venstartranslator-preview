@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 
 using Microsoft.AspNetCore.Mvc;
@@ -34,6 +35,35 @@ public class API : ControllerBase
         _config = config;
         _sensorOperations = sensorOperations;
         _jobManager = jobManager;
+    }
+
+    [HttpGet]
+    [Route("/health")]
+    public ActionResult Health()
+    {
+        try
+        {
+            // Check database connectivity
+            var canAccessDb = _db.Database.CanConnect();
+            if (!canAccessDb)
+            {
+                return StatusCode(503, new { status = "unhealthy", reason = "database_unreachable" });
+            }
+
+            // Check critical configuration file exists
+            var sensorFilePath = _config.GetValue<string>("SensorFilePath");
+            if (string.IsNullOrWhiteSpace(sensorFilePath) || !File.Exists(sensorFilePath))
+            {
+                return StatusCode(503, new { status = "unhealthy", reason = "sensor_file_missing" });
+            }
+
+            return Ok(new { status = "healthy" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Healthcheck failed");
+            return StatusCode(503, new { status = "unhealthy", reason = "exception" });
+        }
     }
 
     [HttpGet]

@@ -36,11 +36,11 @@ This application emulates one or more **Venstar ACC-TSENWIFIPRO** Wi-Fi temperat
 
 ### Prerequisites
 
-- Docker and Docker Compose installed
+- Docker installed (Docker Compose optional)
 - Your Docker host **must be on the same VLAN/network** as your Venstar thermostat (UDP broadcast requirement)
 - A source for temperature data with a JSON API (Home Assistant, weather station, etc.)
 
-### Installation
+### Installation with Docker Compose (Recommended)
 
 1. **Create a directory for your configuration:**
 
@@ -55,7 +55,7 @@ cd ~/venstartranslator
 services:
   venstartranslator:
     container_name: venstartranslator
-    image: ghcr.io/mlfreeman2/venstartranslator-preview:main
+    image: ghcr.io/mlfreeman2/venstartranslator-preview:main-202510171732
     restart: unless-stopped
     volumes:
       - "./data:/data"
@@ -70,6 +70,8 @@ services:
         max-file: "5"
 ```
 
+**Note:** Replace the image tag (`main-202510171732`) with the latest version from the [GitHub Container Registry](https://github.com/mlfreeman2/venstartranslator-preview/pkgs/container/venstartranslator-preview).
+
 3. **Start the container:**
 
 ```bash
@@ -80,7 +82,81 @@ docker compose up -d
 
 Navigate to `http://your-docker-host-ip:8080` in your browser.
 
-### Optional: Enable HTTPS
+### Installation with Plain Docker
+
+If you prefer not to use Docker Compose, you can run the container directly with `docker run`:
+
+**Basic HTTP-only setup:**
+```bash
+# Create data directory
+mkdir -p ~/venstartranslator/data
+
+# Run container
+docker run -d \
+  --name venstartranslator \
+  --restart unless-stopped \
+  --network host \
+  -v ~/venstartranslator/data:/data \
+  -e TZ="America/New_York" \
+  -e SensorFilePath="/data/sensors.json" \
+  -e Kestrel__Endpoints__Http__Url="http://*:8080" \
+  ghcr.io/mlfreeman2/venstartranslator-preview:main-202510171732
+```
+
+**With HTTPS (auto-generated self-signed certificate):**
+```bash
+docker run -d \
+  --name venstartranslator \
+  --restart unless-stopped \
+  --network host \
+  -v ~/venstartranslator/data:/data \
+  -e TZ="America/New_York" \
+  -e SensorFilePath="/data/sensors.json" \
+  -e Kestrel__Endpoints__Http__Url="http://*:8080" \
+  -e Kestrel__Endpoints__Https__Url="https://*:8443" \
+  ghcr.io/mlfreeman2/venstartranslator-preview:main-202510171732
+```
+
+**With HTTPS (custom certificate):**
+```bash
+docker run -d \
+  --name venstartranslator \
+  --restart unless-stopped \
+  --network host \
+  -v ~/venstartranslator/data:/data \
+  -v ~/venstartranslator/certs/mycert.pfx:/certs/mycert.pfx:ro \
+  -e TZ="America/New_York" \
+  -e SensorFilePath="/data/sensors.json" \
+  -e Kestrel__Endpoints__Http__Url="http://*:8080" \
+  -e Kestrel__Endpoints__Https__Url="https://*:8443" \
+  -e HTTPS_CERTIFICATE_PATH="/certs/mycert.pfx" \
+  -e HTTPS_CERTIFICATE_PASSWORD="your-password-here" \
+  ghcr.io/mlfreeman2/venstartranslator-preview:main-202510171732
+```
+
+**Note:** Replace the image tag (`main-202510171732`) with the latest version from the [GitHub Container Registry](https://github.com/mlfreeman2/venstartranslator-preview/pkgs/container/venstartranslator-preview).
+
+**Container management commands:**
+```bash
+# View logs
+docker logs -f venstartranslator
+
+# Stop container
+docker stop venstartranslator
+
+# Start container
+docker start venstartranslator
+
+# Remove container
+docker rm -f venstartranslator
+
+# Update to newer version
+docker pull ghcr.io/mlfreeman2/venstartranslator-preview:main-YYYYMMDDHHMM
+docker rm -f venstartranslator
+# Then run the docker run command again with the new image tag
+```
+
+### Optional: Enable HTTPS (Docker Compose)
 
 To enable HTTPS with an auto-generated self-signed certificate, add the following to your `docker-compose.yml`:
 
@@ -331,6 +407,23 @@ The thermostat receives these packets exactly as if they came from genuine Venst
 ## Files and Backup
 
 All sensor configurations are stored in `./data/sensors.json`. This is the only file you need to back up. The application also creates SQLite databases in the container for internal state, but these are regenerated from `sensors.json` on startup.
+
+## Health Monitoring
+
+The application includes a built-in healthcheck at `http://your-host:8080/health` that Docker uses to monitor container health. The healthcheck verifies:
+- Database is accessible
+- Sensor configuration file exists
+
+**Check container health status:**
+```bash
+docker ps
+# Look for "healthy" or "unhealthy" in the STATUS column
+
+# View detailed health status
+docker inspect --format='{{json .State.Health}}' venstartranslator | jq
+```
+
+The container will be marked as unhealthy if it fails 3 consecutive healthchecks (checked every 30 seconds). This is useful for orchestration tools like Docker Compose, Kubernetes, or Portainer to detect and restart failed containers.
 
 
 

@@ -31,4 +31,9 @@ USER $APP_UID
 ENV ASPNETCORE_ENVIRONMENT=Production
 
 EXPOSE 8080 8443
+
+# Healthcheck to verify application is running
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+
 ENTRYPOINT ["/app/VenstarTranslator"]

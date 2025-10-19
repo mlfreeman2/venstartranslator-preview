@@ -61,6 +61,7 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 **APIController.cs**
 - REST API for sensor CRUD operations
 - All modifications to sensors automatically sync to `sensors.json` via `SyncToSensorsJson()`
+- `/health`: Docker healthcheck endpoint (verifies database connectivity and sensor file existence)
 - `/api/testjsonpath`: Test JSONPath queries against sample JSON documents
 - `/api/sensors/{id}/pair`: Send pairing packet to thermostat
 - `/api/sensors/{id}/latest`: Test temperature fetch from data source
@@ -157,6 +158,20 @@ Changes via API automatically sync to both. On startup, sensors.json is read, va
 ## Network Requirements
 
 The application MUST run on the same VLAN/broadcast domain as the Venstar thermostat. Docker deployments require `network_mode: host` to enable UDP broadcast capabilities.
+
+## Health Monitoring
+
+The application includes a Docker healthcheck endpoint at `/health` that verifies:
+- Database connectivity (SQLite is accessible)
+- Sensor configuration file exists
+
+**Healthcheck Configuration:**
+- Interval: 30 seconds
+- Timeout: 3 seconds
+- Start period: 10 seconds (grace period for startup)
+- Retries: 3 consecutive failures before marking unhealthy
+
+Docker will automatically mark the container as unhealthy if the endpoint returns non-200 status codes or fails to respond within the timeout period.
 
 ## Web UI
 
