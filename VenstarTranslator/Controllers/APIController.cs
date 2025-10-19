@@ -52,7 +52,7 @@ public class API : ControllerBase
 
             // Check critical configuration file exists
             var sensorFilePath = _config.GetValue<string>("SensorFilePath");
-            if (string.IsNullOrWhiteSpace(sensorFilePath) || !File.Exists(sensorFilePath))
+            if (string.IsNullOrWhiteSpace(sensorFilePath) || !System.IO.File.Exists(sensorFilePath))
             {
                 return StatusCode(503, new { status = "unhealthy", reason = "sensor_file_missing" });
             }
