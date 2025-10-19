@@ -2,6 +2,7 @@
 	{
 		"Name": "Living Room",
 		"Enabled": true,
+		"MACAddress": "428e0486d800",
 		"Purpose": "Remote",
 		"Scale": "F",
 		"URL": "http://homeassistant.local:8123/api/states/sensor.living_room_temperature",
@@ -25,6 +26,12 @@
 // Enabled (required, true/false):
 //   - true: Sensor broadcasts temperature data
 //   - false: Sensor is defined but inactive
+//
+// MACAddress (auto-generated, 12 hex characters):
+//   - Unique MAC address for the sensor
+//   - Auto-generated based on FakeMacPrefix + SensorID if not provided
+//   - Once assigned, changing it will require re-pairing with thermostat
+//   - Format: lowercase hexadecimal (e.g., "428e0486d800")
 //
 // Purpose (required, case-sensitive):
 //   - "Outdoor" - Broadcasts every 5 minutes (display only, NOT used for HVAC control)

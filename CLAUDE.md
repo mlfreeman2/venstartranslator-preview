@@ -110,7 +110,7 @@ Environment variables (can be set in `appsettings.json` or Docker Compose):
 - `ConnectionStrings__Hangfire`: Hangfire SQLite database path
 - `ConnectionStrings__DataCache`: Sensor data SQLite database path
 
-**FakeMacPrefix**: Change the last character (e.g., `428e0486d7`, `428e0486d9`) to run multiple instances with different sensor ID ranges. Each instance supports 20 sensors (IDs 0-19).
+**FakeMacPrefix**: Change the last character (e.g., `428e0486d7`, `428e0486d9`) to run multiple instances with different sensor ID ranges. Each instance supports 20 sensors (IDs 0-19). Note that changing this value only affects NEW sensors; existing sensors retain their stored MAC addresses.
 
 ## Sensor Configuration
 
@@ -120,6 +120,11 @@ Sensors are defined in `sensors.json` and validated on startup. The web UI at po
 - **SensorID** (0-19): Auto-assigned by the application
 - **Name**: Max 14 characters, must be unique
 - **Enabled**: Controls Hangfire job scheduling
+- **MACAddress**: 12-character lowercase hex string (e.g., `428e0486d800`)
+  - Auto-generated from `FakeMacPrefix` + `SensorID` if not provided
+  - Stored in database and sensors.json (not computed on-the-fly)
+  - Once assigned, changing it requires re-pairing with thermostat
+  - Changing `FakeMacPrefix` only affects NEW sensors (existing sensors keep their MAC)
 - **Purpose**: Affects broadcast frequency and thermostat behavior
   - `Outdoor` - Every 5 minutes (display only, NOT used for HVAC control)
   - `Remote` - Every minute (used for HVAC control when enabled on thermostat)

@@ -46,8 +46,14 @@ public class TranslatedVenstarSensor
     [JsonIgnore]
     public ushort Sequence { get; set; }
 
+    [JsonProperty(Order = 4)]
+    [Required(AllowEmptyStrings = false, ErrorMessage = "MAC Address is required.")]
+    [RegularExpression(@"^[a-f0-9]{12}$", ErrorMessage = "MAC Address must be exactly 12 hexadecimal characters (lowercase).")]
+    [MaxLength(12)]
+    public string MACAddress { get; set; }
+
     [JsonIgnore]
-    public string MacAddress => (macPrefix + SensorID.ToString("X2")).ToLower();
+    public string MacAddress => MACAddress;
 
     [JsonIgnore]
     public string Signature_Key
@@ -68,30 +74,30 @@ public class TranslatedVenstarSensor
     [JsonIgnore]
     public string CronExpression => Purpose == SensorPurpose.Outdoor ? "*/5 * * * *" : "* * * * *";
 
-    [JsonProperty(Order = 4)]
+    [JsonProperty(Order = 5)]
     [JsonConverter(typeof(StringEnumConverter))]
     [Required(ErrorMessage = "Sensor purpose is required.")]
     public SensorPurpose Purpose { get; set; }
 
-    [JsonProperty(Order = 5)]
+    [JsonProperty(Order = 6)]
     [JsonConverter(typeof(StringEnumConverter))]
     [Required(ErrorMessage = "Temperature scale is required.")]
     public TemperatureScale Scale { get; set; }
 
-    [JsonProperty(Order = 6)]
+    [JsonProperty(Order = 7)]
     [Required(AllowEmptyStrings = false, ErrorMessage = "URL is required and cannot be empty.")]
     [ValidAbsoluteUrl]
     public string URL { get; set; }
 
-    [JsonProperty(Order = 7)]
+    [JsonProperty(Order = 8)]
     public bool IgnoreSSLErrors { get; set; }
 
-    [JsonProperty(Order = 8)]
+    [JsonProperty(Order = 9)]
     [Required(AllowEmptyStrings = false, ErrorMessage = "JSONPath is required.")]
     [ValidJsonPath]
     public string JSONPath { get; set; }
 
-    [JsonProperty(Order = 9)]
+    [JsonProperty(Order = 10)]
     [ValidHttpHeaders]
     public List<DataSourceHttpHeader> Headers { get; set; }
 

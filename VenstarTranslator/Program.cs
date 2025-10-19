@@ -71,6 +71,9 @@ using (var scope = app.Services.CreateScope())
 
     dbContext.Database.EnsureCreated();
 
+    // Add MACAddress column if it doesn't exist (migration for existing databases)
+    MigrateDatabaseSchema(dbContext);
+
     var sensorFilePath = config.GetValue<string>("SensorFilePath");
     if (string.IsNullOrWhiteSpace(sensorFilePath))
     {
@@ -129,6 +132,35 @@ app.MapHangfireDashboard("/hangfire", new DashboardOptions
 
 app.Run();
 
+static void MigrateDatabaseSchema(VenstarTranslatorDataCache dbContext)
+{
+    using var connection = dbContext.Database.GetDbConnection();
+    connection.Open();
+    using var command = connection.CreateCommand();
+
+    // Check if MACAddress column exists
+    command.CommandText = "PRAGMA table_info(Sensors)";
+    using var reader = command.ExecuteReader();
+    bool macAddressColumnExists = false;
+
+    while (reader.Read())
+    {
+        if (reader.GetString(1) == "MACAddress")
+        {
+            macAddressColumnExists = true;
+            break;
+        }
+    }
+    reader.Close();
+
+    // Add MACAddress column if it doesn't exist
+    if (!macAddressColumnExists)
+    {
+        command.CommandText = "ALTER TABLE Sensors ADD COLUMN MACAddress TEXT";
+        command.ExecuteNonQuery();
+    }
+}
+
 static string ValidateAndGetMacPrefix(string fakeMacPrefix)
 {
     if (string.IsNullOrWhiteSpace(fakeMacPrefix))
@@ -167,9 +199,17 @@ static void ValidateIndividualSensors(List<TranslatedVenstarSensor> sensors)
 
 static void UpdateDatabaseSensors(VenstarTranslatorDataCache dbContext, List<TranslatedVenstarSensor> sensors)
 {
+    var macPrefix = TranslatedVenstarSensor.macPrefix;
+
     for (int i = 0; i < sensors.Count; i++)
     {
         sensors[i].SensorID = Convert.ToByte(i);
+
+        // Backfill MAC address if missing (backwards compatibility)
+        if (string.IsNullOrWhiteSpace(sensors[i].MACAddress))
+        {
+            sensors[i].MACAddress = (macPrefix + sensors[i].SensorID.ToString("x2")).ToLower();
+        }
 
         if (!dbContext.Sensors.Any(a => a.SensorID == sensors[i].SensorID))
         {
@@ -186,6 +226,18 @@ static void UpdateDatabaseSensors(VenstarTranslatorDataCache dbContext, List<Tra
             current.JSONPath = sensors[i].JSONPath;
             current.Scale = sensors[i].Scale;
             current.IgnoreSSLErrors = sensors[i].IgnoreSSLErrors;
+
+            // Backfill MAC address if missing in database (migration scenario)
+            if (string.IsNullOrWhiteSpace(current.MACAddress))
+            {
+                current.MACAddress = (macPrefix + current.SensorID.ToString("x2")).ToLower();
+            }
+
+            // Only update MAC if provided in sensors.json
+            if (!string.IsNullOrWhiteSpace(sensors[i].MACAddress))
+            {
+                current.MACAddress = sensors[i].MACAddress;
+            }
 
             current.Headers.Clear();
             dbContext.SaveChanges();

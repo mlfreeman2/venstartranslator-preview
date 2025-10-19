@@ -186,6 +186,12 @@ public class API : ControllerBase
             return StatusCode(400, new MessageResponse { Message = "No sensor IDs available. Delete some sensors first." });
         }
 
+        // Generate MAC address if not provided
+        if (string.IsNullOrWhiteSpace(sensor.MACAddress))
+        {
+            sensor.MACAddress = (TranslatedVenstarSensor.macPrefix + sensor.SensorID.ToString("x2")).ToLower();
+        }
+
         _db.Sensors.Add(sensor);
         _db.SaveChanges();
         SensorOperations.SyncToJsonFile(_config, _db);
