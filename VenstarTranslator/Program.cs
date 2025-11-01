@@ -230,8 +230,8 @@ static void ConfigureHttps(WebApplicationBuilder builder, IConfiguration config)
     {
         logger.LogInformation("Loading user-provided certificate from: {CertPath}", certPath);
         certificate = string.IsNullOrWhiteSpace(certPassword)
-            ? new X509Certificate2(certPath)
-            : new X509Certificate2(certPath, certPassword);
+            ? X509CertificateLoader.LoadPkcs12FromFile(certPath, null)
+            : X509CertificateLoader.LoadPkcs12FromFile(certPath, certPassword);
     }
     else
     {
@@ -242,7 +242,7 @@ static void ConfigureHttps(WebApplicationBuilder builder, IConfiguration config)
         if (File.Exists(selfSignedPath))
         {
             logger.LogInformation("Loading existing self-signed certificate from: {SelfSignedPath}", selfSignedPath);
-            certificate = new X509Certificate2(selfSignedPath, "VenstarTranslator");
+            certificate = X509CertificateLoader.LoadPkcs12FromFile(selfSignedPath, "VenstarTranslator");
         }
         else
         {
@@ -315,7 +315,8 @@ static X509Certificate2 GenerateSelfSignedCertificate()
     );
 
     // Export and re-import to ensure private key is exportable on all platforms
-    return new X509Certificate2(cert.Export(X509ContentType.Pfx, "VenstarTranslator"), "VenstarTranslator");
+    var pfxBytes = cert.Export(X509ContentType.Pfx, "VenstarTranslator");
+    return X509CertificateLoader.LoadPkcs12(pfxBytes, "VenstarTranslator");
 }
 
 [ExcludeFromCodeCoverage]

@@ -87,3 +87,19 @@ indent_size = 2
 # Markdown files
 [*.md]
 trim_trailing_whitespace = false
+
+# HTML files
+[*.html]
+indent_size = 2
+indent_style = space
+
+# CSS files
+[*.css]
+indent_size = 2
+indent_style = space
+
+# JavaScript files
+[*.js]
+indent_size = 2
+indent_style = space
+quote_type = single

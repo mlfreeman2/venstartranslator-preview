@@ -1,17 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch",
-      "Bash(dotnet:*)",
-      "Bash(test:*)",
-      "Bash(for i in {1..3})",
-      "Bash(do echo \"Run $i:\")",
-      "Bash(done)",
-      "Bash(find:*)",
-      "Bash(timeout 5 dotnet run -- --urls \"http://localhost:8080\")",
-      "Bash(curl:*)",
-      "Bash(kill:*)",
-      "Bash(git clean:*)"
+      "Bash(for file in index.html jsonpath.html style.css sensors.js modals.js)",
+      "Bash(do echo \"=== Checking $file ===\")",
+      "Bash(for file in /workspaces/venstartranslator-preview/VenstarTranslator/web/*.{html,css,js})",
+      "Bash(do [ -f \"$file\" ])",
+      "Bash(do echo \"Converting $file to 2-space indentation...\" unexpand -t 4 \"$file\")",
+      "Bash(expand:*)",
+      "Bash(\"$file.tmp\")"
     ],
     "deny": [],
     "ask": []
