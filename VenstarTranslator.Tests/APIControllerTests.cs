@@ -243,7 +243,7 @@ public class APIControllerTests : IDisposable
 
         // Assert
         var jsonResult = Assert.IsType<JsonResult>(result);
-        var sensors = Assert.IsAssignableFrom<List<TranslatedVenstarSensor>>(jsonResult.Value);
+        var sensors = Assert.IsAssignableFrom<List<SensorDTO>>(jsonResult.Value);
         Assert.Empty(sensors);
     }
 
@@ -261,7 +261,7 @@ public class APIControllerTests : IDisposable
 
         // Assert
         var jsonResult = Assert.IsType<JsonResult>(result);
-        var sensors = Assert.IsAssignableFrom<List<TranslatedVenstarSensor>>(jsonResult.Value);
+        var sensors = Assert.IsAssignableFrom<List<SensorDTO>>(jsonResult.Value);
         Assert.Equal(2, sensors.Count);
     }
 

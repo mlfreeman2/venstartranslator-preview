@@ -15,7 +15,10 @@
       "Bash(dotnet ef migrations add:*)",
       "Bash(dotnet tool install:*)",
       "Bash(dotnet build:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(dotnet test:*)",
+      "Bash(VSTEST_CONNECTION_TIMEOUT=180 dotnet test:*)",
+      "Bash(dotnet clean:*)"
     ],
     "deny": [],
     "ask": []
