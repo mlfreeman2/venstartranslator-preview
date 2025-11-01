@@ -84,6 +84,32 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 - **Protocol Buffers** (`protobuf-net` and `Google.Protobuf`): Sensor packet serialization
 - **UnitsNet**: Temperature unit conversions
 
+### Database Migrations
+
+The application uses Entity Framework Core migrations for database schema management. Migrations are applied automatically on startup via `Database.Migrate()`.
+
+**For Users:**
+- Migrations are applied automatically on first run
+- Existing databases created with `EnsureCreated()` will be seamlessly upgraded to use migrations
+- No manual intervention required
+
+**For Developers:**
+When modifying the database schema:
+```bash
+# Install EF Core tools (one-time)
+dotnet tool install --global dotnet-ef
+
+# Create a new migration
+cd VenstarTranslator
+dotnet ef migrations add YourMigrationName --context VenstarTranslatorDataCache
+
+# Migrations are applied automatically on app startup
+# To manually apply migrations:
+dotnet ef database update --context VenstarTranslatorDataCache
+```
+
+The `__EFMigrationsHistory` table tracks which migrations have been applied. The migration system is idempotent - running migrations multiple times is safe.
+
 ## Configuration
 
 Environment variables (can be set in `appsettings.json` or Docker Compose):

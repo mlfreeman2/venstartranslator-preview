@@ -69,7 +69,7 @@
 		},
 		"ghcr.io/devcontainers-extra/features/protoc:1": {}
 	},
-	"postCreateCommand": "sudo bash -c 'npm install -g @anthropic-ai/claude-code && dotnet tool restore 2>/dev/null || true && dotnet restore 2>/dev/null || true && echo \"✅ DevContainer ready! Run 'claude' to start Claude Code.\"'",
+	"postCreateCommand": "sudo bash .devcontainer/post-create.sh",
 	"postStartCommand": "claude --version || npm install -g @anthropic-ai/claude-code",
 	"updateContentCommand": "dotnet restore 2>/dev/null || true",
 	"containerEnv": {

@@ -70,7 +70,7 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<VenstarTranslatorDataCache>();
     var jobManager = scope.ServiceProvider.GetRequiredService<IHangfireJobManager>();
 
-    dbContext.Database.EnsureCreated();
+    dbContext.Database.Migrate();
 
     var sensorFilePath = config.GetValue<string>("SensorFilePath");
     if (string.IsNullOrWhiteSpace(sensorFilePath))

@@ -7,7 +7,11 @@
       "Bash(do [ -f \"$file\" ])",
       "Bash(do echo \"Converting $file to 2-space indentation...\" unexpand -t 4 \"$file\")",
       "Bash(expand:*)",
-      "Bash(\"$file.tmp\")"
+      "Bash(\"$file.tmp\")",
+      "Bash(timeout 5 dotnet run:*)",
+      "Bash(sqlite3:*)",
+      "Bash(ip a:*)",
+      "Bash(ip route:*)"
     ],
     "deny": [],
     "ask": []
