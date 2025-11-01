@@ -1,4 +1,4 @@
-namespace VenstarTranslator.Models;
+namespace VenstarTranslator.Models.Enums;
 
 public enum SensorPurpose
 {

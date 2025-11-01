@@ -6,7 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using Moq.Protected;
-using VenstarTranslator.Models;
+using VenstarTranslator.Exceptions;
+using VenstarTranslator.Models.Db;
 using VenstarTranslator.Services;
 using Xunit;
 
@@ -69,7 +70,7 @@ public class HttpDocumentFetcherTests
     #region Timeout Tests
 
     [Fact]
-    public void FetchDocument_RequestTimeout_ThrowsHttpRequestExceptionWithTimeoutMessage()
+    public void FetchDocument_RequestTimeout_ThrowsVenstarTranslatorExceptionWithTimeoutMessage()
     {
         // Arrange
         var mockHandler = new MockHttpMessageHandler();
@@ -78,7 +79,7 @@ public class HttpDocumentFetcherTests
         var fetcher = new HttpDocumentFetcher(() => mockHandler);
 
         // Act & Assert
-        var ex = Assert.Throws<HttpRequestException>(() =>
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
             fetcher.FetchDocument("http://example.com/api", false, null));
 
         Assert.Contains("timed out after 10 seconds", ex.Message);
@@ -90,7 +91,7 @@ public class HttpDocumentFetcherTests
     #region Connection Error Tests
 
     [Fact]
-    public void FetchDocument_ConnectionRefused_ThrowsHttpRequestExceptionWithConnectionRefusedMessage()
+    public void FetchDocument_ConnectionRefused_ThrowsVenstarTranslatorExceptionWithConnectionRefusedMessage()
     {
         // Arrange
         var mockHandler = new MockHttpMessageHandler();
@@ -99,7 +100,7 @@ public class HttpDocumentFetcherTests
         var fetcher = new HttpDocumentFetcher(() => mockHandler);
 
         // Act & Assert
-        var ex = Assert.Throws<HttpRequestException>(() =>
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
             fetcher.FetchDocument("http://example.com/api", false, null));
 
         Assert.Contains("Connection refused", ex.Message);
@@ -108,7 +109,7 @@ public class HttpDocumentFetcherTests
     }
 
     [Fact]
-    public void FetchDocument_NetworkError_ThrowsHttpRequestExceptionWithNetworkErrorMessage()
+    public void FetchDocument_NetworkError_ThrowsVenstarTranslatorExceptionWithNetworkErrorMessage()
     {
         // Arrange
         var mockHandler = new MockHttpMessageHandler();
@@ -117,7 +118,7 @@ public class HttpDocumentFetcherTests
         var fetcher = new HttpDocumentFetcher(() => mockHandler);
 
         // Act & Assert
-        var ex = Assert.Throws<HttpRequestException>(() =>
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
             fetcher.FetchDocument("http://example.com/api", false, null));
 
         Assert.Contains("Network error", ex.Message);
@@ -128,7 +129,7 @@ public class HttpDocumentFetcherTests
     #region SSL Certificate Tests
 
     [Fact]
-    public void FetchDocument_SSLCertificateError_ThrowsHttpRequestExceptionWithSSLMessage()
+    public void FetchDocument_SSLCertificateError_ThrowsVenstarTranslatorExceptionWithSSLMessage()
     {
         // Arrange
         var mockHandler = new MockHttpMessageHandler();
@@ -137,7 +138,7 @@ public class HttpDocumentFetcherTests
         var fetcher = new HttpDocumentFetcher(() => mockHandler);
 
         // Act & Assert
-        var ex = Assert.Throws<HttpRequestException>(() =>
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
             fetcher.FetchDocument("https://example.com/api", false, null));
 
         Assert.Contains("SSL certificate validation failed", ex.Message);
@@ -158,7 +159,7 @@ public class HttpDocumentFetcherTests
     [InlineData(HttpStatusCode.InternalServerError, "Internal Server Error (HTTP 500)", "server encountered an error")]
     [InlineData(HttpStatusCode.BadGateway, "Bad Gateway (HTTP 502)", "invalid response from an upstream server")]
     [InlineData(HttpStatusCode.ServiceUnavailable, "Service Unavailable (HTTP 503)", "temporarily unavailable")]
-    public void FetchDocument_HttpStatusCodeError_ThrowsHttpRequestExceptionWithAppropriateMessage(
+    public void FetchDocument_HttpStatusCodeError_ThrowsVenstarTranslatorExceptionWithAppropriateMessage(
         HttpStatusCode statusCode, string expectedPhrase, string expectedGuidance)
     {
         // Arrange
@@ -168,7 +169,7 @@ public class HttpDocumentFetcherTests
         var fetcher = new HttpDocumentFetcher(() => mockHandler);
 
         // Act & Assert
-        var ex = Assert.Throws<HttpRequestException>(() =>
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
             fetcher.FetchDocument("http://example.com/api", false, null));
 
         Assert.Contains(expectedPhrase, ex.Message);
@@ -183,7 +184,7 @@ public class HttpDocumentFetcherTests
     [InlineData("The response ended prematurely")]
     [InlineData("invalid HTTP response")]
     [InlineData("unexpected end of stream")]
-    public void FetchDocument_InvalidHttpResponse_ThrowsHttpRequestExceptionWithInvalidResponseMessage(string errorMessage)
+    public void FetchDocument_InvalidHttpResponse_ThrowsVenstarTranslatorExceptionWithInvalidResponseMessage(string errorMessage)
     {
         // Arrange
         var mockHandler = new MockHttpMessageHandler();
@@ -192,7 +193,7 @@ public class HttpDocumentFetcherTests
         var fetcher = new HttpDocumentFetcher(() => mockHandler);
 
         // Act & Assert
-        var ex = Assert.Throws<HttpRequestException>(() =>
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
             fetcher.FetchDocument("http://example.com/api", false, null));
 
         Assert.Contains("server returned an invalid HTTP response", ex.Message);

@@ -4,7 +4,8 @@ using Hangfire.Common;
 using Hangfire.Server;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using VenstarTranslator.Models;
+using VenstarTranslator.Exceptions;
+using VenstarTranslator.Models.Db;
 
 namespace VenstarTranslator.Filters;
 
@@ -47,22 +48,42 @@ public class BroadcastTrackingFilterAttribute : JobFilterAttribute, IServerFilte
 
         if (context.Exception == null)
         {
-            // Success - update last successful broadcast time
+            // Success - update last successful broadcast time and clear error message
             sensor.LastSuccessfulBroadcast = DateTime.UtcNow;
+            sensor.LastErrorMessage = null;
             dbContext.SaveChanges();
 
             logger.LogDebug("Broadcast succeeded for sensor {SensorID} ({SensorName})", sensor.SensorID, sensor.Name);
         }
         else
         {
-            // Failure - log the exception
-            logger.LogError(
-                context.Exception,
-                "Broadcast failed for sensor {SensorID} ({SensorName}). Last successful broadcast: {LastSuccessfulBroadcast}",
-                sensor.SensorID,
-                sensor.Name,
-                sensor.LastSuccessfulBroadcast?.ToString("yyyy-MM-dd HH:mm:ss UTC") ?? "Never"
-            );
+            // Check if this is a VenstarTranslatorException (user-friendly message)
+            if (context.Exception is VenstarTranslatorException vtEx)
+            {
+                // Store the user-friendly error message
+                sensor.LastErrorMessage = vtEx.Message;
+                dbContext.SaveChanges();
+
+                logger.LogError(
+                    vtEx,
+                    "Broadcast failed for sensor {SensorID} ({SensorName}): {ErrorMessage}. Last successful broadcast: {LastSuccessfulBroadcast}",
+                    sensor.SensorID,
+                    sensor.Name,
+                    vtEx.Message,
+                    sensor.LastSuccessfulBroadcast?.ToString("yyyy-MM-dd HH:mm:ss UTC") ?? "Never"
+                );
+            }
+            else
+            {
+                // System exception - don't store the message, just log it
+                logger.LogError(
+                    context.Exception,
+                    "Broadcast failed for sensor {SensorID} ({SensorName}) with unexpected error. Last successful broadcast: {LastSuccessfulBroadcast}",
+                    sensor.SensorID,
+                    sensor.Name,
+                    sensor.LastSuccessfulBroadcast?.ToString("yyyy-MM-dd HH:mm:ss UTC") ?? "Never"
+                );
+            }
 
             // Check if broadcasts have become stale (thermostat would show error at this point)
             if (sensor.HasProblem)

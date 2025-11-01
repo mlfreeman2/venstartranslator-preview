@@ -25,6 +25,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using VenstarTranslator.Filters;
 using VenstarTranslator.Models;
+using VenstarTranslator.Models.Db;
 using VenstarTranslator.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -90,20 +91,21 @@ using (var scope = app.Services.CreateScope())
         var contents = File.ReadAllText(sensorFilePath);
         if (!string.IsNullOrWhiteSpace(contents))
         {
-            var sensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(contents);
+            var sensorDTOs = JsonConvert.DeserializeObject<List<SensorJsonDTO>>(contents);
 
-            if (sensors.Count > 20)
+            if (sensorDTOs.Count > 20)
             {
                 throw new InvalidOperationException("Too many sensors specified. Only 20 sensors are supported.");
             }
 
             // Check for duplicate names
-            if (sensors.Select(s => s.Name).Distinct().Count() < sensors.Count)
+            if (sensorDTOs.Select(s => s.Name).Distinct().Count() < sensorDTOs.Count)
             {
                 throw new InvalidOperationException("One or more sensor names appear in multiple sensor entries.");
             }
 
-            ValidateIndividualSensors(sensors);
+            ValidateIndividualSensors(sensorDTOs);
+            var sensors = sensorDTOs.Select(dto => dto.ToSensor()).ToList();
             UpdateDatabaseSensors(dbContext, sensors);
 
             // update sensors.json
@@ -154,14 +156,14 @@ static string ValidateAndGetMacPrefix(string fakeMacPrefix)
     return fakeMacPrefix;
 }
 
-static void ValidateIndividualSensors(List<TranslatedVenstarSensor> sensors)
+static void ValidateIndividualSensors(List<SensorJsonDTO> sensorDTOs)
 {
-    foreach (var sensor in sensors)
+    foreach (var sensorDTO in sensorDTOs)
     {
-        var validationContext = new ValidationContext(sensor);
+        var validationContext = new ValidationContext(sensorDTO);
         var validationResults = new List<ValidationResult>();
 
-        if (!Validator.TryValidateObject(sensor, validationContext, validationResults, true))
+        if (!Validator.TryValidateObject(sensorDTO, validationContext, validationResults, true))
         {
             var errors = string.Join("; ", validationResults.Select(vr => vr.ErrorMessage));
             throw new InvalidOperationException($"Sensor validation failed: {errors}");

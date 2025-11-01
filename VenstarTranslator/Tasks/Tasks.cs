@@ -6,7 +6,7 @@ using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using VenstarTranslator.Filters;
-using VenstarTranslator.Models;
+using VenstarTranslator.Models.Db;
 using VenstarTranslator.Services;
 
 namespace VenstarTranslator;

@@ -8,7 +8,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using VenstarTranslator.Controllers;
+using VenstarTranslator.Exceptions;
 using VenstarTranslator.Models;
+using VenstarTranslator.Models.Db;
+using VenstarTranslator.Models.Enums;
 using VenstarTranslator.Services;
 using Xunit;
 
@@ -77,6 +80,22 @@ public class APIControllerTests : IDisposable
         };
     }
 
+    private SensorJsonDTO CreateTestSensorDTO(byte id = 0, string name = "Test Sensor")
+    {
+        return new SensorJsonDTO
+        {
+            SensorID = id,
+            Name = name,
+            Enabled = true,
+            Purpose = SensorPurpose.Remote,
+            Scale = TemperatureScale.F,
+            URL = "http://example.com/api",
+            IgnoreSSLErrors = false,
+            JSONPath = "$.temperature",
+            Headers = new List<DataSourceHttpHeaderDTO>()
+        };
+    }
+
     #region GetReading Tests
 
     [Fact]
@@ -112,7 +131,7 @@ public class APIControllerTests : IDisposable
     }
 
     [Fact]
-    public void GetReading_HttpRequestException_Returns400WithMessage()
+    public void GetReading_VenstarTranslatorException_Returns400WithMessage()
     {
         // Arrange
         var sensor = CreateTestSensor();
@@ -120,7 +139,7 @@ public class APIControllerTests : IDisposable
         _db.SaveChanges();
 
         _mockDocumentFetcher.Setup(f => f.FetchDocument(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<List<DataSourceHttpHeader>>()))
-            .Throws(new HttpRequestException("Connection refused. The server is not accepting connections."));
+            .Throws(new VenstarTranslatorException("Connection refused. The server is not accepting connections."));
 
         // Act
         var result = _controller.GetReading(0);
@@ -130,27 +149,6 @@ public class APIControllerTests : IDisposable
         Assert.Equal(400, statusCodeResult.StatusCode);
         var response = Assert.IsType<MessageResponse>(statusCodeResult.Value);
         Assert.Contains("Connection refused", response.Message);
-    }
-
-    [Fact]
-    public void GetReading_InvalidOperationException_Returns400WithMessage()
-    {
-        // Arrange
-        var sensor = CreateTestSensor();
-        _db.Sensors.Add(sensor);
-        _db.SaveChanges();
-
-        _mockDocumentFetcher.Setup(f => f.FetchDocument(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<List<DataSourceHttpHeader>>()))
-            .Returns("{\"temperature\": \"invalid\"}");
-
-        // Act
-        var result = _controller.GetReading(0);
-
-        // Assert
-        var statusCodeResult = Assert.IsType<ObjectResult>(result);
-        Assert.Equal(400, statusCodeResult.StatusCode);
-        var response = Assert.IsType<MessageResponse>(statusCodeResult.Value);
-        Assert.Contains("non-numeric value", response.Message);
     }
 
     #endregion
@@ -190,7 +188,7 @@ public class APIControllerTests : IDisposable
     }
 
     [Fact]
-    public void SendPairingPacket_HttpRequestException_Returns400WithMessage()
+    public void SendPairingPacket_VenstarTranslatorException_Returns400WithMessage()
     {
         // Arrange
         var sensor = CreateTestSensor();
@@ -198,7 +196,7 @@ public class APIControllerTests : IDisposable
         _db.SaveChanges();
 
         _mockDocumentFetcher.Setup(f => f.FetchDocument(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<List<DataSourceHttpHeader>>()))
-            .Throws(new HttpRequestException("Request timed out after 10 seconds."));
+            .Throws(new VenstarTranslatorException("Request timed out after 10 seconds."));
 
         // Act
         var result = _controller.SendPairingPacket(0);
@@ -208,27 +206,6 @@ public class APIControllerTests : IDisposable
         Assert.Equal(400, statusCodeResult.StatusCode);
         var response = Assert.IsType<MessageResponse>(statusCodeResult.Value);
         Assert.Contains("timed out", response.Message);
-    }
-
-    [Fact]
-    public void SendPairingPacket_InvalidOperationException_Returns400WithMessage()
-    {
-        // Arrange
-        var sensor = CreateTestSensor();
-        _db.Sensors.Add(sensor);
-        _db.SaveChanges();
-
-        _mockDocumentFetcher.Setup(f => f.FetchDocument(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<List<DataSourceHttpHeader>>()))
-            .Returns("{}");
-
-        // Act
-        var result = _controller.SendPairingPacket(0);
-
-        // Assert
-        var statusCodeResult = Assert.IsType<ObjectResult>(result);
-        Assert.Equal(400, statusCodeResult.StatusCode);
-        var response = Assert.IsType<MessageResponse>(statusCodeResult.Value);
-        Assert.Contains("failed to find anything", response.Message);
     }
 
     #endregion
@@ -243,7 +220,7 @@ public class APIControllerTests : IDisposable
 
         // Assert
         var jsonResult = Assert.IsType<JsonResult>(result);
-        var sensors = Assert.IsAssignableFrom<List<SensorDTO>>(jsonResult.Value);
+        var sensors = Assert.IsAssignableFrom<List<SensorWebDTO>>(jsonResult.Value);
         Assert.Empty(sensors);
     }
 
@@ -261,7 +238,7 @@ public class APIControllerTests : IDisposable
 
         // Assert
         var jsonResult = Assert.IsType<JsonResult>(result);
-        var sensors = Assert.IsAssignableFrom<List<SensorDTO>>(jsonResult.Value);
+        var sensors = Assert.IsAssignableFrom<List<SensorWebDTO>>(jsonResult.Value);
         Assert.Equal(2, sensors.Count);
     }
 
@@ -273,10 +250,10 @@ public class APIControllerTests : IDisposable
     public void AddSensor_ValidSensor_ReturnsSuccess()
     {
         // Arrange
-        var sensor = CreateTestSensor(name: "New Sensor");
+        var sensorDTO = CreateTestSensorDTO(name: "New Sensor");
 
         // Act
-        var result = _controller.AddSensor(sensor);
+        var result = _controller.AddSensor(sensorDTO);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result);
@@ -298,10 +275,10 @@ public class APIControllerTests : IDisposable
         }
         _db.SaveChanges();
 
-        var newSensor = CreateTestSensor(name: "Overflow Sensor");
+        var newSensorDTO = CreateTestSensorDTO(name: "Overflow Sensor");
 
         // Act
-        var result = _controller.AddSensor(newSensor);
+        var result = _controller.AddSensor(newSensorDTO);
 
         // Assert
         var statusCodeResult = Assert.IsType<ObjectResult>(result);
@@ -319,15 +296,31 @@ public class APIControllerTests : IDisposable
         _db.Sensors.Add(CreateTestSensor(3, "Sensor 3"));
         _db.SaveChanges();
 
-        var newSensor = CreateTestSensor(name: "New Sensor");
+        var newSensorDTO = CreateTestSensorDTO(name: "New Sensor");
 
         // Act
-        _controller.AddSensor(newSensor);
+        _controller.AddSensor(newSensorDTO);
 
         // Assert - should get ID 2
         var addedSensor = _db.Sensors.FirstOrDefault(s => s.Name == "New Sensor");
         Assert.NotNull(addedSensor);
         Assert.Equal(2, addedSensor.SensorID);
+    }
+
+    [Fact]
+    public void AddSensor_InitializesLastSuccessfulBroadcastAsNull()
+    {
+        // Arrange
+        var sensorDTO = CreateTestSensorDTO(name: "New Sensor");
+
+        // Act
+        _controller.AddSensor(sensorDTO);
+
+        // Assert
+        var addedSensor = _db.Sensors.FirstOrDefault(s => s.Name == "New Sensor");
+        Assert.NotNull(addedSensor);
+        Assert.Null(addedSensor.LastSuccessfulBroadcast);
+        Assert.False(addedSensor.HasProblem); // Should not have problem initially
     }
 
     #endregion
@@ -338,10 +331,10 @@ public class APIControllerTests : IDisposable
     public void UpdateSensor_SensorNotFound_Returns404()
     {
         // Arrange
-        var sensor = CreateTestSensor(99);
+        var sensorDTO = CreateTestSensorDTO(99);
 
         // Act
-        var result = _controller.UpdateSensor(sensor);
+        var result = _controller.UpdateSensor(sensorDTO);
 
         // Assert
         var statusCodeResult = Assert.IsType<ObjectResult>(result);
@@ -356,11 +349,11 @@ public class APIControllerTests : IDisposable
         _db.Sensors.Add(sensor);
         _db.SaveChanges();
 
-        var updatedSensor = CreateTestSensor(0, "Updated Name");
-        updatedSensor.URL = "http://newurl.com/api";
+        var updatedSensorDTO = CreateTestSensorDTO(0, "Updated Name");
+        updatedSensorDTO.URL = "http://newurl.com/api";
 
         // Act
-        var result = _controller.UpdateSensor(updatedSensor);
+        var result = _controller.UpdateSensor(updatedSensorDTO);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result);
@@ -383,19 +376,91 @@ public class APIControllerTests : IDisposable
         _db.Sensors.Add(sensor);
         _db.SaveChanges();
 
-        var updatedSensor = CreateTestSensor(0);
-        updatedSensor.Headers = new List<DataSourceHttpHeader>
+        var updatedSensorDTO = CreateTestSensorDTO(0);
+        updatedSensorDTO.Headers = new List<DataSourceHttpHeaderDTO>
         {
-            new DataSourceHttpHeader { Name = "New-Header", Value = "new" }
+            new DataSourceHttpHeaderDTO { Name = "New-Header", Value = "new" }
         };
 
         // Act
-        _controller.UpdateSensor(updatedSensor);
+        _controller.UpdateSensor(updatedSensorDTO);
 
         // Assert
         var dbSensor = _db.Sensors.Include(s => s.Headers).First(s => s.SensorID == 0);
         Assert.Single(dbSensor.Headers);
         Assert.Equal("New-Header", dbSensor.Headers[0].Name);
+    }
+
+    [Fact]
+    public void UpdateSensor_EnablingDisabledSensor_ClearsLastSuccessfulBroadcast()
+    {
+        // Arrange
+        var sensor = CreateTestSensor(0);
+        sensor.Enabled = false;
+        sensor.LastSuccessfulBroadcast = DateTime.UtcNow.AddHours(-1);
+        _db.Sensors.Add(sensor);
+        _db.SaveChanges();
+
+        var updatedSensorDTO = CreateTestSensorDTO(0);
+        updatedSensorDTO.Enabled = true; // Enable the sensor
+
+        // Act
+        _controller.UpdateSensor(updatedSensorDTO);
+
+        // Assert
+        var dbSensor = _db.Sensors.Find((byte)0);
+        Assert.NotNull(dbSensor);
+        Assert.True(dbSensor.Enabled);
+        Assert.Null(dbSensor.LastSuccessfulBroadcast);
+        Assert.False(dbSensor.HasProblem); // Should not have problem when LastSuccessfulBroadcast is null
+    }
+
+    [Fact]
+    public void UpdateSensor_DisablingEnabledSensor_ClearsLastSuccessfulBroadcast()
+    {
+        // Arrange
+        var sensor = CreateTestSensor(0);
+        sensor.Enabled = true;
+        sensor.LastSuccessfulBroadcast = DateTime.UtcNow.AddHours(-1);
+        _db.Sensors.Add(sensor);
+        _db.SaveChanges();
+
+        var updatedSensorDTO = CreateTestSensorDTO(0);
+        updatedSensorDTO.Enabled = false; // Disable the sensor
+
+        // Act
+        _controller.UpdateSensor(updatedSensorDTO);
+
+        // Assert
+        var dbSensor = _db.Sensors.Find((byte)0);
+        Assert.NotNull(dbSensor);
+        Assert.False(dbSensor.Enabled);
+        Assert.Null(dbSensor.LastSuccessfulBroadcast);
+        Assert.False(dbSensor.HasProblem); // Disabled sensors never have problems
+    }
+
+    [Fact]
+    public void UpdateSensor_NoEnabledStateChange_PreservesLastSuccessfulBroadcast()
+    {
+        // Arrange
+        var broadcastTime = DateTime.UtcNow.AddMinutes(-2);
+        var sensor = CreateTestSensor(0, "Original Name");
+        sensor.Enabled = true;
+        sensor.LastSuccessfulBroadcast = broadcastTime;
+        _db.Sensors.Add(sensor);
+        _db.SaveChanges();
+
+        var updatedSensorDTO = CreateTestSensorDTO(0, "Updated Name");
+        updatedSensorDTO.Enabled = true; // Keep enabled state the same
+
+        // Act
+        _controller.UpdateSensor(updatedSensorDTO);
+
+        // Assert
+        var dbSensor = _db.Sensors.Find((byte)0);
+        Assert.NotNull(dbSensor);
+        Assert.Equal("Updated Name", dbSensor.Name);
+        Assert.Equal(broadcastTime, dbSensor.LastSuccessfulBroadcast); // Should be preserved
     }
 
     #endregion

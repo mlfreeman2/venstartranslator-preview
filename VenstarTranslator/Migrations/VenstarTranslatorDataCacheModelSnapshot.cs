@@ -3,7 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using VenstarTranslator.Models;
+using VenstarTranslator.Models.Db;
 
 #nullable disable
 
@@ -17,7 +17,7 @@ namespace VenstarTranslator.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.10");
 
-            modelBuilder.Entity("VenstarTranslator.Models.TranslatedVenstarSensor", b =>
+            modelBuilder.Entity("VenstarTranslator.Models.Db.TranslatedVenstarSensor", b =>
                 {
                     b.Property<byte>("SensorID")
                         .HasColumnType("INTEGER");
@@ -30,6 +30,9 @@ namespace VenstarTranslator.Migrations
 
                     b.Property<string>("JSONPath")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastErrorMessage")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("LastSuccessfulBroadcast")
@@ -60,9 +63,9 @@ namespace VenstarTranslator.Migrations
                     b.ToTable("Sensors");
                 });
 
-            modelBuilder.Entity("VenstarTranslator.Models.TranslatedVenstarSensor", b =>
+            modelBuilder.Entity("VenstarTranslator.Models.Db.TranslatedVenstarSensor", b =>
                 {
-                    b.OwnsMany("VenstarTranslator.Models.DataSourceHttpHeader", "Headers", b1 =>
+                    b.OwnsMany("VenstarTranslator.Models.Db.DataSourceHttpHeader", "Headers", b1 =>
                         {
                             b1.Property<int>("ID")
                                 .ValueGeneratedOnAdd()
