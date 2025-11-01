@@ -5,7 +5,7 @@
 
   <ItemGroup>
     <!-- Core Application Dependencies -->
-    <PackageVersion Include="HangFire" Version="1.8.21" />
+    <PackageVersion Include="Hangfire" Version="1.8.21" />
     <PackageVersion Include="Hangfire.Storage.SQLite" Version="0.4.2" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="9.0.10" />

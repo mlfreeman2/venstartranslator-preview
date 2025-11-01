@@ -407,7 +407,7 @@
         "type": "Project",
         "dependencies": {
           "Google.Protobuf": "[3.33.0, )",
-          "HangFire": "[1.8.21, )",
+          "Hangfire": "[1.8.21, )",
           "Hangfire.Storage.SQLite": "[0.4.2, )",
           "Microsoft.AspNetCore.Mvc.NewtonsoftJson": "[9.0.10, )",
           "Microsoft.Data.Sqlite": "[9.0.10, )",
