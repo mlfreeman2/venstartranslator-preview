@@ -185,6 +185,8 @@ body {
 .status-enabled {
   background: linear-gradient(135deg, #22c55e, #16a34a) !important;
   color: white !important;
+  height: 30px;
+  width: 93px;
 }
 
 .status-disabled {
@@ -192,18 +194,24 @@ body {
   color: white !important;
 }
 
-.status-problem {
+/* Problem button styling */
+.status-problem-btn {
   background: linear-gradient(135deg, #f59e0b, #d97706) !important;
   color: white !important;
-  cursor: help;
-  border: 1px dashed rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
   animation: pulse-warning 2s ease-in-out infinite;
+  font-weight: 500;
+  padding: 0;
+  font-size: 0.8rem;
+  height: 30px;
+  width: 93px;
 }
 
-.status-problem:hover {
+.status-problem-btn:hover {
   background: linear-gradient(135deg, #d97706, #b45309) !important;
-  transform: scale(1.05);
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4) !important;
+  color: white !important;
 }
 
 @keyframes pulse-warning {
@@ -354,20 +362,20 @@ body {
   .container {
     padding: 1rem;
   }
-  
+
   .header h1 {
     font-size: 2rem;
   }
-  
+
   .card {
     padding: 1.5rem;
   }
-  
+
   #sensors thead th,
   #sensors tbody td {
     padding: 1rem 0.75rem;
   }
-  
+
   .btn {
     min-width: 100px;
     font-size: 0.8rem;

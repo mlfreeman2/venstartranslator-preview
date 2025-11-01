@@ -48,17 +48,24 @@ public class BroadcastTrackingFilterAttribute : JobFilterAttribute, IServerFilte
 
         if (context.Exception == null)
         {
-            // Success - update last successful broadcast time and clear error message
+            // Success - update last successful broadcast time and reset failure counter
             sensor.LastSuccessfulBroadcast = DateTime.UtcNow;
             sensor.LastErrorMessage = null;
+            sensor.ConsecutiveFailures = 0;
             dbContext.SaveChanges();
 
             logger.LogDebug("Broadcast succeeded for sensor {SensorID} ({SensorName})", sensor.SensorID, sensor.Name);
         }
         else
         {
+            // Hangfire wraps exceptions in JobPerformanceException, so check the inner exception
+            var actualException = context.Exception.InnerException ?? context.Exception;
+
+            // Increment consecutive failure counter
+            sensor.ConsecutiveFailures++;
+
             // Check if this is a VenstarTranslatorException (user-friendly message)
-            if (context.Exception is VenstarTranslatorException vtEx)
+            if (actualException is VenstarTranslatorException vtEx)
             {
                 // Store the user-friendly error message
                 sensor.LastErrorMessage = vtEx.Message;
@@ -66,21 +73,25 @@ public class BroadcastTrackingFilterAttribute : JobFilterAttribute, IServerFilte
 
                 logger.LogError(
                     vtEx,
-                    "Broadcast failed for sensor {SensorID} ({SensorName}): {ErrorMessage}. Last successful broadcast: {LastSuccessfulBroadcast}",
+                    "Broadcast failed for sensor {SensorID} ({SensorName}): {ErrorMessage}. Consecutive failures: {ConsecutiveFailures}. Last successful broadcast: {LastSuccessfulBroadcast}",
                     sensor.SensorID,
                     sensor.Name,
                     vtEx.Message,
+                    sensor.ConsecutiveFailures,
                     sensor.LastSuccessfulBroadcast?.ToString("yyyy-MM-dd HH:mm:ss UTC") ?? "Never"
                 );
             }
             else
             {
                 // System exception - don't store the message, just log it
+                dbContext.SaveChanges();
+
                 logger.LogError(
                     context.Exception,
-                    "Broadcast failed for sensor {SensorID} ({SensorName}) with unexpected error. Last successful broadcast: {LastSuccessfulBroadcast}",
+                    "Broadcast failed for sensor {SensorID} ({SensorName}) with unexpected error. Consecutive failures: {ConsecutiveFailures}. Last successful broadcast: {LastSuccessfulBroadcast}",
                     sensor.SensorID,
                     sensor.Name,
+                    sensor.ConsecutiveFailures,
                     sensor.LastSuccessfulBroadcast?.ToString("yyyy-MM-dd HH:mm:ss UTC") ?? "Never"
                 );
             }
@@ -89,10 +100,10 @@ public class BroadcastTrackingFilterAttribute : JobFilterAttribute, IServerFilte
             if (sensor.HasProblem)
             {
                 logger.LogWarning(
-                    "Sensor {SensorID} ({SensorName}) broadcasts are stale (no successful broadcast in {StaleThresholdMinutes} minutes). Last successful broadcast: {LastSuccessfulBroadcast}",
+                    "Sensor {SensorID} ({SensorName}) has reached failure threshold ({ConsecutiveFailures} consecutive failures). Last successful broadcast: {LastSuccessfulBroadcast}",
                     sensor.SensorID,
                     sensor.Name,
-                    sensor.StaleThresholdMinutes,
+                    sensor.ConsecutiveFailures,
                     sensor.LastSuccessfulBroadcast?.ToString("yyyy-MM-dd HH:mm:ss UTC") ?? "Never"
                 );
             }

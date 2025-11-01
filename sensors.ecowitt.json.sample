@@ -14,7 +14,7 @@
     "Enabled": true,
     "Purpose": "Remote",
     "Scale": "F",
-    "URL": "http://172.17.21.11/get_livedata_info",
+    "URL": "http://172.17.21.11/get_livedata_info1",
     "JSONPath": "$.ch_aisle[?(@.name=='Living Room')].temp",
     "Headers": []
   },

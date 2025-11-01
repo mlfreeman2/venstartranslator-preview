@@ -118,10 +118,6 @@ function renderTable() {
   });
 
   updateSortIcons();
-
-  // Initialize Bootstrap tooltips
-  const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-  [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 }
 
 /**
@@ -152,12 +148,9 @@ function createTableRow(sensor) {
 
   // Add problem indicator if there's an issue
   if (sensor.hasProblem && sensor.enabled) {
-    const lastBroadcast = sensor.lastSuccessfulBroadcast
-      ? new Date(sensor.lastSuccessfulBroadcast).toLocaleString()
-      : 'Never';
-    statusHtml += '<br><span class="badge status-problem mt-1" data-bs-toggle="tooltip" data-bs-placement="top" ' +
-      `title="Last successful broadcast: ${lastBroadcast}. Check server logs for details.">` +
-      '<i class="fas fa-exclamation-triangle me-1"></i>Problem</span>';
+    statusHtml += '<br><button class="btn btn-sm btn-warning status-problem-btn mt-1" ' +
+      `onclick="showErrorDetails(${sensor.sensorID})">` +
+      '<i class="fas fa-exclamation-triangle me-1"></i>Problem</button>';
   }
 
   statusTd.innerHTML = statusHtml;
@@ -526,4 +519,39 @@ function getLatestTemperature(sensorID) {
       button.classList.remove('disabled');
       button.innerHTML = '<i class="fas fa-thermometer-half me-1"></i>Get Temperature';
     });
+}
+
+/**
+ * Show error details modal for a sensor with problems
+ * @param {number} sensorID - ID of sensor
+ */
+function showErrorDetails(sensorID) {
+  // Find the sensor data
+  const sensor = sensors.find(s => s.sensorID === sensorID);
+  if (!sensor) {
+    return;
+  }
+
+  // Populate modal with sensor information
+  document.getElementById('error-sensor-name').textContent = sensor.name;
+
+  const lastBroadcast = sensor.lastSuccessfulBroadcast
+    ? new Date(sensor.lastSuccessfulBroadcast).toLocaleString()
+    : 'Never';
+  document.getElementById('error-last-broadcast').textContent = lastBroadcast;
+
+  // Show error message if present
+  const errorMessageContainer = document.getElementById('error-message-container');
+  const errorMessage = document.getElementById('error-message');
+
+  if (sensor.lastErrorMessage) {
+    errorMessage.textContent = sensor.lastErrorMessage;
+    errorMessageContainer.style.display = 'block';
+  } else {
+    errorMessageContainer.style.display = 'none';
+  }
+
+  // Show the modal
+  const modal = new bootstrap.Modal(document.getElementById('errorDetailsModal'));
+  modal.show();
 }

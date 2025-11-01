@@ -84,20 +84,26 @@ public class TranslatedVenstarSensor
 
     public string LastErrorMessage { get; set; }
 
+    public int ConsecutiveFailures { get; set; }
+
     [NotMapped]
-    public int StaleThresholdMinutes => Purpose == SensorPurpose.Outdoor ? 20 : 5;
+    public int FailureThreshold => 5;
 
     [NotMapped]
     public bool HasProblem
     {
         get
         {
-            if (!Enabled || LastSuccessfulBroadcast == null)
+            if (!Enabled)
             {
                 return false;
             }
 
-            return DateTime.UtcNow - LastSuccessfulBroadcast.Value > TimeSpan.FromMinutes(StaleThresholdMinutes);
+            // Check if we have too many consecutive failures
+            // 5 consecutive failures means:
+            //   - Outdoor sensors: 5 × 5 min = 25 minutes of failures (exceeds 20 min threshold)
+            //   - Other sensors: 5 × 1 min = 5 minutes of failures (meets 5 min threshold)
+            return ConsecutiveFailures >= FailureThreshold;
         }
     }
 

@@ -13,6 +13,7 @@ public class SensorWebDTO : SensorJsonDTO
 {
     public DateTime? LastSuccessfulBroadcast { get; set; }
     public bool HasProblem { get; set; }
+    public string LastErrorMessage { get; set; }
 
     public new static SensorWebDTO FromSensor(TranslatedVenstarSensor sensor)
     {
@@ -28,7 +29,8 @@ public class SensorWebDTO : SensorJsonDTO
             JSONPath = sensor.JSONPath,
             Headers = sensor.Headers?.Select(h => DataSourceHttpHeaderDTO.FromHeader(h)).ToList(),
             LastSuccessfulBroadcast = sensor.LastSuccessfulBroadcast,
-            HasProblem = sensor.HasProblem
+            HasProblem = sensor.HasProblem,
+            LastErrorMessage = sensor.LastErrorMessage
         };
     }
 }

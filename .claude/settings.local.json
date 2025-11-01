@@ -18,7 +18,8 @@
       "Bash(find:*)",
       "Bash(dotnet test:*)",
       "Bash(VSTEST_CONNECTION_TIMEOUT=180 dotnet test:*)",
-      "Bash(dotnet clean:*)"
+      "Bash(dotnet clean:*)",
+      "Bash(dotnet ef migrations:*)"
     ],
     "deny": [],
     "ask": []

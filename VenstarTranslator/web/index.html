@@ -88,6 +88,37 @@
     </div>
   </div>
 
+  <!-- Error Details Modal (Bootstrap) -->
+  <div class="modal fade" id="errorDetailsModal" tabindex="-1" aria-labelledby="errorDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-warning">
+          <h5 class="modal-title" id="errorDetailsModalLabel">
+            <i class="fas fa-exclamation-triangle"></i> Sensor Problem Details
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <strong>Sensor Name:</strong>
+            <div id="error-sensor-name" class="mt-1"></div>
+          </div>
+          <div class="mb-3">
+            <strong>Last Successful Broadcast:</strong>
+            <div id="error-last-broadcast" class="mt-1"></div>
+          </div>
+          <div id="error-message-container" class="mb-3" style="display: none;">
+            <strong>Error Message:</strong>
+            <div id="error-message" class="mt-1 alert alert-danger"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Edit Sensor Modal (Bootstrap) -->
   <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">

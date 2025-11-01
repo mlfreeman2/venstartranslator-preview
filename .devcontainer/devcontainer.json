@@ -36,6 +36,7 @@
 	"runArgs": [
 		"--network=host"
 	],
+	"forwardPorts": [8080],
 	"remoteEnv": {
 		"PATH": "${containerEnv:PATH}:/home/vscode/.dotnet/tools",
 		"TZ": "${localEnv:TZ:-America/New_York}",
