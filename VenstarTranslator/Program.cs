@@ -120,6 +120,7 @@ app.UseFileServer(new FileServerOptions
 app.UseRouting();
 app.UseAuthorization();
 
+app.MapHealthChecks("/health");
 app.MapControllers();
 app.MapHangfireDashboard("/hangfire", new DashboardOptions
 {

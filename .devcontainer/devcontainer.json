@@ -16,7 +16,8 @@
 				"eamodio.gitlens",
 				"jeremycaron.csharp-organize-usings",
 				"EditorConfig.EditorConfig",
-				"github.vscode-github-actions"
+				"github.vscode-github-actions",
+				"Anthropic.claude-code"
 			],
 			"settings": {
 				"terminal.integrated.defaultProfile.linux": "bash",
@@ -31,6 +32,9 @@
 		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/claude,target=/home/vscode/.config/claude,type=bind,consistency=cached",
 		// NuGet package cache to speed up builds
 		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.nuget,target=/home/vscode/.nuget,type=bind,consistency=cached"
+	],
+	"runArgs": [
+		"--network=host"
 	],
 	"forwardPorts": [
 		8080,

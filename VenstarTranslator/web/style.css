@@ -100,12 +100,8 @@ body {
     margin-left: auto;
 }
 
-/* DataTables Styling */
-.dataTables_wrapper {
-    font-family: inherit;
-}
-
-table.dataTable {
+/* Table Styling */
+#sensors {
     width: 100% !important;
     border-collapse: separate;
     border-spacing: 0;
@@ -115,7 +111,7 @@ table.dataTable {
     border: 1px solid var(--border);
 }
 
-table.dataTable thead th {
+#sensors thead th {
     background: linear-gradient(135deg, #f8fafc, #f1f5f9);
     color: var(--text-primary);
     font-weight: 600;
@@ -125,318 +121,198 @@ table.dataTable thead th {
     padding: 1.5rem 1rem;
     border-bottom: 2px solid var(--border);
     position: relative;
+    user-select: none;
 }
 
-table.dataTable tbody td {
+#sensors thead th.sortable {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#sensors thead th.sortable:hover {
+    background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+}
+
+#sensors thead th .sort-icon {
+    margin-left: 0.5rem;
+    opacity: 0.4;
+    font-size: 0.8rem;
+}
+
+#sensors thead th.sortable:hover .sort-icon {
+    opacity: 0.7;
+}
+
+#sensors tbody td {
     padding: 1.25rem 1rem;
     border-bottom: 1px solid var(--border);
     vertical-align: middle;
 }
 
-table.dataTable tbody tr {
+#sensors tbody tr {
     transition: all 0.2s ease;
 }
 
-table.dataTable tbody tr:hover {
+#sensors tbody tr:hover {
     background-color: #f8fafc;
     transform: translateY(-1px);
 }
 
-table.dataTable tbody tr:last-child td {
+#sensors tbody tr:last-child td {
     border-bottom: none;
 }
 
-/* Custom Buttons */
-.btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 8px;
+
+/* Bootstrap Badge Customizations */
+.badge {
+    padding: 0.5rem 0.75rem;
     font-weight: 500;
-    font-size: 0.9rem;
-    text-decoration: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin: 0.25rem;
-    min-width: 120px;
-    justify-content: center;
-}
-
-.btn-primary {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
-    color: white;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-}
-
-.btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4);
-}
-
-.btn-secondary {
-    background: linear-gradient(135deg, var(--secondary-color), #475569);
-    color: white;
-    box-shadow: 0 4px 12px rgba(100, 116, 139, 0.3);
-}
-
-.btn-secondary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(100, 116, 139, 0.4);
-}
-
-.btn-success {
-    background: linear-gradient(135deg, var(--success-color), #059669);
-    color: white;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-.btn-success:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
-}
-
-.btn-warning {
-    background: linear-gradient(135deg, var(--warning-color), #d97706);
-    color: white;
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-}
-
-.btn-warning:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
-}
-
-.btn-error {
-    background: linear-gradient(135deg, var(--error-color), #dc2626);
-    color: white;
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-}
-
-.btn-error:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
-}
-
-/* Status Indicators */
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
     font-size: 0.8rem;
-    font-weight: 500;
 }
 
+/* Status Badges - distinct colors from purpose badges */
 .status-enabled {
-    background: rgba(16, 185, 129, 0.1);
-    color: var(--success-color);
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+    color: white !important;
 }
 
 .status-disabled {
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--error-color);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: linear-gradient(135deg, var(--error-color), #dc2626) !important;
+    color: white !important;
 }
 
-.status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: currentColor;
-}
-
-/* Sensor ID Styling */
+/* Sensor ID Badge Styling */
 .sensor-id {
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    background: #f1f5f9;
-    padding: 0.5rem 0.75rem;
-    border-radius: 6px;
     font-size: 0.9rem;
-    color: var(--primary-color);
-    font-weight: 500;
 }
 
-/* Purpose Badges */
-.purpose-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 500;
-    text-transform: capitalize;
-}
-
+/* Purpose Badge Colors */
 .purpose-outdoor {
-    background: linear-gradient(135deg, #059669, #10b981);
-    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+    background: linear-gradient(135deg, #059669, #10b981) !important;
+    color: white;
 }
 
 .purpose-remote {
-    background: linear-gradient(135deg, #7c3aed, #8b5cf6);
-    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+    background: linear-gradient(135deg, #7c3aed, #8b5cf6) !important;
+    color: white;
 }
 
 .purpose-return {
-    background: linear-gradient(135deg, #dc2626, #ef4444);
-    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+    background: linear-gradient(135deg, #dc2626, #ef4444) !important;
+    color: white;
 }
 
 .purpose-supply {
-    background: linear-gradient(135deg, #0284c7, #0ea5e9);
-    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+    background: linear-gradient(135deg, #0284c7, #0ea5e9) !important;
+    color: white;
 }
 
-/* Modal Styling */
-.ui-dialog {
-    border-radius: 16px !important;
-    box-shadow: var(--shadow-lg) !important;
-    border: 1px solid var(--border) !important;
-    overflow: hidden;
+/* Bootstrap Modal Customization */
+.modal-header {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+    color: white;
+    border-bottom: none;
 }
 
-.ui-dialog-titlebar {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover)) !important;
-    color: white !important;
-    border: none !important;
-    padding: 1.5rem !important;
-    font-weight: 600 !important;
+.modal-title {
+    font-weight: 600;
 }
 
-.ui-dialog-content {
-    padding: 2rem !important;
-    font-size: 1.1rem !important;
-    color: var(--text-primary) !important;
+.modal-header .btn-close {
+    filter: brightness(0) invert(1);
 }
 
-.ui-button {
-    background: var(--primary-color) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 8px !important;
-    padding: 0.75rem 1.5rem !important;
-    font-weight: 500 !important;
-    transition: all 0.2s ease !important;
+.modal-content {
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border);
 }
 
-.ui-button:hover {
-    background: var(--primary-hover) !important;
-    transform: translateY(-1px) !important;
+.modal-body {
+    padding: 2rem;
 }
 
-/* Form Styling */
-.form-group {
-    margin-bottom: 1.5rem;
+.modal-footer {
+    border-top: 1px solid var(--border);
+    padding: 1rem 2rem;
 }
 
-.form-label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-.form-input {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 2px solid var(--border);
-    border-radius: 8px;
-    font-size: 1rem;
-    transition: all 0.2s ease;
-    background: var(--surface);
-}
-
-.form-input:focus {
-    outline: none;
+/* Bootstrap Form Customization */
+.form-control:focus,
+.form-select:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
 }
 
-.form-select {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 2px solid var(--border);
-    border-radius: 8px;
-    font-size: 1rem;
-    background: var(--surface);
-    cursor: pointer;
-}
-
-.form-checkbox {
-    width: 1.25rem;
-    height: 1.25rem;
-    margin-right: 0.5rem;
-}
-
-.readonly-field {
-    background: #f1f5f9 !important;
+.form-control:disabled,
+.form-control[readonly] {
+    background: #f1f5f9;
     color: var(--text-secondary);
     cursor: not-allowed;
 }
 
-.header-row {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 0.5rem;
-    align-items: end;
+/* Header row is now handled by Bootstrap row/col classes */
+/* Removed legacy header-row styling */
+
+/* Bootstrap Button Customizations */
+.btn {
+    transition: all 0.2s ease;
 }
 
-.header-row .form-group {
-    flex: 1;
-    margin-bottom: 0;
+.btn:hover {
+    transform: translateY(-1px);
 }
 
-.header-row button {
-    padding: 0.5rem;
-    background: var(--error-color);
-    color: white;
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
     border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.9rem;
 }
 
-.add-header-btn {
-    background: var(--success-color);
-    color: white;
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--primary-hover), #1e40af);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, var(--success-color), #059669);
     border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    cursor: pointer;
-    margin-top: 0.5rem;
 }
 
-/* Loading Animation */
-.loading {
-    opacity: 0.6;
-    pointer-events: none;
+.btn-success:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
-.loading .btn {
-    position: relative;
+.btn-warning {
+    background: linear-gradient(135deg, var(--warning-color), #d97706);
+    border: none;
 }
 
-.loading .btn::after {
-    content: '';
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    border: 2px solid transparent;
-    border-top: 2px solid currentColor;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    right: 0.75rem;
+.btn-warning:hover {
+    background: linear-gradient(135deg, #d97706, #b45309);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
 }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+.btn-danger {
+    background: linear-gradient(135deg, var(--error-color), #dc2626);
+    border: none;
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-info {
+    background: linear-gradient(135deg, #0ea5e9, #0284c7);
+    border: none;
+    color: white;
+}
+
+.btn-info:hover {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
 }
 
 /* Responsive Design */
@@ -453,8 +329,8 @@ table.dataTable tbody tr:last-child td {
         padding: 1.5rem;
     }
     
-    table.dataTable thead th,
-    table.dataTable tbody td {
+    #sensors thead th,
+    #sensors tbody td {
         padding: 1rem 0.75rem;
     }
     

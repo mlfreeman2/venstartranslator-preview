@@ -8,7 +8,10 @@
       "Bash(do echo \"Run $i:\")",
       "Bash(done)",
       "Bash(find:*)",
-      "Bash(timeout 5 dotnet run -- --urls \"http://localhost:8080\")"
+      "Bash(timeout 5 dotnet run -- --urls \"http://localhost:8080\")",
+      "Bash(curl:*)",
+      "Bash(kill:*)",
+      "Bash(git clean:*)"
     ],
     "deny": [],
     "ask": []
