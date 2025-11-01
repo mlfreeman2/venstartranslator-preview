@@ -37,6 +37,7 @@ var hangfireDatabasePath = config.GetConnectionString("Hangfire");
 var sqliteOptions = new SQLiteStorageOptions();
 
 builder.Services.AddControllers().AddNewtonsoftJson(opts => opts.SerializerSettings.Converters.Add(new StringEnumConverter()));
+builder.Services.AddHealthChecks();
 builder.Services.AddHangfire((provider, configuration) =>
 {
     configuration
