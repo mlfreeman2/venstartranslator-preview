@@ -5,6 +5,7 @@ using Hangfire;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using VenstarTranslator.Filters;
 using VenstarTranslator.Models;
 using VenstarTranslator.Services;
 
@@ -21,6 +22,7 @@ public class Tasks
 
     [JobDisplayName("Send a Venstar data packet for sensor #{0}")]
     [AutomaticRetry(Attempts = 0)]
+    [BroadcastTrackingFilter]
     public void SendDataPacket(uint sensorID)
     {
         using (IServiceScope scope = _serviceProvider.CreateScope())

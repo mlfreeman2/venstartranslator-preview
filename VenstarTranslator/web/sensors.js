@@ -118,6 +118,10 @@ function renderTable() {
   });
 
   updateSortIcons();
+
+  // Initialize Bootstrap tooltips
+  const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+  [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 }
 
 /**
@@ -138,11 +142,25 @@ function createTableRow(sensor) {
 
   // Status column
   const statusTd = document.createElement('td');
+  let statusHtml = '';
+
   if (sensor.enabled) {
-    statusTd.innerHTML = '<span class="badge status-enabled"><i class="fas fa-circle-check me-1"></i>Enabled</span>';
+    statusHtml = '<span class="badge status-enabled"><i class="fas fa-circle-check me-1"></i>Enabled</span>';
   } else {
-    statusTd.innerHTML = '<span class="badge status-disabled"><i class="fas fa-circle-xmark me-1"></i>Disabled</span>';
+    statusHtml = '<span class="badge status-disabled"><i class="fas fa-circle-xmark me-1"></i>Disabled</span>';
   }
+
+  // Add problem indicator if there's an issue
+  if (sensor.hasProblem && sensor.enabled) {
+    const lastBroadcast = sensor.lastSuccessfulBroadcast
+      ? new Date(sensor.lastSuccessfulBroadcast).toLocaleString()
+      : 'Never';
+    statusHtml += '<br><span class="badge status-problem mt-1" data-bs-toggle="tooltip" data-bs-placement="top" ' +
+      `title="Last successful broadcast: ${lastBroadcast}. Check server logs for details.">` +
+      '<i class="fas fa-exclamation-triangle me-1"></i>Problem</span>';
+  }
+
+  statusTd.innerHTML = statusHtml;
   tr.appendChild(statusTd);
 
   // Purpose column

@@ -23,6 +23,7 @@ using Microsoft.Extensions.Logging;
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using VenstarTranslator.Filters;
 using VenstarTranslator.Models;
 using VenstarTranslator.Services;
 
@@ -46,7 +47,10 @@ builder.Services.AddHangfire((provider, configuration) =>
     .UseRecommendedSerializerSettings()
     .UseSQLiteStorage(hangfireDatabasePath, sqliteOptions);
 });
-builder.Services.AddHangfireServer();
+builder.Services.AddHangfireServer(options =>
+{
+    options.ServerName = "VenstarTranslator";
+});
 
 builder.Services.AddDbContext<VenstarTranslatorDataCache>(options => options.UseSqlite(config.GetConnectionString("DataCache")));
 
@@ -57,6 +61,9 @@ builder.Services.AddSingleton<ISensorOperations, SensorOperations>();
 builder.Services.AddSingleton<IHangfireJobManager, HangfireJobManager>();
 
 var app = builder.Build();
+
+// Set the service provider for BroadcastTrackingFilter
+BroadcastTrackingFilterAttribute.ServiceProvider = app.Services;
 
 if (app.Environment.IsDevelopment())
 {
@@ -123,11 +130,6 @@ app.UseAuthorization();
 
 app.MapHealthChecks("/health");
 app.MapControllers();
-app.MapHangfireDashboard("/hangfire", new DashboardOptions
-{
-    Authorization = [],
-    DefaultRecordsPerPage = 50,
-});
 
 app.Run();
 

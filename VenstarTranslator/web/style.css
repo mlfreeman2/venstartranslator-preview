@@ -100,6 +100,13 @@ body {
   margin-left: auto;
 }
 
+.card-actions .btn {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Table Styling */
 #sensors {
   width: 100% !important;
@@ -168,6 +175,10 @@ body {
   padding: 0.5rem 0.75rem;
   font-weight: 500;
   font-size: 0.8rem;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Status Badges - distinct colors from purpose badges */
@@ -179,6 +190,29 @@ body {
 .status-disabled {
   background: linear-gradient(135deg, var(--error-color), #dc2626) !important;
   color: white !important;
+}
+
+.status-problem {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  color: white !important;
+  cursor: help;
+  border: 1px dashed rgba(255, 255, 255, 0.5);
+  animation: pulse-warning 2s ease-in-out infinite;
+}
+
+.status-problem:hover {
+  background: linear-gradient(135deg, #d97706, #b45309) !important;
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
+@keyframes pulse-warning {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0);
+  }
 }
 
 /* Sensor ID Badge Styling */

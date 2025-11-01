@@ -93,7 +93,9 @@ public class API : ControllerBase
     [Route("/api/sensors")]
     public ActionResult ListSensors()
     {
-        return new JsonResult(_db.Sensors.Include(a => a.Headers).ToList());
+        var sensors = _db.Sensors.Include(a => a.Headers).ToList();
+        var sensorDTOs = sensors.Select(s => SensorDTO.FromSensor(s)).ToList();
+        return new JsonResult(sensorDTOs);
     }
 
     [HttpPut]

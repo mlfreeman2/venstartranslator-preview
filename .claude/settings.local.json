@@ -11,7 +11,11 @@
       "Bash(timeout 5 dotnet run:*)",
       "Bash(sqlite3:*)",
       "Bash(ip a:*)",
-      "Bash(ip route:*)"
+      "Bash(ip route:*)",
+      "Bash(dotnet ef migrations add:*)",
+      "Bash(dotnet tool install:*)",
+      "Bash(dotnet build:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

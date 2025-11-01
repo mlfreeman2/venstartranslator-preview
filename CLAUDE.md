@@ -184,10 +184,30 @@ Changes via API automatically sync to both. On startup, sensors.json is read, va
 
 The application MUST run on the same VLAN/broadcast domain as the Venstar thermostat. Docker deployments require `network_mode: host` to enable UDP broadcast capabilities.
 
+## Monitoring and Problem Detection
+
+The web UI provides real-time sensor health monitoring that mirrors the thermostat's error detection:
+- **Problem Indicators**: Sensors with stale broadcasts display an orange pulsing "Problem" badge in the Status column
+- **Staleness Thresholds** (matches when thermostat shows sensor error):
+  - Outdoor sensors: 20 minutes (broadcasts every 5 minutes)
+  - Other sensor types: 5 minutes (broadcasts every 1 minute)
+- **Details**: Hover over the problem badge to see the last successful broadcast timestamp
+- **Logs**: Full exception details are logged to console/Docker logs at ERROR level
+- **Database Tracking**: `LastSuccessfulBroadcast` timestamp tracked in database (not persisted to sensors.json)
+- **Auto-Recovery**: Problem indicator automatically clears when broadcasts resume successfully
+
+**BroadcastTrackingFilter** (`Filters/BroadcastTrackingFilter.cs`)
+- Hangfire job filter attribute applied to `SendDataPacket` method
+- Updates `LastSuccessfulBroadcast` timestamp on successful broadcasts
+- Logs errors with exception details on failures
+- Logs warnings when broadcasts become stale (matching thermostat error threshold)
+
 ## Web UI
 
 Located in `web/` directory:
-- `index.html`: Main sensor management interface
+- `index.html`: Main sensor management interface with real-time problem indicators
 - `jsonpath.html`: JSONPath query tester
-- `javascript.js`: Frontend logic for API interactions
+- `sensors.js`: Sensor table rendering and tooltip initialization
+- `modals.js`: Modal dialog management
+- `style.css`: Custom styling including problem badge animations
 - Static files served via ASP.NET Core FileServer middleware

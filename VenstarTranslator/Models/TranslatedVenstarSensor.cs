@@ -95,6 +95,28 @@ public class TranslatedVenstarSensor
     [ValidHttpHeaders]
     public List<DataSourceHttpHeader> Headers { get; set; }
 
+    [JsonIgnore]
+    public DateTime? LastSuccessfulBroadcast { get; set; }
+
+    [JsonIgnore]
+    [NotMapped]
+    public int StaleThresholdMinutes => Purpose == SensorPurpose.Outdoor ? 20 : 5;
+
+    [JsonIgnore]
+    [NotMapped]
+    public bool HasProblem
+    {
+        get
+        {
+            if (!Enabled || LastSuccessfulBroadcast == null)
+            {
+                return false;
+            }
+
+            return DateTime.UtcNow - LastSuccessfulBroadcast.Value > TimeSpan.FromMinutes(StaleThresholdMinutes);
+        }
+    }
+
     private SensorMessage BuildProtobufPacket(double latestReading)
     {
         return new SensorMessage
