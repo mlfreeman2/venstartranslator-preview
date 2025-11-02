@@ -18,7 +18,7 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="[9.0.10,)" />
     <PackageVersion Include="UnitsNet" Version="[5.75.0,)" />
 
-    <!-- Test Dependencies -->
+    <!-- Test Dependencies woohoo -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="[9.0.10,)" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="[18.0.0,)" />
     <PackageVersion Include="Moq" Version="[4.20.72,)" />
