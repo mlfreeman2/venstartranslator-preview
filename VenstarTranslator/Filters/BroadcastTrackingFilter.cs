@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Hangfire.Common;
 using Hangfire.Server;
@@ -13,6 +14,7 @@ namespace VenstarTranslator.Filters;
 /// Hangfire filter attribute that tracks broadcast success/failure for sensors
 /// Apply this attribute to broadcast methods to automatically track their execution status
 /// </summary>
+[ExcludeFromCodeCoverage]
 public class BroadcastTrackingFilterAttribute : JobFilterAttribute, IServerFilter
 {
     // Static service provider to be set during application startup
