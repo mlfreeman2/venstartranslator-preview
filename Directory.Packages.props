@@ -5,25 +5,25 @@
 
   <ItemGroup>
     <!-- Core Application Dependencies -->
-    <PackageVersion Include="Hangfire" Version="1.8.21" />
-    <PackageVersion Include="Hangfire.Storage.SQLite" Version="0.4.2" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="9.0.10" />
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="9.0.10" />
-    <PackageVersion Include="Google.Protobuf" Version="3.33.0" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="9.0.10" />
-    <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageVersion Include="protobuf-net" Version="3.2.56" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.10" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.10" />
-    <PackageVersion Include="UnitsNet" Version="5.75.0" />
+    <PackageVersion Include="Hangfire" Version="[1.8.21,)" />
+    <PackageVersion Include="Hangfire.Storage.SQLite" Version="[0.4.2,)" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="[9.0.10,)" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="[9.0.10,)" />
+    <PackageVersion Include="Google.Protobuf" Version="[3.33.0,)" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="[9.0.10,)" />
+    <PackageVersion Include="Newtonsoft.Json" Version="[13.0.4,)" />
+    <PackageVersion Include="protobuf-net" Version="[3.2.56,)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="[9.0.10,)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="[9.0.10,)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="[9.0.10,)" />
+    <PackageVersion Include="UnitsNet" Version="[5.75.0,)" />
 
     <!-- Test Dependencies -->
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.10" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.0" />
-    <PackageVersion Include="Moq" Version="4.20.72" />
-    <PackageVersion Include="xunit" Version="2.9.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
-    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="[9.0.10,)" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="[18.0.0,)" />
+    <PackageVersion Include="Moq" Version="[4.20.72,)" />
+    <PackageVersion Include="xunit" Version="[2.9.3,)" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="[3.1.5,)" />
+    <PackageVersion Include="coverlet.collector" Version="[6.0.4,)" />
   </ItemGroup>
 </Project>
