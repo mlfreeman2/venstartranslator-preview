@@ -37,7 +37,7 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 
 ### Core Components
 
-**TranslatedVenstarSensor** (`Models/VenstarTranslator.cs:24`)
+**TranslatedVenstarSensor** (`Models/Db/TranslatedVenstarSensor.cs:22`)
 - Main domain model representing a sensor configuration
 - Handles temperature data fetching via HTTP, JSONPath extraction, and UDP broadcast
 - Contains Protocol Buffer serialization logic for both pairing and data packets
@@ -52,16 +52,17 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 - Configures Hangfire for scheduled UDP broadcasts
 - Configures optional HTTPS support with user-provided or auto-generated self-signed certificates
 
-**Tasks.cs**
+**Tasks.cs** (`Tasks/Tasks.cs`)
 - Background job definitions executed by Hangfire
 - `SendDataPacket(uint sensorID)`: Fetches temperature from configured URL and broadcasts UDP packet
 - Outdoor sensors broadcast every 5 minutes (`*/5 * * * *`)
 - All other sensor types broadcast every minute (`* * * * *`)
 
-**APIController.cs**
+**APIController.cs** (`Controllers/APIController.cs`)
 - REST API for sensor CRUD operations
 - All modifications to sensors automatically sync to `sensors.json` via `SyncToSensorsJson()`
 - `/api/testjsonpath`: Test JSONPath queries against sample JSON documents
+- `/api/fetchurl`: Fetch and display JSON from a configured sensor's URL
 - `/api/sensors/{id}/pair`: Send pairing packet to thermostat
 - `/api/sensors/{id}/latest`: Test temperature fetch from data source
 
@@ -160,12 +161,12 @@ See `sensors.json.template`, `sensors.ecowitt.json.sample`, or `sensors.homeassi
 
 ## Important Implementation Details
 
-### Sensor Validation (`Program.cs:145-158`)
+### Sensor Validation
 - Enforced via Data Annotations and `IValidatableObject`
-- JSONPath validation uses custom `ValidJsonPath` attribute
-- URL validation via `ValidAbsoluteUrl` attribute
-- HTTP headers validated with `ValidHttpHeaders` attribute
-- All validation logic in `Models/ValidationAttributes.cs`
+- JSONPath validation uses custom `ValidJsonPath` attribute (`Models/Validation/ValidJsonPathAttribute.cs`)
+- URL validation via `ValidAbsoluteUrl` attribute (`Models/Validation/ValidAbsoluteUrlAttribute.cs`)
+- HTTP headers validated with `ValidHttpHeaders` attribute (`Models/Validation/ValidHttpHeadersAttribute.cs`)
+- Validation orchestrated in `Program.cs` via `ValidateIndividualSensors()` method
 
 ### Temperature Packet Serialization
 - Protobuf models defined in `Models/Protobuf/ProtobufNetModel.cs`
@@ -197,8 +198,10 @@ The web UI provides real-time sensor health monitoring that mirrors the thermost
 - **Auto-Recovery**: Problem indicator automatically clears when broadcasts resume successfully
 
 **BroadcastTrackingFilter** (`Filters/BroadcastTrackingFilter.cs`)
-- Hangfire job filter attribute applied to `SendDataPacket` method
+- Hangfire job filter attribute applied to `SendDataPacket` method in Tasks.cs
 - Updates `LastSuccessfulBroadcast` timestamp on successful broadcasts
+- Tracks `ConsecutiveFailures` counter and `LastErrorMessage` in database
+- Distinguishes between user-friendly `VenstarTranslatorException` messages (stored in database) and system exceptions (logged only)
 - Logs errors with exception details on failures
 - Logs warnings when broadcasts become stale (matching thermostat error threshold)
 
