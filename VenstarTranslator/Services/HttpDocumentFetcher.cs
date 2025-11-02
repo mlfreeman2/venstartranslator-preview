@@ -4,7 +4,8 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Threading.Tasks;
-using VenstarTranslator.Models;
+using VenstarTranslator.Exceptions;
+using VenstarTranslator.Models.Db;
 
 namespace VenstarTranslator.Services;
 
@@ -53,19 +54,19 @@ public class HttpDocumentFetcher : IHttpDocumentFetcher
         }
         catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException || ex.CancellationToken.IsCancellationRequested == false)
         {
-            throw new HttpRequestException($"Request timed out after {TimeoutSeconds} seconds. The server took too long to respond.", ex);
+            throw new VenstarTranslatorException($"Request timed out after {TimeoutSeconds} seconds. The server took too long to respond.", ex);
         }
         catch (HttpRequestException ex) when (ex.InnerException is SocketException socketEx)
         {
             if (socketEx.SocketErrorCode == SocketError.ConnectionRefused)
             {
-                throw new HttpRequestException("Connection refused. The server is not accepting connections. Check that the URL is correct and the server is running.", ex);
+                throw new VenstarTranslatorException("Connection refused. The server is not accepting connections. Check that the URL is correct and the server is running.", ex);
             }
-            throw new HttpRequestException($"Network error: {socketEx.Message}", ex);
+            throw new VenstarTranslatorException($"Network error: {socketEx.Message}", ex);
         }
         catch (HttpRequestException ex) when (ex.InnerException is AuthenticationException)
         {
-            throw new HttpRequestException("SSL certificate validation failed. If this is a self-signed certificate, enable 'Ignore SSL Errors' in the sensor configuration.", ex);
+            throw new VenstarTranslatorException("SSL certificate validation failed. If this is a self-signed certificate, enable 'Ignore SSL Errors' in the sensor configuration.", ex);
         }
         catch (HttpRequestException ex) when (ex.StatusCode != null)
         {
@@ -82,17 +83,17 @@ public class HttpDocumentFetcher : IHttpDocumentFetcher
                 503 => "Service Unavailable (HTTP 503). The server is temporarily unavailable. Try again later.",
                 _ => $"HTTP {statusCode} error. {ex.Message}"
             };
-            throw new HttpRequestException(message, ex, ex.StatusCode);
+            throw new VenstarTranslatorException(message, ex);
         }
         catch (HttpRequestException ex) when (ex.Message.Contains("The response ended prematurely") ||
                                                ex.Message.Contains("invalid HTTP response") ||
                                                ex.Message.Contains("unexpected end of stream"))
         {
-            throw new HttpRequestException("The server returned an invalid HTTP response. This might not be an HTTP/HTTPS endpoint, or the server is misconfigured.", ex);
+            throw new VenstarTranslatorException("The server returned an invalid HTTP response. This might not be an HTTP/HTTPS endpoint, or the server is misconfigured.", ex);
         }
         catch (UriFormatException ex)
         {
-            throw new HttpRequestException($"Invalid URL format: {ex.Message}", ex);
+            throw new VenstarTranslatorException($"Invalid URL format: {ex.Message}", ex);
         }
     }
 }

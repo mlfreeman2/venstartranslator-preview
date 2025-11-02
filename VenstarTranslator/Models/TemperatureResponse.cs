@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 
+using VenstarTranslator.Models.Enums;
+
 namespace VenstarTranslator.Models;
 
 [ExcludeFromCodeCoverage]

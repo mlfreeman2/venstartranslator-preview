@@ -2,336 +2,264 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Venstar Sensor Emulator</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Venstar Sensor Emulator</title>
 
-    <!-- External Libraries -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
-        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-    <script src="https://code.jquery.com/ui/1.14.1/jquery-ui.min.js"
-        integrity="sha256-AlTido85uXPlSyyaZNsjJXeCs07eSv3r43kyCVc8ChI=" crossorigin="anonymous"></script>
-    <link href="https://code.jquery.com/ui/1.14.1/themes/ui-lightness/jquery-ui.css" rel="stylesheet" />
-    <link href="https://cdn.datatables.net/v/ju/dt-2.3.4/datatables.min.css" rel="stylesheet" />
-    <script src="https://cdn.datatables.net/v/ju/dt-2.3.4/datatables.min.js"></script>
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
-        rel="stylesheet" />
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet" />
-    <link href="style.css" rel="stylesheet" />
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet" />
+  <link href="style.css" rel="stylesheet" />
 
-    <style>
-        .json-path-row {
-            display: flex;
-            align-items: end;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
+  <style>
+    .large-textarea {
+      height: 400px;
+      resize: vertical;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+    }
 
-        .json-path-input {
-            flex: 1;
-        }
+    #json-document {
+      height: 488px;
+    }
 
-        .json-path-input .form-label {
-            margin-bottom: 5px;
-        }
+    #url-selector-container:not([style*="display: none"]) ~ label + #json-document {
+      height: 400px;
+    }
 
-        .textareas-container {
-            display: flex;
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .textarea-column {
-            flex: 1;
-        }
-
-        .textarea-column .form-label {
-            margin-bottom: 5px;
-            font-weight: 600;
-        }
-
-        .large-textarea {
-            width: 100%;
-            height: 400px;
-            resize: vertical;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            padding: 12px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            background-color: #f8fafc;
-        }
-
-        #url-selector-container {
-            margin-bottom: 10px;
-        }
-
-        #json-document {
-            height: 488px; /* Default height when no dropdown */
-        }
-
-        #url-selector-container:not([style*="display: none"]) ~ label + #json-document {
-            height: 400px; /* Reduced height when dropdown is visible */
-        }
-
-        #result-textarea {
-            height: 488px;
-            max-height: unset; /* Extend to match left side with dropdown */
-        }
-
-        .large-textarea:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-
-        #result-textarea {
-            background-color: #f1f5f9;
-        }
-
-        .btn-test {
-            white-space: nowrap;
-            margin-bottom: 0;
-        }
-    </style>
+    #result-textarea {
+      height: 488px;
+      background-color: #f1f5f9;
+    }
+  </style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="card">
-            <div class="card-header">
-                <div class="card-icon">
-                    <i class="fas fa-list"></i>
-                </div>
-                <h2 class="card-title">JSON Path Tester (JSON.Net Syntax)</h2>
-                <div class="card-actions">
-                    <button class="btn btn-secondary" onclick="window.close()">
-                        <i class="fas fa-backward"></i> Back to Sensor Config
-                    </button>
-                </div>
-            </div>
-
-            <div class="json-path-row">
-                <div class="json-path-input">
-                    <label class="form-label">JSON Path Query</label>
-                    <input type="text" id="query" class="form-input" placeholder="e.g., $.store.book[0].title" required>
-                </div>
-                <button class="btn btn-success btn-test" onclick="testJsonPath()">
-                    <i class="fa-brands fa-js"></i> Test JSON Path
-                </button>
-            </div>
-
-            <div class="textareas-container">
-                <div class="textarea-column">
-                    <div id="url-selector-container" style="display: none; margin-bottom: 10px;">
-                        <label class="form-label">Document Source</label>
-                        <select id="url-selector" class="form-input">
-                            <option value="">Use Document Below</option>
-                        </select>
-                    </div>
-                    <label class="form-label">JSON Document</label>
-                    <textarea id="json-document" class="large-textarea" placeholder="Enter your JSON document here..."></textarea>
-                </div>
-                <div class="textarea-column">
-                    <label class="form-label">Result</label>
-                    <textarea id="result-textarea" class="large-textarea" placeholder="Results will appear here..." readonly></textarea>
-                </div>
-            </div>
-
+  <div class="container">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">
+          <i class="fas fa-list"></i>
         </div>
+        <h2 class="card-title">JSON Path Tester (JSON.Net Syntax)</h2>
+        <div class="card-actions">
+          <button class="btn btn-secondary" onclick="window.close()">
+            <i class="fas fa-backward"></i> Back to Sensor Config
+          </button>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3 align-items-end">
+        <div class="col">
+          <label for="query" class="form-label">JSON Path Query</label>
+          <input type="text" id="query" class="form-control" placeholder="e.g., $.store.book[0].title" required>
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-success" onclick="testJsonPath()">
+            <i class="fa-brands fa-js me-1"></i> Test JSON Path
+          </button>
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div id="url-selector-container" class="mb-3" style="display: none;">
+            <label for="url-selector" class="form-label">Document Source</label>
+            <select id="url-selector" class="form-select">
+              <option value="">Use Document Below</option>
+            </select>
+          </div>
+          <label for="json-document" class="form-label fw-semibold">JSON Document</label>
+          <textarea id="json-document" class="form-control large-textarea" placeholder="Enter your JSON document here..."></textarea>
+        </div>
+        <div class="col-md-6">
+          <label for="result-textarea" class="form-label fw-semibold">Result</label>
+          <textarea id="result-textarea" class="form-control large-textarea" placeholder="Results will appear here..." readonly></textarea>
+        </div>
+      </div>
+
     </div>
+  </div>
 
-    <script>
-        let sensors = [];
+  <script>
+    let sensors = [];
 
-        // Load sensors on page load
-        $(function() {
-            loadSensors();
+    // Load sensors on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      loadSensors();
+    });
+
+    function loadSensors() {
+      fetch('/api/sensors')
+        .then(response => response.json())
+        .then(data => {
+          sensors = data;
+          populateUrlSelector();
+        })
+        .catch(error => {
+          console.error('Failed to load sensors:', error);
         });
+    }
 
-        function loadSensors() {
-            $.ajax({
-                url: '/api/sensors',
-                type: 'GET',
-                success: function(response) {
-                    sensors = response;
-                    populateUrlSelector();
-                },
-                error: function(xhr, status, error) {
-                    console.error('Failed to load sensors:', error);
-                }
-            });
+    function populateUrlSelector() {
+      const selector = document.getElementById('url-selector');
+      const container = document.getElementById('url-selector-container');
+
+      // Clear existing options except the first one
+      const options = selector.querySelectorAll('option:not(:first-child)');
+      options.forEach(option => option.remove());
+
+      if (sensors.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+
+      // Group sensors by URL
+      const urlMap = new Map();
+      sensors.forEach(sensor => {
+        if (!urlMap.has(sensor.url)) {
+          urlMap.set(sensor.url, []);
         }
+        urlMap.get(sensor.url).push(sensor.sensorID);
+      });
 
-        function populateUrlSelector() {
-            const selector = $('#url-selector');
-            const container = $('#url-selector-container');
+      // Add options for each unique URL
+      urlMap.forEach((sensorIds, url) => {
+        const idsStr = sensorIds.join(', ');
+        const displayText = `Sensor ${idsStr} - ${url}`;
+        const option = document.createElement('option');
+        option.value = url;
+        option.textContent = displayText;
+        selector.appendChild(option);
+      });
 
-            // Clear existing options except the first one
-            selector.find('option:not(:first)').remove();
+      container.style.display = 'block';
+    }
 
-            if (sensors.length === 0) {
-                container.hide();
-                return;
+    // Handle URL selector change
+    document.getElementById('url-selector').addEventListener('change', function() {
+      const selectedUrl = this.value;
+      const jsonDocument = document.getElementById('json-document');
+
+      if (selectedUrl) {
+        // Disable textarea and fetch data from URL
+        jsonDocument.disabled = true;
+        jsonDocument.value = 'Loading...';
+
+        fetch('/api/fetchurl', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url: selectedUrl })
+        })
+          .then(response => response.text())
+          .then(responseText => {
+            // Format the JSON for display
+            try {
+              const parsed = JSON.parse(responseText);
+              jsonDocument.value = JSON.stringify(parsed, null, 2);
+            } catch (e) {
+              // If it's not valid JSON, just display as-is
+              jsonDocument.value = responseText;
             }
+          })
+          .catch(error => {
+            jsonDocument.value = 'Failed to fetch URL content: ' + error.message;
+            jsonDocument.disabled = false;
+          });
+      } else {
+        // Enable textarea for manual input
+        jsonDocument.disabled = false;
+        jsonDocument.value = '';
+      }
+    });
 
-            // Group sensors by URL
-            const urlMap = new Map();
-            sensors.forEach(sensor => {
-                if (!urlMap.has(sensor.url)) {
-                    urlMap.set(sensor.url, []);
-                }
-                urlMap.get(sensor.url).push(sensor.sensorID);
-            });
+    function testJsonPath() {
+      const query = document.getElementById('query').value.trim();
+      const jsonDocument = document.getElementById('json-document').value.trim();
+      const resultTextarea = document.getElementById('result-textarea');
 
-            // Add options for each unique URL
-            urlMap.forEach((sensorIds, url) => {
-                const idsStr = sensorIds.join(', ');
-                const displayText = `Sensor ${idsStr} - ${url}`;
-                selector.append($('<option>', {
-                    value: url,
-                    text: displayText
-                }));
-            });
+      // Clear previous results
+      resultTextarea.value = '';
 
-            container.show();
-        }
+      // Validate inputs
+      if (!query) {
+        resultTextarea.value = 'Error: JSON Path Query is required.';
+        return;
+      }
 
-        // Handle URL selector change
-        $('#url-selector').on('change', function() {
-            const selectedUrl = $(this).val();
-            const jsonDocument = $('#json-document');
+      if (!jsonDocument) {
+        resultTextarea.value = 'Error: JSON Document is required.';
+        return;
+      }
 
-            if (selectedUrl) {
-                // Disable textarea and fetch data from URL
-                jsonDocument.prop('disabled', true);
-                jsonDocument.val('Loading...');
+      // Show loading state
+      resultTextarea.value = 'Testing JSON Path...';
 
-                $.ajax({
-                    url: '/api/fetchurl',
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({ url: selectedUrl }),
-                    dataType: 'text', // Expect text response, not JSON
-                    success: function(response) {
-                        // Format the JSON for display
-                        try {
-                            const parsed = JSON.parse(response);
-                            jsonDocument.val(JSON.stringify(parsed, null, 2));
-                        } catch (e) {
-                            // If it's not valid JSON, just display as-is
-                            jsonDocument.val(response);
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        let errorMessage = 'Failed to fetch URL content: ' + error;
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        } else if (xhr.responseText) {
-                            try {
-                                const errorObj = JSON.parse(xhr.responseText);
-                                if (errorObj.message) {
-                                    errorMessage = errorObj.message;
-                                }
-                            } catch (e) {
-                                // Ignore parse error
-                            }
-                        }
-                        jsonDocument.val(errorMessage);
-                        jsonDocument.prop('disabled', false);
-                    }
-                });
-            } else {
-                // Enable textarea for manual input
-                jsonDocument.prop('disabled', false);
-                jsonDocument.val('');
-            }
+      // Prepare data for POST request
+      const requestData = {
+        query: query,
+        jsonDocument: jsonDocument
+      };
+
+      // Make the HTTP POST request
+      fetch('/api/testjsonpath', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      })
+        .then(response => {
+          if (!response.ok) {
+            return response.json().then(err => Promise.reject(err));
+          }
+          return response.json();
+        })
+        .then(response => {
+          // Handle successful response - extract Message property
+          if (response && response.message) {
+            resultTextarea.value = response.message;
+          } else if (typeof response === 'string') {
+            resultTextarea.value = response;
+          } else {
+            resultTextarea.value = JSON.stringify(response, null, 2);
+          }
+        })
+        .catch(error => {
+          // Handle error response - extract Message property
+          let errorMessage = '';
+
+          if (error.message) {
+            errorMessage = error.message;
+          } else if (typeof error === 'string') {
+            errorMessage = error;
+          } else {
+            errorMessage = JSON.stringify(error, null, 2);
+          }
+
+          resultTextarea.value = errorMessage;
+        })
+        .finally(() => {
+          // This runs regardless of success or error
+          console.log('JSON Path test completed');
         });
+    }
 
-        function testJsonPath() {
-            const query = document.getElementById('query').value.trim();
-            const jsonDocument = document.getElementById('json-document').value.trim();
-            const resultTextarea = document.getElementById('result-textarea');
-
-            // Clear previous results
-            resultTextarea.value = '';
-
-            // Validate inputs
-            if (!query) {
-                resultTextarea.value = 'Error: JSON Path Query is required.';
-                return;
-            }
-
-            if (!jsonDocument) {
-                resultTextarea.value = 'Error: JSON Document is required.';
-                return;
-            }
-
-            // Show loading state
-            resultTextarea.value = 'Testing JSON Path...';
-
-            // Prepare data for POST request
-            const requestData = {
-                query: query,
-                jsonDocument: jsonDocument
-            };
-
-            // Make the HTTP POST request
-            $.ajax({
-                url: '/api/testjsonpath',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(requestData),
-                success: function (response) {
-                    // Handle successful response - extract Message property
-                    if (response && response.message) {
-                        resultTextarea.value = response.message;
-                    } else if (typeof response === 'string') {
-                        resultTextarea.value = response;
-                    } else {
-                        resultTextarea.value = JSON.stringify(response, null, 2);
-                    }
-                },
-                error: function (xhr, status, error) {
-                    // Handle error response - extract Message property
-                    let errorMessage = '';
-
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
-                    } else if (xhr.responseText) {
-                        try {
-                            const errorResponse = JSON.parse(xhr.responseText);
-                            if (errorResponse.message) {
-                                errorMessage = errorResponse.message;
-                            } else {
-                                errorMessage = JSON.stringify(errorResponse, null, 2);
-                            }
-                        } catch (e) {
-                            errorMessage = xhr.responseText;
-                        }
-                    } else {
-                        errorMessage = `HTTP ${xhr.status} - ${error}`;
-                    }
-
-                    resultTextarea.value = errorMessage;
-                },
-                complete: function () {
-                    // This runs regardless of success or error
-                    console.log('JSON Path test completed');
-                }
-            });
-        }
-
-        // Allow Enter key to trigger test in the query input
-        document.getElementById('query').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                testJsonPath();
-            }
-        });
-    </script>
+    // Allow Enter key to trigger test in the query input
+    document.getElementById('query').addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        testJsonPath();
+      }
+    });
+  </script>
 
 </body>
 

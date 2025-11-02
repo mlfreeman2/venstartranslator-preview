@@ -2,7 +2,9 @@ using System;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace VenstarTranslator.Models;
+using VenstarTranslator.Models.Enums;
+
+namespace VenstarTranslator.Models.Db;
 
 public class VenstarTranslatorDataCache : DbContext
 {

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
+using VenstarTranslator.Models.Db;
+using VenstarTranslator.Models.Enums;
 using Xunit;
-using VenstarTranslator.Models;
 
 namespace VenstarTranslator.Tests;
 

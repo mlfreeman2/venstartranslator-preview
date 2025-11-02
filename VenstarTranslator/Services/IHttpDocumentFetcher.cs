@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using VenstarTranslator.Models;
+using VenstarTranslator.Models.Db;
 
 namespace VenstarTranslator.Services;
 
