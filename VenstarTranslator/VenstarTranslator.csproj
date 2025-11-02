@@ -5,7 +5,7 @@
     <PublishReadyToRun>true</PublishReadyToRun>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <PublishSingleFile>true</PublishSingleFile>
-    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile> -->
   </PropertyGroup>
 
   <Target Name="CustomClean" AfterTargets="Clean">
