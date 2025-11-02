@@ -1,4 +1,61 @@
+# Build artifacts
 **/bin
 **/obj
-VenstarTranslator/VenstarTranslatorDataCache.db*
-VenstarTranslator/VenstarTranslator.db*
+
+# Database files (runtime generated)
+**/*.db
+**/*.db-shm
+**/*.db-wal
+
+# Git and version control
+.git
+.gitignore
+.gitattributes
+
+# IDE and editor files
+.vscode
+.vs
+*.swp
+*.swo
+*~
+.idea
+
+# Development container
+.devcontainer
+
+# CI/CD
+.github
+
+# Claude AI
+.claude
+
+# Documentation (not needed in container)
+*.md
+!README.md
+
+# Docker files (not needed in image)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Test projects (not copied by Dockerfile anyway)
+VenstarTranslator.Tests/
+
+# Configuration samples and templates
+*.sample
+*.template
+
+# Linter config
+.eslintrc.json
+.editorconfig
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
