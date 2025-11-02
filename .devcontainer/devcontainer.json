@@ -71,6 +71,6 @@
 	"updateContentCommand": "dotnet restore 2>/dev/null || true",
 	"containerEnv": {
 		"ASPNETCORE_ENVIRONMENT": "Development",
-		"ASPNETCORE_URLS": "http://+:5000;https://+:5001"
+		"ASPNETCORE_URLS": "http://+:8080"
 	}
 }

@@ -125,7 +125,7 @@ dotnet ef database update
 
 Edit `forwardPorts` in `devcontainer.json`:
 ```json
-"forwardPorts": [5000, 5001, 8080, 8081, 3000]
+"forwardPorts": [8080, 8443]
 ```
 
 ### Add VS Code Extensions
