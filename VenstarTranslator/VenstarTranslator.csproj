@@ -17,7 +17,7 @@
   </Target>
 
   <ItemGroup>
-    <PackageReference Include="HangFire" Version="1.8.21" />
+    <PackageReference Include="HangFire" Version="1.8.22" />
     <PackageReference Include="Hangfire.Storage.SQLite" Version="0.4.2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="9.0.10" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.10" />
