@@ -1,0 +1,14 @@
+pair_sensor:
+  name: Pair Sensor with Thermostat
+  description: Send a pairing packet for a specific sensor to allow the thermostat to discover it
+  fields:
+    sensor_id:
+      name: Sensor ID
+      description: The sensor ID to pair (0-19)
+      required: true
+      example: 0
+      selector:
+        number:
+          min: 0
+          max: 19
+          mode: box

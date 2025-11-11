@@ -1,0 +1,56 @@
+syntax = "proto2";
+
+package venstar;
+
+message SensorMessage {
+  enum Commands {
+    SETSENSORNAME = 41;
+    SENSORDATA = 42;
+    SENSORPAIR = 43;
+    WIFICONFIG = 44;
+    WIFISCANRESULTS = 45;
+    FIRMWARECHUNK = 46;
+    FIRMWARECOMPLETE = 47;
+    SUCCESS = 126;
+    FAILURE = 127;
+  }
+
+  required Commands Command = 1;
+  optional SENSORDATA SensorData = 42;
+}
+
+message SENSORDATA {
+  required INFO Info = 1;
+  required string Signature = 2;
+}
+
+message INFO {
+  enum SensorType {
+    OUTDOOR = 1;
+    RETURN = 2;
+    REMOTE = 3;
+    SUPPLY = 4;
+  }
+
+  enum PowerSource {
+    BATTERY = 1;
+    WIRED = 2;
+  }
+
+  enum SensorModel {
+    TEMPSENSOR = 1;
+  }
+
+  required uint32 Sequence = 1;
+  required uint32 SensorId = 2;
+  required string Mac = 3;
+  required uint32 FwMajor = 4;
+  required uint32 FwMinor = 5;
+  required SensorModel Model = 6;
+  required PowerSource Power = 7;
+  optional string Name = 8;
+  optional SensorType Type = 9;
+  optional uint32 Temperature = 10;
+  optional uint32 Battery = 11;
+  optional uint32 Humidity = 12;
+}

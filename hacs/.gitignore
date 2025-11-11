@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+
+# Generated protobuf files are checked in (needed for HACS distribution)
+# Compile with: protoc --python_out=. sensor_message.proto
+
+# Home Assistant
+*.db
+*.db-shm
+*.db-wal
+.storage/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/

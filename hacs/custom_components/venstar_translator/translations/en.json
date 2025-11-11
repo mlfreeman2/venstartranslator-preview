@@ -1,0 +1,83 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Venstar Translator",
+        "description": "This integration emulates Venstar wireless temperature sensors by broadcasting UDP packets to your thermostat. You can configure up to 20 sensors after setup."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Only a single instance is allowed."
+    }
+  },
+  "options": {
+    "step": {
+      "sensor_list": {
+        "title": "Manage Sensors",
+        "description": "{sensors}",
+        "menu_options": {
+          "add_sensor": "Add Sensor",
+          "edit_sensor": "Edit Sensor",
+          "delete_sensor": "Delete Sensor",
+          "done": "Done (Pair All Sensors)"
+        }
+      },
+      "add_sensor": {
+        "title": "Add Sensor",
+        "description": "Configure a new Venstar sensor",
+        "data": {
+          "entity_id": "Temperature Entity",
+          "name": "Sensor Name (max 14 characters)",
+          "purpose": "Sensor Purpose",
+          "scale": "Temperature Scale",
+          "enabled": "Enabled"
+        }
+      },
+      "select_sensor_to_edit": {
+        "title": "Select Sensor to Edit",
+        "description": "Choose which sensor to edit",
+        "data": {
+          "sensor_id": "Sensor"
+        }
+      },
+      "edit_sensor": {
+        "title": "Edit Sensor {sensor_id}",
+        "description": "Update sensor configuration",
+        "data": {
+          "entity_id": "Temperature Entity",
+          "name": "Sensor Name (max 14 characters)",
+          "purpose": "Sensor Purpose",
+          "scale": "Temperature Scale",
+          "enabled": "Enabled"
+        }
+      },
+      "select_sensor_to_delete": {
+        "title": "Select Sensor to Delete",
+        "description": "Choose which sensor to delete",
+        "data": {
+          "sensor_id": "Sensor"
+        }
+      },
+      "confirm_delete": {
+        "title": "Confirm Deletion",
+        "description": "Are you sure you want to delete sensor [{sensor_id}] {sensor_name}?",
+        "data": {
+          "confirm": "Yes, delete this sensor"
+        }
+      }
+    },
+    "error": {
+      "name_too_long": "Sensor name must be 14 characters or less",
+      "name_required": "Sensor name is required",
+      "name_duplicate": "A sensor with this name already exists",
+      "max_sensors_reached": "Maximum of 20 sensors reached",
+      "unknown": "An unexpected error occurred"
+    },
+    "abort": {
+      "max_sensors_reached": "Maximum of 20 sensors reached. Delete a sensor to add a new one.",
+      "pairing_failed": "{message}",
+      "pairing_partial": "Sent pairing packets for {paired} sensors. Failed to send: {failed}. Go to your thermostat to complete pairing.",
+      "pairing_complete": "Sent pairing packets for {count} sensors. Go to your thermostat (Menu → Sensors) to complete pairing."
+    }
+  }
+}

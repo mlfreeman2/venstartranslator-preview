@@ -7,7 +7,6 @@ LABEL org.opencontainers.image.description="Emulate Venstar wireless temperature
 # Copy solution and project files for dependency restoration
 COPY VenstarTranslator.sln ./
 COPY VenstarTranslator/*.csproj ./VenstarTranslator/
-COPY VenstarTranslator.Tests/*.csproj ./VenstarTranslator.Tests/
 RUN dotnet restore VenstarTranslator/VenstarTranslator.csproj -a $TARGETARCH
 
 # Copy source code and build

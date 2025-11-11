@@ -20,7 +20,10 @@
       "Bash(VSTEST_CONNECTION_TIMEOUT=180 dotnet test:*)",
       "Bash(dotnet clean:*)",
       "Bash(dotnet ef migrations:*)",
-      "Bash(dotnet restore:*)"
+      "Bash(dotnet restore:*)",
+      "Bash(protoc:*)",
+      "Bash(python3:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

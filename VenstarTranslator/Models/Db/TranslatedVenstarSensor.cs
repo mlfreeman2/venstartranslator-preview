@@ -107,8 +107,89 @@ public class TranslatedVenstarSensor
         }
     }
 
+    /// <summary>
+    /// Calculate temperature index directly from temperature value without using lookup arrays.
+    /// This is a NEW experimental method being validated against the production array-based approach.
+    ///
+    /// The Venstar temperature index space (0-253) represents Celsius values from -40.0°C to 86.5°C
+    /// in 0.5°C increments. Fahrenheit values are derived from Celsius using standard conversion.
+    /// </summary>
+    private static byte GetTemperatureIndexCalculated(double temperature, TemperatureScale scale)
+    {
+        double celsiusTemp;
+
+        if (scale == TemperatureScale.F)
+        {
+            // Convert Fahrenheit to Celsius: C = (F - 32) × 5/9
+            celsiusTemp = (temperature - 32.0) * 5.0 / 9.0;
+        }
+        else
+        {
+            celsiusTemp = temperature;
+        }
+
+        // Round to nearest 0.5°C (multiply by 2, round, divide by 2)
+        var roundedCelsius = Math.Round(Convert.ToDecimal(celsiusTemp) * 2, MidpointRounding.AwayFromZero) / 2;
+
+        // Check bounds (-40.0°C to 86.5°C)
+        if (roundedCelsius < -40.0m || roundedCelsius > 86.5m)
+        {
+            throw new OverflowException($"Temperature {temperature}°{scale} (={roundedCelsius}°C) is outside the valid range of -40.0°C to 86.5°C");
+        }
+
+        // Calculate index: index = (celsius + 40) × 2
+        // -40.0°C → index 0
+        // -39.5°C → index 1
+        // 0.0°C → index 80
+        // 22.0°C → index 124
+        // 86.5°C → index 253
+        var index = (roundedCelsius + 40.0m) * 2;
+
+        return Convert.ToByte(index);
+    }
+
     private SensorMessage BuildProtobufPacket(double latestReading)
     {
+        // Get temperature index using current array-based approach
+        byte arrayBasedIndex = Scale switch
+        {
+            TemperatureScale.F => Convert.ToByte(Array.IndexOf(Temperatures_Farenheit, Math.Round(Convert.ToDecimal(latestReading), MidpointRounding.AwayFromZero).ToString())),
+            TemperatureScale.C => Convert.ToByte(Array.IndexOf(Temperatures_Celsius, (Math.Round(Convert.ToDecimal(latestReading) * 2, MidpointRounding.AwayFromZero) / 2).ToString("0.0"))),
+            _ => throw new InvalidOperationException(),
+        };
+
+        // VALIDATION: Compare with calculation-based approach
+        try
+        {
+            byte calculatedIndex = GetTemperatureIndexCalculated(latestReading, Scale);
+
+            if (arrayBasedIndex != calculatedIndex)
+            {
+                // Check if this is due to Fahrenheit array duplicates
+                bool isDuplicate = false;
+                if (Scale == TemperatureScale.F)
+                {
+                    var roundedTemp = Math.Round(Convert.ToDecimal(latestReading), MidpointRounding.AwayFromZero).ToString();
+                    var firstIndex = Array.IndexOf(Temperatures_Farenheit, roundedTemp);
+                    var lastIndex = Array.LastIndexOf(Temperatures_Farenheit, roundedTemp);
+                    isDuplicate = firstIndex != lastIndex;
+                }
+
+                if (isDuplicate)
+                {
+                    Console.WriteLine($"[TEMPERATURE INDEX MISMATCH - ARRAY DUPLICATE] Sensor #{SensorID} ({Name}): Temp={latestReading}°{Scale}, Array={arrayBasedIndex} (first occurrence), Calculated={calculatedIndex} (from Celsius conversion)");
+                }
+                else
+                {
+                    Console.WriteLine($"[TEMPERATURE INDEX MISMATCH] Sensor #{SensorID} ({Name}): Temp={latestReading}°{Scale}, Array={arrayBasedIndex}, Calculated={calculatedIndex}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[TEMPERATURE CALCULATION ERROR] Sensor #{SensorID} ({Name}): Temp={latestReading}°{Scale}, Error={ex.Message}");
+        }
+
         return new SensorMessage
         {
             Command = SensorMessage.Commands.SENSORDATA,
@@ -128,12 +209,7 @@ public class TranslatedVenstarSensor
                         _ => throw new InvalidOperationException(),
                     },
                     Name = Name,
-                    Temperature = Scale switch
-                    {
-                        TemperatureScale.F => Convert.ToByte(Array.IndexOf(Temperatures_Farenheit, Math.Round(Convert.ToDecimal(latestReading)).ToString())),
-                        TemperatureScale.C => Convert.ToByte(Array.IndexOf(Temperatures_Celsius, Math.Round(Convert.ToDecimal(latestReading)).ToString())),
-                        _ => throw new InvalidOperationException(),
-                    }
+                    Temperature = arrayBasedIndex  // Use array-based value for actual packet
                 }
             }
         };
