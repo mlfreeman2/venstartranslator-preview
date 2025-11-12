@@ -120,8 +120,10 @@ public class TranslatedVenstarSensor
 
         if (scale == TemperatureScale.F)
         {
-            // Convert Fahrenheit to Celsius: C = (F - 32) × 5/9
-            celsiusTemp = (temperature - 32.0) * 5.0 / 9.0;
+            // Round Fahrenheit to whole degrees first (matching array-based behavior)
+            var roundedFahrenheit = Math.Round(Convert.ToDecimal(temperature), MidpointRounding.AwayFromZero);
+            // Convert rounded Fahrenheit to Celsius: C = (F - 32) × 5/9
+            celsiusTemp = (Convert.ToDouble(roundedFahrenheit) - 32.0) * 5.0 / 9.0;
         }
         else
         {
