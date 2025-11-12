@@ -111,8 +111,33 @@ public class TranslatedVenstarSensor
     /// Calculate temperature index directly from temperature value without using lookup arrays.
     /// This is a NEW experimental method being validated against the production array-based approach.
     ///
-    /// The Venstar temperature index space (0-253) represents Celsius values from -40.0°C to 86.5°C
-    /// in 0.5°C increments. Fahrenheit values are derived from Celsius using standard conversion.
+    /// <para><b>Temperature Index Space:</b></para>
+    /// The Venstar protocol uses byte values (0-255) to represent the current temperature.
+    /// Valid temperatures will have a byte value from 0 through 253.
+    /// 254 means shorted sensor and 255 means open sensor.
+    /// The values 0 through 253 map to Celsius temperatures in 0.5°C increments from -40.0°C to 86.5°C
+    /// or Farenheit temperatures in 1°F increments from -40°F to 188°F.
+    ///
+    /// <para><b>Our Mapping Process</b></para>
+    /// 1. If Farenheit, round to nearest whole degree (half up) and convert to Celsius.
+    /// 2. Round to nearest half-degree increment.
+    /// 3. Add 40.
+    /// 4. Multiply by 2
+    ///
+    /// <para><b>Special Note:</b></para>
+    /// When using this with Farenheit temperatures, some values between 0 and 253 will never come up.
+    /// To understand what's going on, imagine the Celsius side as an array with 254 temperatures in it.
+    /// The corresponding Farenheit array comes from the following process:
+    /// 1. Convert C to F.
+    /// 2A. If F is less than 0, round [half-up] the absolute value Farenheit rather than the converted value.
+    /// 2A1. Multiply the result by -1 to kick it back to negative.
+    /// 2B. If F is greater than or equal to zero, round [half-up] the Farenheit value
+    ///
+    /// There are a few cases where that results in a Farenheit value appearing twice in a row.
+    /// For example: -38°C converts to -36.4°F which rounds to -36°F
+    ///              -37.5°C converts to -35.5°F which rounds also to -36°F
+    /// For example: 22.5°C converts to 72.5°F which rounds also to 73°F
+    ///              23°C converts to  73.4°F which rounds also to 73°F
     /// </summary>
     private static byte GetTemperatureIndexCalculated(double temperature, TemperatureScale scale)
     {
