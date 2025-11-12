@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using VenstarTranslator.Models.Db;
 using VenstarTranslator.Models.Validation;
 using Xunit;

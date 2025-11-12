@@ -7,8 +7,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 
-using Hangfire;
-
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -145,8 +143,16 @@ public class TranslatedVenstarSensor
 
         if (scale == TemperatureScale.F)
         {
-            // Round Fahrenheit to whole degrees first (matching array-based behavior)
-            var roundedFahrenheit = Math.Round(Convert.ToDecimal(temperature), MidpointRounding.AwayFromZero);
+            // Round Fahrenheit to whole degrees first
+            decimal roundedFahrenheit;
+            if (temperature < 0)
+            {
+                roundedFahrenheit = -1 * Math.Round(Convert.ToDecimal(Math.Abs(temperature)), MidpointRounding.AwayFromZero);
+            }
+            else
+            {
+                roundedFahrenheit = Math.Round(Convert.ToDecimal(temperature), MidpointRounding.AwayFromZero);
+            }
             // Convert rounded Fahrenheit to Celsius: C = (F - 32) × 5/9
             celsiusTemp = (Convert.ToDouble(roundedFahrenheit) - 32.0) * 5.0 / 9.0;
         }
