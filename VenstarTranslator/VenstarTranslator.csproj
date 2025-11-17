@@ -21,7 +21,7 @@
     <PackageReference Include="Hangfire.Storage.SQLite" Version="0.4.2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="9.0.10" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.10" />
-    <PackageReference Include="Google.Protobuf" Version="3.33.0" />
+    <PackageReference Include="Google.Protobuf" Version="3.33.1" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.10" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="protobuf-net" Version="3.2.56" />
