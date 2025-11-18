@@ -10,10 +10,12 @@ public class TemperatureLookupTests
 {
     [Theory]
     [InlineData(72.0, TemperatureScale.F, 124)] // 72°F → 22.22°C → rounds to 22.0°C → index 124
-    [InlineData(72.5, TemperatureScale.F, 125)] // 72.5°F → 22.5°C → index 125
-    [InlineData(71.5, TemperatureScale.F, 124)] // 71.5°F → 21.94°C → rounds to 22.0°C → index 124
+    [InlineData(72.5, TemperatureScale.F, 126)] // 72.5°F → rounds to 73°F → 22.78°C → rounds to 23.0°C → index 126
+    [InlineData(71.5, TemperatureScale.F, 124)] // 71.5°F → rounds to 72°F → 22.22°C → rounds to 22.0°C → index 124
     [InlineData(-40.0, TemperatureScale.F, 0)] // Min Fahrenheit
     [InlineData(188.0, TemperatureScale.F, 253)] // 188°F → 86.67°C → rounds to 86.5°C → index 253
+    [InlineData(67.5, TemperatureScale.F, 120)] // 67.5°F → rounds to 68°F → 20.0°C → index 120
+    [InlineData(72.3, TemperatureScale.F, 124)] // 72.3°F → rounds to 72°F → 22.22°C → rounds to 22.0°C → index 124
     public void BuildDataPacket_Fahrenheit_MapsToCorrectIndex(double temperature, TemperatureScale scale, int expectedIndex)
     {
         // Arrange
@@ -131,9 +133,9 @@ public class TemperatureLookupTests
     [InlineData(20.74, "20.5")] // 20.74*2=41.48, round=41, 41/2=20.5
     [InlineData(-0.5, "-0.5")]
     [InlineData(-0.24, "0.0")] // -0.24*2=-0.48, round=0, 0/2=0.0
-    public void CelsiusRounding_MatchesLookupTable(double input, string expectedString)
+    public void CelsiusRounding_MatchesExpectedBehavior(double input, string expectedString)
     {
-        // This test verifies the rounding logic matches the lookup table format
+        // This test verifies the rounding logic for Celsius temperatures
         // Round to nearest 0.5°C (multiply by 2, round, divide by 2)
         var rounded = (Math.Round(Convert.ToDecimal(input) * 2, MidpointRounding.AwayFromZero) / 2).ToString("0.0");
         Assert.Equal(expectedString, rounded);
@@ -144,77 +146,11 @@ public class TemperatureLookupTests
     [InlineData(72.4, "72")]
     [InlineData(72.5, "73")] // AwayFromZero rounding
     [InlineData(-40, "-40")]
-    public void FahrenheitRounding_MatchesLookupTable(double input, string expectedString)
+    public void FahrenheitRounding_MatchesExpectedBehavior(double input, string expectedString)
     {
-        // This test verifies the rounding logic matches the lookup table format
+        // This test verifies the rounding logic for Fahrenheit temperatures
         var rounded = Math.Round(Convert.ToDecimal(input), MidpointRounding.AwayFromZero).ToString();
         Assert.Equal(expectedString, rounded);
-    }
-
-    [Fact]
-    public void TemperatureLookupTables_HaveCorrectCounts()
-    {
-        // Use reflection to access private static fields
-        var fahrenheitField = typeof(TranslatedVenstarSensor).GetField(
-            "Temperatures_Farenheit",
-            BindingFlags.NonPublic | BindingFlags.Static
-        );
-        var celsiusField = typeof(TranslatedVenstarSensor).GetField(
-            "Temperatures_Celsius",
-            BindingFlags.NonPublic | BindingFlags.Static
-        );
-
-        var fahrenheit = (string[])fahrenheitField.GetValue(null);
-        var celsius = (string[])celsiusField.GetValue(null);
-
-        // Both arrays have 254 entries (Fahrenheit has duplicates)
-        Assert.Equal(254, fahrenheit.Length);
-        Assert.Equal(254, celsius.Length);
-    }
-
-    [Fact]
-    public void TemperatureLookupTables_HaveCorrectRanges()
-    {
-        // Use reflection to access private static fields
-        var fahrenheitField = typeof(TranslatedVenstarSensor).GetField(
-            "Temperatures_Farenheit",
-            BindingFlags.NonPublic | BindingFlags.Static
-        );
-        var celsiusField = typeof(TranslatedVenstarSensor).GetField(
-            "Temperatures_Celsius",
-            BindingFlags.NonPublic | BindingFlags.Static
-        );
-
-        var fahrenheit = (string[])fahrenheitField.GetValue(null);
-        var celsius = (string[])celsiusField.GetValue(null);
-
-        // Check Fahrenheit range
-        Assert.Equal("-40", fahrenheit[0]);
-        Assert.Equal("188", fahrenheit[^1]);
-
-        // Check Celsius range
-        Assert.Equal("-40.0", celsius[0]);
-        Assert.Equal("86.5", celsius[^1]);
-    }
-
-    [Fact]
-    public void CelsiusLookupTable_AllEntriesHaveOneDecimal()
-    {
-        // Use reflection to access the Celsius array
-        var celsiusField = typeof(TranslatedVenstarSensor).GetField(
-            "Temperatures_Celsius",
-            BindingFlags.NonPublic | BindingFlags.Static
-        );
-        var celsius = (string[])celsiusField.GetValue(null);
-
-        // All Celsius values should have exactly one decimal place (e.g., "22.0" or "22.5")
-        foreach (var temp in celsius)
-        {
-            Assert.Contains(".", temp);
-            var parts = temp.Split('.');
-            Assert.Equal(2, parts.Length);
-            Assert.Single(parts[1]); // Exactly one digit after decimal
-        }
     }
 
     // ========================================
@@ -252,6 +188,9 @@ public class TemperatureLookupTests
     [InlineData(188.0, TemperatureScale.F, 253)] // Max Fahrenheit: 188°F → 86.67°C → 86.5°C → index 253
     [InlineData(32.0, TemperatureScale.F, 80)] // Freezing point (0°C)
     [InlineData(68.0, TemperatureScale.F, 120)] // 68°F → 20°C
+    [InlineData(67.5, TemperatureScale.F, 120)] // 67.5°F → rounds to 68°F → 20°C → index 120
+    [InlineData(72.3, TemperatureScale.F, 124)] // 72.3°F → rounds to 72°F → 22.22°C → rounds to 22.0°C → index 124
+    [InlineData(72.5, TemperatureScale.F, 126)] // 72.5°F → rounds to 73°F → 22.78°C → rounds to 23.0°C → index 126
     public void CalculatedIndex_Fahrenheit_ProducesCorrectIndex(double temperature, TemperatureScale scale, int expectedIndex)
     {
         // Use reflection to access the private calculation method
@@ -286,24 +225,18 @@ public class TemperatureLookupTests
     }
 
     [Fact]
-    public void CalculatedIndex_MatchesArrayIndex_ForAllValidCelsiusValues()
+    public void CalculatedIndex_AllValidCelsiusValues_ProduceCorrectIndices()
     {
-        // Use reflection to access both the array and the calculation method
-        var celsiusField = typeof(TranslatedVenstarSensor).GetField(
-            "Temperatures_Celsius",
-            BindingFlags.NonPublic | BindingFlags.Static
-        );
-        var celsius = (string[])celsiusField.GetValue(null);
-
+        // Use reflection to access the private calculation method
         var method = typeof(TranslatedVenstarSensor).GetMethod(
             "GetTemperatureIndexCalculated",
             BindingFlags.NonPublic | BindingFlags.Static
         );
 
-        // Test every value in the Celsius array
-        for (int expectedIndex = 0; expectedIndex < celsius.Length; expectedIndex++)
+        // Test every valid Celsius value from -40.0 to 86.5 in 0.5 increments
+        for (int expectedIndex = 0; expectedIndex <= 253; expectedIndex++)
         {
-            double tempValue = double.Parse(celsius[expectedIndex]);
+            double tempValue = -40.0 + (expectedIndex * 0.5);
             var calculatedIndex = (byte)method.Invoke(null, new object[] { tempValue, TemperatureScale.C });
 
             Assert.Equal(expectedIndex, calculatedIndex);
@@ -311,47 +244,70 @@ public class TemperatureLookupTests
     }
 
     [Fact]
-    public void CalculatedIndex_ProducesCorrectCelsiusBasedIndex_ForFahrenheitValues()
+    public void CalculatedIndex_NegativeFahrenheit_HandlesCorrectly()
     {
-        // Use reflection to access both the array and the calculation method
-        var fahrenheitField = typeof(TranslatedVenstarSensor).GetField(
-            "Temperatures_Farenheit",
-            BindingFlags.NonPublic | BindingFlags.Static
-        );
-        var fahrenheit = (string[])fahrenheitField.GetValue(null);
-
-        var celsiusField = typeof(TranslatedVenstarSensor).GetField(
-            "Temperatures_Celsius",
-            BindingFlags.NonPublic | BindingFlags.Static
-        );
-        var celsius = (string[])celsiusField.GetValue(null);
-
+        // Use reflection to access the private calculation method
         var method = typeof(TranslatedVenstarSensor).GetMethod(
             "GetTemperatureIndexCalculated",
             BindingFlags.NonPublic | BindingFlags.Static
         );
 
-        // Test that calculated indices correctly map to the underlying Celsius scale
-        // Note: Fahrenheit array has duplicates, so Array.IndexOf() may return the wrong index
-        // The calculation-based approach is CORRECT because it derives from Celsius conversion
-        for (int arrayIndex = 0; arrayIndex < fahrenheit.Length; arrayIndex++)
+        // Test negative Fahrenheit rounding behavior
+        // -0.5°F should round to -1°F → -18.33°C → rounds to -18.5°C → index 43
+        var result = (byte)method.Invoke(null, new object[] { -0.5, TemperatureScale.F });
+        Assert.Equal(43, result);
+
+        // -36.4°F should round to -36°F → -37.78°C → rounds to -38.0°C → index 4
+        result = (byte)method.Invoke(null, new object[] { -36.4, TemperatureScale.F });
+        Assert.Equal(4, result);
+
+        // -35.5°F should round to -36°F → -37.78°C → rounds to -38.0°C → index 4
+        result = (byte)method.Invoke(null, new object[] { -35.5, TemperatureScale.F });
+        Assert.Equal(4, result);
+    }
+
+    [Fact]
+    public void CalculatedIndex_BoundaryValues_ProduceCorrectIndices()
+    {
+        // Use reflection to access the private calculation method
+        var method = typeof(TranslatedVenstarSensor).GetMethod(
+            "GetTemperatureIndexCalculated",
+            BindingFlags.NonPublic | BindingFlags.Static
+        );
+
+        // Test boundary values for Celsius
+        Assert.Equal(0, (byte)method.Invoke(null, new object[] { -40.0, TemperatureScale.C }));
+        Assert.Equal(253, (byte)method.Invoke(null, new object[] { 86.5, TemperatureScale.C }));
+
+        // Test boundary values for Fahrenheit
+        Assert.Equal(0, (byte)method.Invoke(null, new object[] { -40.0, TemperatureScale.F }));
+        Assert.Equal(253, (byte)method.Invoke(null, new object[] { 188.0, TemperatureScale.F }));
+    }
+
+    [Theory]
+    [InlineData(-36.0, TemperatureScale.F)] // Duplicate F value - appears at both indices 4 and 5 in legacy array
+    [InlineData(73.0, TemperatureScale.F)]  // Duplicate F value - appears at both indices 126 and 127 in legacy array
+    public void CalculatedIndex_DuplicateFahrenheitValues_ProduceConsistentIndex(double temperature, TemperatureScale scale)
+    {
+        // Use reflection to access the private calculation method
+        var method = typeof(TranslatedVenstarSensor).GetMethod(
+            "GetTemperatureIndexCalculated",
+            BindingFlags.NonPublic | BindingFlags.Static
+        );
+
+        // These values appeared multiple times in the legacy Fahrenheit array
+        // The calculation-based approach always produces a consistent index
+        var result = (byte)method.Invoke(null, new object[] { temperature, scale });
+
+        // -36°F → -37.78°C → rounds to -38.0°C → index 4
+        if (temperature == -36.0)
         {
-            string fValue = fahrenheit[arrayIndex];
-            double tempValue = double.Parse(fValue);
-            var calculatedIndex = (byte)method.Invoke(null, new object[] { tempValue, TemperatureScale.F });
-
-            // The calculated index should map to the correct Celsius value
-            // (not necessarily the first Fahrenheit array occurrence)
-            string expectedCelsius = celsius[calculatedIndex];
-            string actualCelsius = celsius[arrayIndex];
-
-            // Verify both map to the same Celsius temperature when rounded
-            double expectedC = double.Parse(expectedCelsius);
-            double actualC = double.Parse(actualCelsius);
-            double fInCelsius = (tempValue - 32.0) * 5.0 / 9.0;
-            double roundedC = (double)(Math.Round(Convert.ToDecimal(fInCelsius) * 2, MidpointRounding.AwayFromZero) / 2);
-
-            Assert.Equal(roundedC, expectedC, 0.1);
+            Assert.Equal(4, result);
+        }
+        // 73°F → 22.78°C → rounds to 23.0°C → index 126
+        else if (temperature == 73.0)
+        {
+            Assert.Equal(126, result);
         }
     }
 }
