@@ -3,7 +3,7 @@
 	"build": {
 		"dockerfile": "Dockerfile",
 		"args": {
-			"VARIANT": "10.0-bookworm-slim"
+			"VARIANT": "10.0-noble"
 		}
 	},
 	"customizations": {

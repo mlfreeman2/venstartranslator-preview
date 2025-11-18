@@ -23,7 +23,8 @@
       "Bash(dotnet restore:*)",
       "Bash(protoc:*)",
       "Bash(python3:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(dotnet:*)"
     ],
     "deny": [],
     "ask": []
