@@ -1,5 +1,5 @@
 # Build stage for a cross-platform .NET development container
-ARG VARIANT=9.0-bookworm-slim
+ARG VARIANT=10.0-bookworm-slim
 FROM mcr.microsoft.com/dotnet/sdk:${VARIANT}
 
 USER root
