@@ -1,9 +1,9 @@
 {
-	"name": ".NET 10 DevContainer with Claude Code",
+	"name": ".NET 10 DevContainer with Claude Code (Alpine)",
 	"build": {
 		"dockerfile": "Dockerfile",
 		"args": {
-			"VARIANT": "10.0-noble"
+			"VARIANT": "10.0-alpine"
 		}
 	},
 	"customizations": {
@@ -49,7 +49,7 @@
 			"installZsh": true,
 			"configureZshAsDefaultShell": false,
 			"installOhMyZsh": true,
-			"upgradePackages": true,
+			"upgradePackages": false,
 			"username": "vscode",
 			"userUid": "automatic",
 			"userGid": "automatic"
@@ -57,14 +57,7 @@
 		"ghcr.io/devcontainers/features/git:1": {
 			"version": "latest",
 			"ppa": false
-		},
-		"ghcr.io/devcontainers/features/docker-in-docker:2": {
-			"moby": true,
-			"installDockerBuildx": true,
-			"version": "latest",
-			"dockerDashComposeVersion": "v2"
-		},
-		"ghcr.io/devcontainers-extra/features/protoc:1": {}
+		}
 	},
 	"postCreateCommand": "sudo bash .devcontainer/post-create.sh",
 	"postStartCommand": "claude --version || npm install -g @anthropic-ai/claude-code",

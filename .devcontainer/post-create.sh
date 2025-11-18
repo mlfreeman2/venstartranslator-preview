@@ -3,14 +3,17 @@ set -e
 
 echo "📦 Installing development tools..."
 
-# Install SQLite CLI for database inspection
-echo "  → Installing sqlite3..."
-apt-get update > /dev/null
-apt-get install -y sqlite3 > /dev/null
+# SQLite is already installed in the base Alpine image
+echo "  ✓ SQLite3 available"
 
-# Install Claude Code globally
-echo "  → Installing @anthropic-ai/claude-code..."
-npm install -g @anthropic-ai/claude-code > /dev/null
+# Ensure Claude Code is installed
+echo "  → Checking @anthropic-ai/claude-code..."
+if ! command -v claude &> /dev/null; then
+    echo "  → Installing @anthropic-ai/claude-code..."
+    npm install -g @anthropic-ai/claude-code > /dev/null
+else
+    echo "  ✓ Claude Code already installed"
+fi
 
 # Install or update dotnet-ef (Entity Framework CLI)
 echo "  → Installing dotnet-ef..."
