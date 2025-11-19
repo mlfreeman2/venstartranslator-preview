@@ -7,5 +7,6 @@
   "requirements": ["protobuf>=4.25.0"],
   "codeowners": ["@rsmaxwell"],
   "config_flow": true,
-  "iot_class": "local_push"
+  "iot_class": "local_push",
+  "homeassistant": "2025.7.1"
 }

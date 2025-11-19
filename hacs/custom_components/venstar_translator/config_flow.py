@@ -7,9 +7,8 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import selector
 
 from .const import (
@@ -25,14 +24,14 @@ from .venstar_sensor import VenstarSensor, broadcast_udp_packet
 _LOGGER = logging.getLogger(__name__)
 
 
-class VenstarTranslatorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class VenstarTranslatorConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Venstar Translator."""
 
     VERSION = 1
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle the initial step."""
         if self._async_current_entries():
             return self.async_abort(reason="single_instance_allowed")
@@ -62,18 +61,18 @@ class VenstarTranslatorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return secrets.token_hex(5)  # 10 hex chars
 
     @staticmethod
-    @config_entries.HANDLERS.register(DOMAIN)
-    async def async_get_options_flow(
-        config_entry: config_entries.ConfigEntry,
-    ) -> config_entries.OptionsFlow:
+    @callback
+    def async_get_options_flow(
+        config_entry: ConfigEntry,
+    ) -> OptionsFlow:
         """Get the options flow for this handler."""
         return VenstarTranslatorOptionsFlow(config_entry)
 
 
-class VenstarTranslatorOptionsFlow(config_entries.OptionsFlow):
+class VenstarTranslatorOptionsFlow(OptionsFlow):
     """Handle options flow for Venstar Translator."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+    def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
         self.config_entry = config_entry
         self._sensor_to_edit: int | None = None
@@ -86,13 +85,13 @@ class VenstarTranslatorOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Manage the options."""
         return await self.async_step_sensor_list()
 
     async def async_step_sensor_list(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Show list of configured sensors with management options."""
         storage = self._storage
 
@@ -136,7 +135,7 @@ class VenstarTranslatorOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_add_sensor(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Add a new sensor."""
         errors = {}
         storage = self._storage
@@ -212,7 +211,7 @@ class VenstarTranslatorOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_select_sensor_to_edit(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Select which sensor to edit."""
         storage = self._storage
 
@@ -243,7 +242,7 @@ class VenstarTranslatorOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_edit_sensor(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Edit an existing sensor."""
         errors = {}
         storage = self._storage
@@ -331,7 +330,7 @@ class VenstarTranslatorOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_select_sensor_to_delete(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Select which sensor to delete."""
         storage = self._storage
 
@@ -362,7 +361,7 @@ class VenstarTranslatorOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_confirm_delete(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Confirm sensor deletion."""
         storage = self._storage
         sensor_id = self._sensor_to_delete
@@ -402,7 +401,7 @@ class VenstarTranslatorOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_pair_all_sensors(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Send pairing packets for all configured sensors."""
         storage = self._storage
 

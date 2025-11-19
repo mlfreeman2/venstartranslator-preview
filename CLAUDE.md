@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VenstarTranslator is an ASP.NET Core 9.0 application that fetches temperature readings from arbitrary JSON endpoints and translates them into the format expected by Venstar ColorTouch thermostats. It emulates up to 20 Venstar ACC-TSENWIFIPRO sensors by broadcasting UDP packets on port 5001. The application uses Protocol Buffers for data serialization and broadcasts packets to `255.255.255.255:5001`.
+VenstarTranslator is an ASP.NET Core 10.0 application that fetches temperature readings from arbitrary JSON endpoints and translates them into the format expected by Venstar ColorTouch thermostats. It emulates up to 20 Venstar ACC-TSENWIFIPRO sensors by broadcasting UDP packets on port 5001. The application uses Protocol Buffers for data serialization and broadcasts packets to `255.255.255.255:5001`.
 
 ## Build and Run Commands
 
@@ -78,7 +78,7 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 
 ### Key Technologies
 
-- **ASP.NET Core 9.0**: Web framework and API
+- **ASP.NET Core 10.0**: Web framework and API
 - **Entity Framework Core**: SQLite database for sensor persistence
 - **Hangfire**: Background job scheduling with SQLite storage
 - **Newtonsoft.Json**: JSON parsing and JSONPath queries (`SelectToken`)
