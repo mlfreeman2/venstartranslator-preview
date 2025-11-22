@@ -73,8 +73,8 @@ public class BroadcastTrackingFilterAttribute : JobFilterAttribute, IServerFilte
                 sensor.LastErrorMessage = vtEx.Message;
                 dbContext.SaveChanges();
 
+                // Log without exception stack trace since this is a user-friendly message
                 logger.LogError(
-                    vtEx,
                     "Broadcast failed for sensor {SensorID} ({SensorName}): {ErrorMessage}. Consecutive failures: {ConsecutiveFailures}. Last successful broadcast: {LastSuccessfulBroadcast}",
                     sensor.SensorID,
                     sensor.Name,
