@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using VenstarTranslator.Models;
+using VenstarTranslator.Models.Db;
 
 namespace VenstarTranslator.Services;
 
@@ -49,7 +50,8 @@ public class SensorOperations : ISensorOperations
     {
         var sensorFilePath = config.GetValue<string>("SensorFilePath");
         var sensors = dbContext.Sensors.Include(a => a.Headers).AsNoTracking().ToList();
-        var json = JsonConvert.SerializeObject(sensors, Formatting.Indented, new JsonSerializerSettings
+        var sensorDTOs = sensors.Select(s => SensorJsonDTO.FromSensor(s)).ToList();
+        var json = JsonConvert.SerializeObject(sensorDTOs, Formatting.Indented, new JsonSerializerSettings
         {
             DefaultValueHandling = DefaultValueHandling.Ignore
         });

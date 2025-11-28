@@ -1,22 +1,25 @@
-# Build stage for a cross-platform .NET development container
-ARG VARIANT=9.0-bookworm-slim
+# Ubuntu-based .NET 10 development container
+ARG VARIANT=10.0
 FROM mcr.microsoft.com/dotnet/sdk:${VARIANT}
 
 USER root
 
 # Set non-root user
 ARG USERNAME=vscode
-ARG USER_UID=1000
+ARG USER_UID=1001
 ARG USER_GID=$USER_UID
 
 # Configure environment
 ENV PATH="${PATH}:/home/${USERNAME}/.dotnet:/home/${USERNAME}/.dotnet/tools" \
     DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     DOTNET_NOLOGO=true \
+    LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8 \
     DEBIAN_FRONTEND=noninteractive
 
 # Install base dependencies
-RUN apt-get update && apt-get -y install --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     # Network tools
     iproute2 \
     iputils-ping \
@@ -29,9 +32,6 @@ RUN apt-get update && apt-get -y install --no-install-recommends \
     wget \
     ca-certificates \
     gnupg \
-    lsb-release \
-    software-properties-common \
-    apt-transport-https \
     # Git and version control
     git \
     git-lfs \
@@ -44,19 +44,25 @@ RUN apt-get update && apt-get -y install --no-install-recommends \
     # Archive tools
     zip \
     unzip \
+    # Shell
+    bash \
+    bash-completion \
+    # Sudo for non-root user
+    sudo \
+    # SQLite for database work
+    sqlite3 \
     # Locales
     locales \
-    && locale-gen en_US.UTF-8 \
-    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 20.x (required for Claude Code)
-RUN mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
-    && apt-get update \
+# Generate locale
+RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
+    dpkg-reconfigure --frontend=noninteractive locales && \
+    update-locale LANG=en_US.UTF-8
+
+# Install Node.js (using NodeSource)
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get install -y nodejs \
-    && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && npm install -g npm@latest
 
@@ -76,13 +82,9 @@ RUN dotnet tool install --global dotnet-ef \
 
 # Create non-root user with sudo access
 RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && apt-get update \
-    && apt-get install -y sudo \
-    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
-    && chmod 0440 /etc/sudoers.d/$USERNAME \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && useradd --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME \
+    && echo "$USERNAME ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
 
 # Create necessary directories with correct permissions
 RUN mkdir -p /home/${USERNAME}/.config/claude \

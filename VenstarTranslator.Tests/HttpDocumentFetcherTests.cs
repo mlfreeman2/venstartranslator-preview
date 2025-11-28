@@ -1,12 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Net;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
-using Moq;
-using Moq.Protected;
-using VenstarTranslator.Models;
+using VenstarTranslator.Exceptions;
+using VenstarTranslator.Models.Db;
 using VenstarTranslator.Services;
 using Xunit;
 
@@ -69,7 +63,7 @@ public class HttpDocumentFetcherTests
     #region Timeout Tests
 
     [Fact]
-    public void FetchDocument_RequestTimeout_ThrowsHttpRequestExceptionWithTimeoutMessage()
+    public void FetchDocument_RequestTimeout_ThrowsVenstarTranslatorExceptionWithTimeoutMessage()
     {
         // Arrange
         var mockHandler = new MockHttpMessageHandler();
@@ -78,7 +72,7 @@ public class HttpDocumentFetcherTests
         var fetcher = new HttpDocumentFetcher(() => mockHandler);
 
         // Act & Assert
-        var ex = Assert.Throws<HttpRequestException>(() =>
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
             fetcher.FetchDocument("http://example.com/api", false, null));
 
         Assert.Contains("timed out after 10 seconds", ex.Message);
@@ -90,7 +84,7 @@ public class HttpDocumentFetcherTests
     #region Connection Error Tests
 
     [Fact]
-    public void FetchDocument_ConnectionRefused_ThrowsHttpRequestExceptionWithConnectionRefusedMessage()
+    public void FetchDocument_ConnectionRefused_ThrowsVenstarTranslatorExceptionWithConnectionRefusedMessage()
     {
         // Arrange
         var mockHandler = new MockHttpMessageHandler();
@@ -99,7 +93,7 @@ public class HttpDocumentFetcherTests
         var fetcher = new HttpDocumentFetcher(() => mockHandler);
 
         // Act & Assert
-        var ex = Assert.Throws<HttpRequestException>(() =>
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
             fetcher.FetchDocument("http://example.com/api", false, null));
 
         Assert.Contains("Connection refused", ex.Message);
@@ -108,19 +102,138 @@ public class HttpDocumentFetcherTests
     }
 
     [Fact]
-    public void FetchDocument_NetworkError_ThrowsHttpRequestExceptionWithNetworkErrorMessage()
+    public void FetchDocument_NetworkUnreachable_ThrowsVenstarTranslatorExceptionWithNetworkUnreachableMessage()
     {
         // Arrange
         var mockHandler = new MockHttpMessageHandler();
-        mockHandler.SetupNetworkError();
+        mockHandler.SetupNetworkUnreachable();
 
         var fetcher = new HttpDocumentFetcher(() => mockHandler);
 
         // Act & Assert
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
+            fetcher.FetchDocument("http://example.com/api", false, null));
+
+        Assert.Contains("Network unreachable", ex.Message);
+        Assert.Contains("network is down or unavailable", ex.Message);
+    }
+
+    [Fact]
+    public void FetchDocument_ConnectionReset_ThrowsVenstarTranslatorExceptionWithConnectionResetMessage()
+    {
+        // Arrange
+        var mockHandler = new MockHttpMessageHandler();
+        mockHandler.SetupConnectionReset();
+
+        var fetcher = new HttpDocumentFetcher(() => mockHandler);
+
+        // Act & Assert
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
+            fetcher.FetchDocument("http://example.com/api", false, null));
+
+        Assert.Contains("Connection reset by peer", ex.Message);
+        Assert.Contains("server closed the connection unexpectedly", ex.Message);
+    }
+
+    [Fact]
+    public void FetchDocument_ConnectionResetWrappedInIOException_ThrowsVenstarTranslatorExceptionWithConnectionResetMessage()
+    {
+        // Arrange
+        var mockHandler = new MockHttpMessageHandler();
+        mockHandler.SetupConnectionResetWrappedInIOException();
+
+        var fetcher = new HttpDocumentFetcher(() => mockHandler);
+
+        // Act & Assert
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
+            fetcher.FetchDocument("http://example.com/api", false, null));
+
+        Assert.Contains("Connection reset by peer", ex.Message);
+        Assert.Contains("server closed the connection unexpectedly", ex.Message);
+    }
+
+    [Fact]
+    public void FetchDocument_ConnectionAborted_ThrowsVenstarTranslatorExceptionWithConnectionAbortedMessage()
+    {
+        // Arrange
+        var mockHandler = new MockHttpMessageHandler();
+        mockHandler.SetupConnectionAborted();
+
+        var fetcher = new HttpDocumentFetcher(() => mockHandler);
+
+        // Act & Assert
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
+            fetcher.FetchDocument("http://example.com/api", false, null));
+
+        Assert.Contains("Connection aborted", ex.Message);
+        Assert.Contains("connection was terminated locally", ex.Message);
+    }
+
+    [Fact]
+    public void FetchDocument_SocketTimeout_ThrowsVenstarTranslatorExceptionWithTimeoutMessage()
+    {
+        // Arrange
+        var mockHandler = new MockHttpMessageHandler();
+        mockHandler.SetupSocketTimeout();
+
+        var fetcher = new HttpDocumentFetcher(() => mockHandler);
+
+        // Act & Assert
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
+            fetcher.FetchDocument("http://example.com/api", false, null));
+
+        Assert.Contains("Connection timed out", ex.Message);
+        Assert.Contains("server did not respond within the expected time", ex.Message);
+    }
+
+    [Fact]
+    public void FetchDocument_HostUnreachable_ThrowsVenstarTranslatorExceptionWithHostUnreachableMessage()
+    {
+        // Arrange
+        var mockHandler = new MockHttpMessageHandler();
+        mockHandler.SetupHostUnreachable();
+
+        var fetcher = new HttpDocumentFetcher(() => mockHandler);
+
+        // Act & Assert
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
+            fetcher.FetchDocument("http://example.com/api", false, null));
+
+        Assert.Contains("Host unreachable", ex.Message);
+        Assert.Contains("no network route to the specified host", ex.Message);
+    }
+
+    [Fact]
+    public void FetchDocument_HostNotFound_ThrowsVenstarTranslatorExceptionWithHostNotFoundMessage()
+    {
+        // Arrange
+        var mockHandler = new MockHttpMessageHandler();
+        mockHandler.SetupHostNotFound();
+
+        var fetcher = new HttpDocumentFetcher(() => mockHandler);
+
+        // Act & Assert
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
+            fetcher.FetchDocument("http://example.com/api", false, null));
+
+        Assert.Contains("Host not found", ex.Message);
+        Assert.Contains("hostname could not be resolved", ex.Message);
+    }
+
+    [Fact]
+    public void FetchDocument_UnknownSocketError_RethrowsOriginalException()
+    {
+        // Arrange
+        var mockHandler = new MockHttpMessageHandler();
+        mockHandler.SetupUnknownSocketError();
+
+        var fetcher = new HttpDocumentFetcher(() => mockHandler);
+
+        // Act & Assert - Should rethrow original HttpRequestException, not wrap in VenstarTranslatorException
         var ex = Assert.Throws<HttpRequestException>(() =>
             fetcher.FetchDocument("http://example.com/api", false, null));
 
-        Assert.Contains("Network error", ex.Message);
+        Assert.Contains("Unknown socket error", ex.Message);
     }
 
     #endregion
@@ -128,7 +241,7 @@ public class HttpDocumentFetcherTests
     #region SSL Certificate Tests
 
     [Fact]
-    public void FetchDocument_SSLCertificateError_ThrowsHttpRequestExceptionWithSSLMessage()
+    public void FetchDocument_SSLCertificateError_ThrowsVenstarTranslatorExceptionWithSSLMessage()
     {
         // Arrange
         var mockHandler = new MockHttpMessageHandler();
@@ -137,7 +250,7 @@ public class HttpDocumentFetcherTests
         var fetcher = new HttpDocumentFetcher(() => mockHandler);
 
         // Act & Assert
-        var ex = Assert.Throws<HttpRequestException>(() =>
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
             fetcher.FetchDocument("https://example.com/api", false, null));
 
         Assert.Contains("SSL certificate validation failed", ex.Message);
@@ -158,7 +271,7 @@ public class HttpDocumentFetcherTests
     [InlineData(HttpStatusCode.InternalServerError, "Internal Server Error (HTTP 500)", "server encountered an error")]
     [InlineData(HttpStatusCode.BadGateway, "Bad Gateway (HTTP 502)", "invalid response from an upstream server")]
     [InlineData(HttpStatusCode.ServiceUnavailable, "Service Unavailable (HTTP 503)", "temporarily unavailable")]
-    public void FetchDocument_HttpStatusCodeError_ThrowsHttpRequestExceptionWithAppropriateMessage(
+    public void FetchDocument_HttpStatusCodeError_ThrowsVenstarTranslatorExceptionWithAppropriateMessage(
         HttpStatusCode statusCode, string expectedPhrase, string expectedGuidance)
     {
         // Arrange
@@ -168,7 +281,7 @@ public class HttpDocumentFetcherTests
         var fetcher = new HttpDocumentFetcher(() => mockHandler);
 
         // Act & Assert
-        var ex = Assert.Throws<HttpRequestException>(() =>
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
             fetcher.FetchDocument("http://example.com/api", false, null));
 
         Assert.Contains(expectedPhrase, ex.Message);
@@ -183,7 +296,7 @@ public class HttpDocumentFetcherTests
     [InlineData("The response ended prematurely")]
     [InlineData("invalid HTTP response")]
     [InlineData("unexpected end of stream")]
-    public void FetchDocument_InvalidHttpResponse_ThrowsHttpRequestExceptionWithInvalidResponseMessage(string errorMessage)
+    public void FetchDocument_InvalidHttpResponse_ThrowsVenstarTranslatorExceptionWithInvalidResponseMessage(string errorMessage)
     {
         // Arrange
         var mockHandler = new MockHttpMessageHandler();
@@ -192,7 +305,7 @@ public class HttpDocumentFetcherTests
         var fetcher = new HttpDocumentFetcher(() => mockHandler);
 
         // Act & Assert
-        var ex = Assert.Throws<HttpRequestException>(() =>
+        var ex = Assert.Throws<VenstarTranslatorException>(() =>
             fetcher.FetchDocument("http://example.com/api", false, null));
 
         Assert.Contains("server returned an invalid HTTP response", ex.Message);
@@ -253,12 +366,77 @@ public class HttpDocumentFetcherTests
             };
         }
 
-        public void SetupNetworkError()
+        public void SetupNetworkUnreachable()
         {
             _responseFunc = (request, ct) =>
             {
                 var socketEx = new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.NetworkUnreachable);
                 throw new HttpRequestException("Network unreachable", socketEx);
+            };
+        }
+
+        public void SetupConnectionReset()
+        {
+            _responseFunc = (request, ct) =>
+            {
+                var socketEx = new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.ConnectionReset);
+                throw new HttpRequestException("Connection reset", socketEx);
+            };
+        }
+
+        public void SetupConnectionResetWrappedInIOException()
+        {
+            _responseFunc = (request, ct) =>
+            {
+                var socketEx = new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.ConnectionReset);
+                var ioEx = new System.IO.IOException("Unable to read data from the transport connection: Connection reset by peer", socketEx);
+                throw new HttpRequestException("An error occurred while sending the request", ioEx);
+            };
+        }
+
+        public void SetupConnectionAborted()
+        {
+            _responseFunc = (request, ct) =>
+            {
+                var socketEx = new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.ConnectionAborted);
+                throw new HttpRequestException("Connection aborted", socketEx);
+            };
+        }
+
+        public void SetupSocketTimeout()
+        {
+            _responseFunc = (request, ct) =>
+            {
+                var socketEx = new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.TimedOut);
+                throw new HttpRequestException("Connection timed out", socketEx);
+            };
+        }
+
+        public void SetupHostUnreachable()
+        {
+            _responseFunc = (request, ct) =>
+            {
+                var socketEx = new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.HostUnreachable);
+                throw new HttpRequestException("Host unreachable", socketEx);
+            };
+        }
+
+        public void SetupHostNotFound()
+        {
+            _responseFunc = (request, ct) =>
+            {
+                var socketEx = new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.HostNotFound);
+                throw new HttpRequestException("Host not found", socketEx);
+            };
+        }
+
+        public void SetupUnknownSocketError()
+        {
+            _responseFunc = (request, ct) =>
+            {
+                // Use an obscure socket error that we don't have a user-friendly message for
+                var socketEx = new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.NoBufferSpaceAvailable);
+                throw new HttpRequestException("Unknown socket error", socketEx);
             };
         }
 

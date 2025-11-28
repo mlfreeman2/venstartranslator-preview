@@ -13,7 +13,6 @@ using Hangfire.Storage.SQLite;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,7 +22,9 @@ using Microsoft.Extensions.Logging;
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using VenstarTranslator.Filters;
 using VenstarTranslator.Models;
+using VenstarTranslator.Models.Db;
 using VenstarTranslator.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -37,6 +38,7 @@ var hangfireDatabasePath = config.GetConnectionString("Hangfire");
 var sqliteOptions = new SQLiteStorageOptions();
 
 builder.Services.AddControllers().AddNewtonsoftJson(opts => opts.SerializerSettings.Converters.Add(new StringEnumConverter()));
+builder.Services.AddHealthChecks();
 builder.Services.AddHangfire((provider, configuration) =>
 {
     configuration
@@ -45,7 +47,10 @@ builder.Services.AddHangfire((provider, configuration) =>
     .UseRecommendedSerializerSettings()
     .UseSQLiteStorage(hangfireDatabasePath, sqliteOptions);
 });
-builder.Services.AddHangfireServer();
+builder.Services.AddHangfireServer(options =>
+{
+    options.ServerName = "VenstarTranslator";
+});
 
 builder.Services.AddDbContext<VenstarTranslatorDataCache>(options => options.UseSqlite(config.GetConnectionString("DataCache")));
 
@@ -56,6 +61,9 @@ builder.Services.AddSingleton<ISensorOperations, SensorOperations>();
 builder.Services.AddSingleton<IHangfireJobManager, HangfireJobManager>();
 
 var app = builder.Build();
+
+// Set the service provider for BroadcastTrackingFilter
+BroadcastTrackingFilterAttribute.ServiceProvider = app.Services;
 
 if (app.Environment.IsDevelopment())
 {
@@ -69,7 +77,7 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<VenstarTranslatorDataCache>();
     var jobManager = scope.ServiceProvider.GetRequiredService<IHangfireJobManager>();
 
-    dbContext.Database.EnsureCreated();
+    dbContext.Database.Migrate();
 
     var sensorFilePath = config.GetValue<string>("SensorFilePath");
     if (string.IsNullOrWhiteSpace(sensorFilePath))
@@ -82,20 +90,21 @@ using (var scope = app.Services.CreateScope())
         var contents = File.ReadAllText(sensorFilePath);
         if (!string.IsNullOrWhiteSpace(contents))
         {
-            var sensors = JsonConvert.DeserializeObject<List<TranslatedVenstarSensor>>(contents);
+            var sensorDTOs = JsonConvert.DeserializeObject<List<SensorJsonDTO>>(contents);
 
-            if (sensors.Count > 20)
+            if (sensorDTOs.Count > 20)
             {
                 throw new InvalidOperationException("Too many sensors specified. Only 20 sensors are supported.");
             }
 
             // Check for duplicate names
-            if (sensors.Select(s => s.Name).Distinct().Count() < sensors.Count)
+            if (sensorDTOs.Select(s => s.Name).Distinct().Count() < sensorDTOs.Count)
             {
                 throw new InvalidOperationException("One or more sensor names appear in multiple sensor entries.");
             }
 
-            ValidateIndividualSensors(sensors);
+            ValidateIndividualSensors(sensorDTOs);
+            var sensors = sensorDTOs.Select(dto => dto.ToSensor()).ToList();
             UpdateDatabaseSensors(dbContext, sensors);
 
             // update sensors.json
@@ -120,12 +129,8 @@ app.UseFileServer(new FileServerOptions
 app.UseRouting();
 app.UseAuthorization();
 
+app.MapHealthChecks("/health");
 app.MapControllers();
-app.MapHangfireDashboard("/hangfire", new DashboardOptions
-{
-    Authorization = [],
-    DefaultRecordsPerPage = 50,
-});
 
 app.Run();
 
@@ -142,7 +147,7 @@ static string ValidateAndGetMacPrefix(string fakeMacPrefix)
     }
 
     fakeMacPrefix = fakeMacPrefix.ToLowerInvariant();
-    if (!MacPrefixRegex().IsMatch(fakeMacPrefix))
+    if (!Regex.IsMatch(fakeMacPrefix, @"[a-f0-9]{10}"))
     {
         throw new InvalidOperationException("The prefix to use in the fake MAC addresses included in each data packet can only be numbers and lowercase a-f (in other words, hexadecimal).");
     }
@@ -150,14 +155,14 @@ static string ValidateAndGetMacPrefix(string fakeMacPrefix)
     return fakeMacPrefix;
 }
 
-static void ValidateIndividualSensors(List<TranslatedVenstarSensor> sensors)
+static void ValidateIndividualSensors(List<SensorJsonDTO> sensorDTOs)
 {
-    foreach (var sensor in sensors)
+    foreach (var sensorDTO in sensorDTOs)
     {
-        var validationContext = new ValidationContext(sensor);
+        var validationContext = new ValidationContext(sensorDTO);
         var validationResults = new List<ValidationResult>();
 
-        if (!Validator.TryValidateObject(sensor, validationContext, validationResults, true))
+        if (!Validator.TryValidateObject(sensorDTO, validationContext, validationResults, true))
         {
             var errors = string.Join("; ", validationResults.Select(vr => vr.ErrorMessage));
             throw new InvalidOperationException($"Sensor validation failed: {errors}");
@@ -229,8 +234,8 @@ static void ConfigureHttps(WebApplicationBuilder builder, IConfiguration config)
     {
         logger.LogInformation("Loading user-provided certificate from: {CertPath}", certPath);
         certificate = string.IsNullOrWhiteSpace(certPassword)
-            ? new X509Certificate2(certPath)
-            : new X509Certificate2(certPath, certPassword);
+            ? X509CertificateLoader.LoadPkcs12FromFile(certPath, null)
+            : X509CertificateLoader.LoadPkcs12FromFile(certPath, certPassword);
     }
     else
     {
@@ -241,7 +246,7 @@ static void ConfigureHttps(WebApplicationBuilder builder, IConfiguration config)
         if (File.Exists(selfSignedPath))
         {
             logger.LogInformation("Loading existing self-signed certificate from: {SelfSignedPath}", selfSignedPath);
-            certificate = new X509Certificate2(selfSignedPath, "VenstarTranslator");
+            certificate = X509CertificateLoader.LoadPkcs12FromFile(selfSignedPath, "VenstarTranslator");
         }
         else
         {
@@ -314,12 +319,11 @@ static X509Certificate2 GenerateSelfSignedCertificate()
     );
 
     // Export and re-import to ensure private key is exportable on all platforms
-    return new X509Certificate2(cert.Export(X509ContentType.Pfx, "VenstarTranslator"), "VenstarTranslator");
+    var pfxBytes = cert.Export(X509ContentType.Pfx, "VenstarTranslator");
+    return X509CertificateLoader.LoadPkcs12(pfxBytes, "VenstarTranslator");
 }
 
 [ExcludeFromCodeCoverage]
 public partial class Program
 {
-    [GeneratedRegex(@"[a-f0-9]{10}")]
-    private static partial Regex MacPrefixRegex();
 }

@@ -1,0 +1,12 @@
+{
+  "domain": "venstar_translator",
+  "name": "Venstar Translator",
+  "version": "0.1.0",
+  "documentation": "https://github.com/rsmaxwell/venstartranslator-preview/tree/main/hacs",
+  "issue_tracker": "https://github.com/rsmaxwell/venstartranslator-preview/issues",
+  "requirements": ["protobuf>=4.25.0"],
+  "codeowners": ["@rsmaxwell"],
+  "config_flow": true,
+  "iot_class": "local_push",
+  "homeassistant": "2025.7.1"
+}

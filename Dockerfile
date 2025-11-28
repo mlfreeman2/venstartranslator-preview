@@ -2,10 +2,11 @@ FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG TARGETARCH
 WORKDIR /source
 
+LABEL org.opencontainers.image.description="Emulate Venstar wireless temperature sensors by fetching data from any JSON API. Supports up to 20 sensors per instance with Home Assistant, Ecowitt, and custom endpoint integration for Venstar ColorTouch thermostats."
+
 # Copy solution and project files for dependency restoration
 COPY VenstarTranslator.sln ./
 COPY VenstarTranslator/*.csproj ./VenstarTranslator/
-COPY VenstarTranslator.Tests/*.csproj ./VenstarTranslator.Tests/
 RUN dotnet restore VenstarTranslator/VenstarTranslator.csproj -a $TARGETARCH
 
 # Copy source code and build

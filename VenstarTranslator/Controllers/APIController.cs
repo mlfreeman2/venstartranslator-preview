@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +9,9 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
+using VenstarTranslator.Exceptions;
 using VenstarTranslator.Models;
+using VenstarTranslator.Models.Db;
 using VenstarTranslator.Services;
 
 namespace VenstarTranslator.Controllers;
@@ -53,11 +55,7 @@ public class API : ControllerBase
 
             return new JsonResult(new MessageResponse { Message = "Pairing packet sent." });
         }
-        catch (System.Net.Http.HttpRequestException e)
-        {
-            return StatusCode(400, new MessageResponse { Message = e.Message });
-        }
-        catch (InvalidOperationException e)
+        catch (VenstarTranslatorException e)
         {
             return StatusCode(400, new MessageResponse { Message = e.Message });
         }
@@ -79,11 +77,7 @@ public class API : ControllerBase
             var reading = _sensorOperations.GetLatestReading(sensor);
             return new JsonResult(new TemperatureResponse { Temperature = reading, Scale = sensor.Scale });
         }
-        catch (System.Net.Http.HttpRequestException e)
-        {
-            return StatusCode(400, new MessageResponse { Message = e.Message });
-        }
-        catch (InvalidOperationException e)
+        catch (VenstarTranslatorException e)
         {
             return StatusCode(400, new MessageResponse { Message = e.Message });
         }
@@ -93,33 +87,46 @@ public class API : ControllerBase
     [Route("/api/sensors")]
     public ActionResult ListSensors()
     {
-        return new JsonResult(_db.Sensors.Include(a => a.Headers).ToList());
+        var sensors = _db.Sensors.Include(a => a.Headers).ToList();
+        var sensorDTOs = sensors.Select(s => SensorWebDTO.FromSensor(s)).ToList();
+        return new JsonResult(sensorDTOs);
     }
 
     [HttpPut]
     [Route("/api/sensors")]
-    public ActionResult UpdateSensor(TranslatedVenstarSensor updated)
+    public ActionResult UpdateSensor(SensorJsonDTO updatedDTO)
     {
-        if (!_db.Sensors.Any(a => a.SensorID == updated.SensorID))
+        if (!_db.Sensors.Any(a => a.SensorID == updatedDTO.SensorID))
         {
             return StatusCode(404, new MessageResponse { Message = "Sensor not found." });
         }
 
         // update working db
-        var current = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == updated.SensorID);
-        current.Name = updated.Name;
-        current.Enabled = updated.Enabled;
-        current.URL = updated.URL;
-        current.Purpose = updated.Purpose;
-        current.JSONPath = updated.JSONPath;
-        current.Scale = updated.Scale;
-        current.IgnoreSSLErrors = updated.IgnoreSSLErrors;
+        var current = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == updatedDTO.SensorID);
+
+        // Track if enabled state is changing to reset problem tracking
+        bool enabledStateChanged = current.Enabled != updatedDTO.Enabled;
+
+        current.Name = updatedDTO.Name;
+        current.Enabled = updatedDTO.Enabled;
+        current.URL = updatedDTO.URL;
+        current.Purpose = updatedDTO.Purpose;
+        current.JSONPath = updatedDTO.JSONPath;
+        current.Scale = updatedDTO.Scale;
+        current.IgnoreSSLErrors = updatedDTO.IgnoreSSLErrors;
+
+        // Clear LastSuccessfulBroadcast when enabled state changes to start fresh
+        if (enabledStateChanged)
+        {
+            current.LastSuccessfulBroadcast = null;
+        }
+
         current.Headers.Clear();
         _db.SaveChanges();
 
-        if (updated.Headers != null && updated.Headers.Any())
+        if (updatedDTO.Headers != null && updatedDTO.Headers.Any())
         {
-            current.Headers.AddRange(updated.Headers);
+            current.Headers.AddRange(updatedDTO.Headers.Select(h => h.ToHeader()));
         }
         _db.SaveChanges();
 
@@ -139,22 +146,25 @@ public class API : ControllerBase
 
     [HttpPost]
     [Route("/api/sensors")]
-    public ActionResult AddSensor(TranslatedVenstarSensor sensor)
+    public ActionResult AddSensor(SensorJsonDTO sensorDTO)
     {
-        sensor.SensorID = 20;
+        byte sensorID = 20;
         for (byte i = 0; i <= 19; i++)
         {
             if (!_db.Sensors.Any(a => a.SensorID == i))
             {
-                sensor.SensorID = i;
+                sensorID = i;
                 break;
             }
         }
 
-        if (sensor.SensorID > 19)
+        if (sensorID > 19)
         {
             return StatusCode(400, new MessageResponse { Message = "No sensor IDs available. Delete some sensors first." });
         }
+
+        sensorDTO.SensorID = sensorID;
+        var sensor = sensorDTO.ToSensor();
 
         _db.Sensors.Add(sensor);
         _db.SaveChanges();
@@ -250,13 +260,13 @@ public class API : ControllerBase
 
             return Content(responseBody, "application/json");
         }
-        catch (System.Net.Http.HttpRequestException e)
+        catch (VenstarTranslatorException e)
         {
-            return StatusCode(400, new MessageResponse { Message = $"HTTP Error: {e.Message}" });
+            return StatusCode(400, new MessageResponse { Message = e.Message });
         }
         catch (Exception e)
         {
-            return StatusCode(400, new MessageResponse { Message = $"Error fetching URL: {e.Message}" });
+            return StatusCode(500, new MessageResponse { Message = $"Unexpected error: {e.Message}" });
         }
     }
 }

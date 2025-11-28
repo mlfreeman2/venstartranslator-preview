@@ -1,9 +1,9 @@
 {
-	"name": ".NET 9 DevContainer with Claude Code",
+	"name": ".NET 10 DevContainer with Claude Code (Ubuntu)",
 	"build": {
 		"dockerfile": "Dockerfile",
 		"args": {
-			"VARIANT": "9.0-bookworm-slim"
+			"VARIANT": "10.0"
 		}
 	},
 	"customizations": {
@@ -16,7 +16,8 @@
 				"eamodio.gitlens",
 				"jeremycaron.csharp-organize-usings",
 				"EditorConfig.EditorConfig",
-				"github.vscode-github-actions"
+				"github.vscode-github-actions",
+				"Anthropic.claude-code"
 			],
 			"settings": {
 				"terminal.integrated.defaultProfile.linux": "bash",
@@ -32,10 +33,10 @@
 		// NuGet package cache to speed up builds
 		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.nuget,target=/home/vscode/.nuget,type=bind,consistency=cached"
 	],
-	"forwardPorts": [
-		8080,
-		8443
+	"runArgs": [
+		"--network=host"
 	],
+	"forwardPorts": [8080],
 	"remoteEnv": {
 		"PATH": "${containerEnv:PATH}:/home/vscode/.dotnet/tools",
 		"TZ": "${localEnv:TZ:-America/New_York}",
@@ -48,7 +49,7 @@
 			"installZsh": true,
 			"configureZshAsDefaultShell": false,
 			"installOhMyZsh": true,
-			"upgradePackages": true,
+			"upgradePackages": false,
 			"username": "vscode",
 			"userUid": "automatic",
 			"userGid": "automatic"
@@ -56,20 +57,13 @@
 		"ghcr.io/devcontainers/features/git:1": {
 			"version": "latest",
 			"ppa": false
-		},
-		"ghcr.io/devcontainers/features/docker-in-docker:2": {
-			"moby": true,
-			"installDockerBuildx": true,
-			"version": "latest",
-			"dockerDashComposeVersion": "v2"
-		},
-		"ghcr.io/devcontainers-extra/features/protoc:1": {}
+		}
 	},
-	"postCreateCommand": "sudo bash -c 'npm install -g @anthropic-ai/claude-code && dotnet tool restore 2>/dev/null || true && dotnet restore 2>/dev/null || true && echo \"✅ DevContainer ready! Run 'claude' to start Claude Code.\"'",
+	"postCreateCommand": "sudo bash .devcontainer/post-create.sh",
 	"postStartCommand": "claude --version || npm install -g @anthropic-ai/claude-code",
 	"updateContentCommand": "dotnet restore 2>/dev/null || true",
 	"containerEnv": {
 		"ASPNETCORE_ENVIRONMENT": "Development",
-		"ASPNETCORE_URLS": "http://+:5000;https://+:5001"
+		"ASPNETCORE_URLS": "http://+:8080"
 	}
 }

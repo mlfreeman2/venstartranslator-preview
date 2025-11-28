@@ -1,9 +1,13 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace VenstarTranslator.Models;
+using VenstarTranslator.Models.Enums;
 
+namespace VenstarTranslator.Models.Db;
+
+[ExcludeFromCodeCoverage]
 public class VenstarTranslatorDataCache : DbContext
 {
     public DbSet<TranslatedVenstarSensor> Sensors { get; set; }

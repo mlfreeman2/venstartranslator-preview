@@ -1,0 +1,6 @@
+{
+  "dotnet-test-explorer.testArguments": "--settings coverlet.runsettings",
+  "coverage-gutters.coverageFileNames": [
+    "**/TestResults/**/coverage.cobertura.xml"
+  ]
+}

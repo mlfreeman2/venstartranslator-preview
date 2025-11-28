@@ -312,7 +312,8 @@ docker logs venstartranslator
 
 - Check container logs: `docker logs venstartranslator`
 - Verify "Broadcast Sensor" is checked for the sensor in the web UI
-- Check that the Hangfire dashboard shows scheduled jobs: `http://your-host:8080/hangfire`
+- Look for orange pulsing "Problem" badge in the Status column - hover over it to see last successful broadcast time
+- Check logs for ERROR and WARNING messages with full exception details
 
 ## How It Works
 

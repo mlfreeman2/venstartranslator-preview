@@ -9,7 +9,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/VenstarTranslator/bin/Debug/net8.0/VenstarTranslator.dll",
+            "program": "${workspaceFolder}/VenstarTranslator/bin/Debug/net10.0/VenstarTranslator.dll",
             "args": [],
             "cwd": "${workspaceFolder}/VenstarTranslator",
             "stopAtEntry": false,

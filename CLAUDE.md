@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VenstarTranslator is an ASP.NET Core 9.0 application that fetches temperature readings from arbitrary JSON endpoints and translates them into the format expected by Venstar ColorTouch thermostats. It emulates up to 20 Venstar ACC-TSENWIFIPRO sensors by broadcasting UDP packets on port 5001. The application uses Protocol Buffers for data serialization and broadcasts packets to `255.255.255.255:5001`.
+VenstarTranslator is an ASP.NET Core 10.0 application that fetches temperature readings from arbitrary JSON endpoints and translates them into the format expected by Venstar ColorTouch thermostats. It emulates up to 20 Venstar ACC-TSENWIFIPRO sensors by broadcasting UDP packets on port 5001. The application uses Protocol Buffers for data serialization and broadcasts packets to `255.255.255.255:5001`.
 
 ## Build and Run Commands
 
@@ -37,7 +37,7 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 
 ### Core Components
 
-**TranslatedVenstarSensor** (`Models/VenstarTranslator.cs:24`)
+**TranslatedVenstarSensor** (`Models/Db/TranslatedVenstarSensor.cs:22`)
 - Main domain model representing a sensor configuration
 - Handles temperature data fetching via HTTP, JSONPath extraction, and UDP broadcast
 - Contains Protocol Buffer serialization logic for both pairing and data packets
@@ -52,16 +52,17 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 - Configures Hangfire for scheduled UDP broadcasts
 - Configures optional HTTPS support with user-provided or auto-generated self-signed certificates
 
-**Tasks.cs**
+**Tasks.cs** (`Tasks/Tasks.cs`)
 - Background job definitions executed by Hangfire
 - `SendDataPacket(uint sensorID)`: Fetches temperature from configured URL and broadcasts UDP packet
 - Outdoor sensors broadcast every 5 minutes (`*/5 * * * *`)
 - All other sensor types broadcast every minute (`* * * * *`)
 
-**APIController.cs**
+**APIController.cs** (`Controllers/APIController.cs`)
 - REST API for sensor CRUD operations
 - All modifications to sensors automatically sync to `sensors.json` via `SyncToSensorsJson()`
 - `/api/testjsonpath`: Test JSONPath queries against sample JSON documents
+- `/api/fetchurl`: Fetch and display JSON from a configured sensor's URL
 - `/api/sensors/{id}/pair`: Send pairing packet to thermostat
 - `/api/sensors/{id}/latest`: Test temperature fetch from data source
 
@@ -77,12 +78,38 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 
 ### Key Technologies
 
-- **ASP.NET Core 9.0**: Web framework and API
+- **ASP.NET Core 10.0**: Web framework and API
 - **Entity Framework Core**: SQLite database for sensor persistence
 - **Hangfire**: Background job scheduling with SQLite storage
 - **Newtonsoft.Json**: JSON parsing and JSONPath queries (`SelectToken`)
 - **Protocol Buffers** (`protobuf-net` and `Google.Protobuf`): Sensor packet serialization
 - **UnitsNet**: Temperature unit conversions
+
+### Database Migrations
+
+The application uses Entity Framework Core migrations for database schema management. Migrations are applied automatically on startup via `Database.Migrate()`.
+
+**For Users:**
+- Migrations are applied automatically on first run
+- Existing databases created with `EnsureCreated()` will be seamlessly upgraded to use migrations
+- No manual intervention required
+
+**For Developers:**
+When modifying the database schema:
+```bash
+# Install EF Core tools (one-time)
+dotnet tool install --global dotnet-ef
+
+# Create a new migration
+cd VenstarTranslator
+dotnet ef migrations add YourMigrationName --context VenstarTranslatorDataCache
+
+# Migrations are applied automatically on app startup
+# To manually apply migrations:
+dotnet ef database update --context VenstarTranslatorDataCache
+```
+
+The `__EFMigrationsHistory` table tracks which migrations have been applied. The migration system is idempotent - running migrations multiple times is safe.
 
 ## Configuration
 
@@ -134,12 +161,12 @@ See `sensors.json.template`, `sensors.ecowitt.json.sample`, or `sensors.homeassi
 
 ## Important Implementation Details
 
-### Sensor Validation (`Program.cs:145-158`)
+### Sensor Validation
 - Enforced via Data Annotations and `IValidatableObject`
-- JSONPath validation uses custom `ValidJsonPath` attribute
-- URL validation via `ValidAbsoluteUrl` attribute
-- HTTP headers validated with `ValidHttpHeaders` attribute
-- All validation logic in `Models/ValidationAttributes.cs`
+- JSONPath validation uses custom `ValidJsonPath` attribute (`Models/Validation/ValidJsonPathAttribute.cs`)
+- URL validation via `ValidAbsoluteUrl` attribute (`Models/Validation/ValidAbsoluteUrlAttribute.cs`)
+- HTTP headers validated with `ValidHttpHeaders` attribute (`Models/Validation/ValidHttpHeadersAttribute.cs`)
+- Validation orchestrated in `Program.cs` via `ValidateIndividualSensors()` method
 
 ### Temperature Packet Serialization
 - Protobuf models defined in `Models/Protobuf/ProtobufNetModel.cs`
@@ -158,10 +185,32 @@ Changes via API automatically sync to both. On startup, sensors.json is read, va
 
 The application MUST run on the same VLAN/broadcast domain as the Venstar thermostat. Docker deployments require `network_mode: host` to enable UDP broadcast capabilities.
 
+## Monitoring and Problem Detection
+
+The web UI provides real-time sensor health monitoring that mirrors the thermostat's error detection:
+- **Problem Indicators**: Sensors with stale broadcasts display an orange pulsing "Problem" badge in the Status column
+- **Staleness Thresholds** (matches when thermostat shows sensor error):
+  - Outdoor sensors: 20 minutes (broadcasts every 5 minutes)
+  - Other sensor types: 5 minutes (broadcasts every 1 minute)
+- **Details**: Hover over the problem badge to see the last successful broadcast timestamp
+- **Logs**: Full exception details are logged to console/Docker logs at ERROR level
+- **Database Tracking**: `LastSuccessfulBroadcast` timestamp tracked in database (not persisted to sensors.json)
+- **Auto-Recovery**: Problem indicator automatically clears when broadcasts resume successfully
+
+**BroadcastTrackingFilter** (`Filters/BroadcastTrackingFilter.cs`)
+- Hangfire job filter attribute applied to `SendDataPacket` method in Tasks.cs
+- Updates `LastSuccessfulBroadcast` timestamp on successful broadcasts
+- Tracks `ConsecutiveFailures` counter and `LastErrorMessage` in database
+- Distinguishes between user-friendly `VenstarTranslatorException` messages (stored in database) and system exceptions (logged only)
+- Logs errors with exception details on failures
+- Logs warnings when broadcasts become stale (matching thermostat error threshold)
+
 ## Web UI
 
 Located in `web/` directory:
-- `index.html`: Main sensor management interface
+- `index.html`: Main sensor management interface with real-time problem indicators
 - `jsonpath.html`: JSONPath query tester
-- `javascript.js`: Frontend logic for API interactions
+- `sensors.js`: Sensor table rendering and tooltip initialization
+- `modals.js`: Modal dialog management
+- `style.css`: Custom styling including problem badge animations
 - Static files served via ASP.NET Core FileServer middleware
