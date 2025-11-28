@@ -27,7 +27,8 @@
       "Bash(dotnet:*)",
       "Bash(git restore:*)",
       "Bash(chmod:*)",
-      "Bash(/tmp/update_migrations.sh:*)"
+      "Bash(/tmp/update_migrations.sh:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
