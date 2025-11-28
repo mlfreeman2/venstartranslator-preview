@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 using Hangfire;
@@ -11,6 +12,7 @@ using VenstarTranslator.Services;
 
 namespace VenstarTranslator;
 
+[ExcludeFromCodeCoverage]
 public class Tasks
 {
     private IServiceProvider _serviceProvider;

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 using VenstarTranslator.Models.Db;
@@ -9,6 +10,7 @@ namespace VenstarTranslator.Models;
 /// Data Transfer Object for web UI/API responses that includes runtime status
 /// Extends SensorJsonDTO with additional runtime fields not persisted to sensors.json
 /// </summary>
+[ExcludeFromCodeCoverage]
 public class SensorWebDTO : SensorJsonDTO
 {
     public DateTime? LastSuccessfulBroadcast { get; set; }

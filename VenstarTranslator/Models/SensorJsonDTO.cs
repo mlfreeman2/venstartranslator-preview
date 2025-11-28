@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -13,6 +14,7 @@ namespace VenstarTranslator.Models;
 /// Data Transfer Object for sensors.json file persistence
 /// Contains only the fields that should be persisted to the configuration file
 /// </summary>
+[ExcludeFromCodeCoverage]
 public class SensorJsonDTO
 {
     [JsonProperty(Order = 1)]

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using Newtonsoft.Json;
 
 using VenstarTranslator.Models.Db;
@@ -8,6 +9,7 @@ namespace VenstarTranslator.Models;
 /// <summary>
 /// Data Transfer Object for HTTP headers used in JSON serialization
 /// </summary>
+[ExcludeFromCodeCoverage]
 public class DataSourceHttpHeaderDTO
 {
     [JsonProperty(Order = 1)]

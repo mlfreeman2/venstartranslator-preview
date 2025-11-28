@@ -24,7 +24,10 @@
       "Bash(protoc:*)",
       "Bash(python3:*)",
       "Bash(node:*)",
-      "Bash(dotnet:*)"
+      "Bash(dotnet:*)",
+      "Bash(git restore:*)",
+      "Bash(chmod:*)",
+      "Bash(/tmp/update_migrations.sh:*)"
     ],
     "deny": [],
     "ask": []

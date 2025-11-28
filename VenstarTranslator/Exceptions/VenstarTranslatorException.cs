@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace VenstarTranslator.Exceptions;
 
@@ -6,6 +7,7 @@ namespace VenstarTranslator.Exceptions;
 /// Base exception for all VenstarTranslator-specific errors.
 /// These exceptions contain user-friendly messages that can be displayed in the UI.
 /// </summary>
+[ExcludeFromCodeCoverage]
 public class VenstarTranslatorException : Exception
 {
     public VenstarTranslatorException(string message) : base(message) { }
