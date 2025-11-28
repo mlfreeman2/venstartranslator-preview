@@ -1,12 +1,12 @@
-# Alpine-based .NET 10 development container
-ARG VARIANT=10.0-alpine
+# Ubuntu-based .NET 10 development container
+ARG VARIANT=10.0
 FROM mcr.microsoft.com/dotnet/sdk:${VARIANT}
 
 USER root
 
 # Set non-root user
 ARG USERNAME=vscode
-ARG USER_UID=1000
+ARG USER_UID=1001
 ARG USER_GID=$USER_UID
 
 # Configure environment
@@ -15,17 +15,18 @@ ENV PATH="${PATH}:/home/${USERNAME}/.dotnet:/home/${USERNAME}/.dotnet/tools" \
     DOTNET_NOLOGO=true \
     LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
-    LC_ALL=en_US.UTF-8
+    LC_ALL=en_US.UTF-8 \
+    DEBIAN_FRONTEND=noninteractive
 
 # Install base dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     # Network tools
     iproute2 \
-    iputils \
-    bind-tools \
+    iputils-ping \
+    dnsutils \
     net-tools \
     # Build essentials
-    build-base \
+    build-essential \
     # Utilities
     curl \
     wget \
@@ -49,12 +50,20 @@ RUN apk add --no-cache \
     # Sudo for non-root user
     sudo \
     # SQLite for database work
-    sqlite \
-    # Locale support (musl)
-    musl-locales
+    sqlite3 \
+    # Locales
+    locales \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js and npm (from Alpine repos)
-RUN apk add --no-cache nodejs npm \
+# Generate locale
+RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
+    dpkg-reconfigure --frontend=noninteractive locales && \
+    update-locale LANG=en_US.UTF-8
+
+# Install Node.js (using NodeSource)
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/* \
     && npm install -g npm@latest
 
 # Install global npm tools
@@ -72,8 +81,8 @@ RUN dotnet tool install --global dotnet-ef \
     && dotnet tool install --global dotnet-outdated-tool
 
 # Create non-root user with sudo access
-RUN addgroup -g $USER_GID $USERNAME \
-    && adduser -D -u $USER_UID -G $USERNAME -s /bin/bash $USERNAME \
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME \
     && echo "$USERNAME ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 

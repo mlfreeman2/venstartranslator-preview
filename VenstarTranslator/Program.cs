@@ -147,7 +147,7 @@ static string ValidateAndGetMacPrefix(string fakeMacPrefix)
     }
 
     fakeMacPrefix = fakeMacPrefix.ToLowerInvariant();
-    if (!MacPrefixRegex().IsMatch(fakeMacPrefix))
+    if (!Regex.IsMatch(fakeMacPrefix, @"[a-f0-9]{10}"))
     {
         throw new InvalidOperationException("The prefix to use in the fake MAC addresses included in each data packet can only be numbers and lowercase a-f (in other words, hexadecimal).");
     }
@@ -326,6 +326,4 @@ static X509Certificate2 GenerateSelfSignedCertificate()
 [ExcludeFromCodeCoverage]
 public partial class Program
 {
-    [GeneratedRegex(@"[a-f0-9]{10}")]
-    private static partial Regex MacPrefixRegex();
 }

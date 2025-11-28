@@ -28,7 +28,8 @@
       "Bash(git restore:*)",
       "Bash(chmod:*)",
       "Bash(/tmp/update_migrations.sh:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(xargs cat:*)"
     ],
     "deny": [],
     "ask": []
