@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -35,6 +36,7 @@ public class SensorOperations : ISensorOperations
     {
         var latestReading = GetLatestReading(sensor);
         var bytes = sensor.BuildDataPacket(latestReading);
+        sensor.LastPacketBytes = bytes; // Cache for potential resend
         _udpBroadcaster.Broadcast(bytes);
     }
 
@@ -43,6 +45,15 @@ public class SensorOperations : ISensorOperations
         var latestReading = GetLatestReading(sensor);
         var bytes = sensor.BuildPairingPacket(latestReading);
         _udpBroadcaster.Broadcast(bytes);
+    }
+
+    public void ResendLastPacket(TranslatedVenstarSensor sensor)
+    {
+        if (sensor.LastPacketBytes == null || sensor.LastPacketBytes.Length == 0)
+        {
+            throw new InvalidOperationException("No packet available to resend. The sensor has not broadcast any data packets yet.");
+        }
+        _udpBroadcaster.Broadcast(sensor.LastPacketBytes);
     }
 
     [ExcludeFromCodeCoverage]

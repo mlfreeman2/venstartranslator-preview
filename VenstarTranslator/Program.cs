@@ -46,6 +46,9 @@ builder.Services.AddHangfire((provider, configuration) =>
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
     .UseSQLiteStorage(hangfireDatabasePath, sqliteOptions);
+
+    // Disable automatic retries globally - BroadcastTrackingFilter handles failures
+    GlobalJobFilters.Filters.Add(new AutomaticRetryAttribute { Attempts = 0, LogEvents = false });
 });
 builder.Services.AddHangfireServer(options =>
 {

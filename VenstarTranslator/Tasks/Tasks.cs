@@ -23,7 +23,6 @@ public class Tasks
     }
 
     [JobDisplayName("Send a Venstar data packet for sensor #{0}")]
-    [AutomaticRetry(Attempts = 0)]
     [BroadcastTrackingFilter]
     public void SendDataPacket(uint sensorID)
     {

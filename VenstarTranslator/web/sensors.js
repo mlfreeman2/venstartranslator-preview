@@ -219,6 +219,8 @@ function renderActionButtons(sensor) {
   if (sensor.enabled) {
     buttons += `<button class="btn btn-primary btn-sm" onclick="sendPairingPacket('${sensor.sensorID}')">` +
                    '<i class="fas fa-wifi me-1"></i>Send Pairing Packet</button>';
+    buttons += `<button class="btn btn-secondary btn-sm" onclick="resendLastPacket('${sensor.sensorID}')">` +
+                   '<i class="fas fa-redo me-1"></i>Resend Last Data Packet</button>';
   }
 
   buttons += '</div>';
@@ -482,6 +484,44 @@ function sendPairingPacket(sensorID) {
     .finally(() => {
       button.classList.remove('disabled');
       button.innerHTML = '<i class="fas fa-wifi me-1"></i>Send Pairing Packet';
+    });
+}
+
+/**
+ * Resend the last packet for a sensor
+ * @param {string} sensorID - ID of sensor
+ */
+function resendLastPacket(sensorID) {
+  event.preventDefault();
+  const button = event.target.closest('button');
+  button.classList.add('disabled');
+  button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Resending...';
+
+  fetch('/api/sensors/' + sensorID + '/resend', {
+    method: 'POST'
+  })
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(err => Promise.reject(err));
+      }
+      return response.json();
+    })
+    .then(data => {
+      showResponseModal(
+        '<i class="fas fa-check-circle text-success me-2"></i>' + data.message,
+        'Success'
+      );
+    })
+    .catch(error => {
+      let msg = error.message || 'Unknown error';
+      showResponseModal(
+        '<i class="fas fa-exclamation-triangle text-danger me-2"></i>' + msg,
+        'Error'
+      );
+    })
+    .finally(() => {
+      button.classList.remove('disabled');
+      button.innerHTML = '<i class="fas fa-redo me-1"></i>Resend Last Data Packet';
     });
 }
 

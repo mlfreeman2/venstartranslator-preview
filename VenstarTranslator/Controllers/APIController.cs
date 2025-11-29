@@ -61,6 +61,31 @@ public class API : ControllerBase
         }
     }
 
+    [HttpPost]
+    [Route("/api/sensors/{id}/resend")]
+    public ActionResult ResendLastPacket(uint id)
+    {
+        var sensor = _db.Sensors.FirstOrDefault(a => a.SensorID == id);
+        if (sensor == null)
+        {
+            return StatusCode(404, new MessageResponse { Message = "Sensor not found." });
+        }
+
+        try
+        {
+            _sensorOperations.ResendLastPacket(sensor);
+            return new JsonResult(new MessageResponse { Message = "Last packet resent successfully." });
+        }
+        catch (InvalidOperationException e)
+        {
+            return StatusCode(400, new MessageResponse { Message = e.Message });
+        }
+        catch (VenstarTranslatorException e)
+        {
+            return StatusCode(400, new MessageResponse { Message = e.Message });
+        }
+    }
+
 
 
     [HttpGet]

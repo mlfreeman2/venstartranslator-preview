@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VenstarTranslator.Models.Db;
 
@@ -10,9 +11,11 @@ using VenstarTranslator.Models.Db;
 namespace VenstarTranslator.Migrations
 {
     [DbContext(typeof(VenstarTranslatorDataCache))]
-    partial class VenstarTranslatorDataCacheModelSnapshot : ModelSnapshot
+    [Migration("20251129174530_AddLastPacketBytes")]
+    partial class AddLastPacketBytes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.0");

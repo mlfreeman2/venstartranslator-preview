@@ -201,9 +201,18 @@ The web UI provides real-time sensor health monitoring that mirrors the thermost
 - Hangfire job filter attribute applied to `SendDataPacket` method in Tasks.cs
 - Updates `LastSuccessfulBroadcast` timestamp on successful broadcasts
 - Tracks `ConsecutiveFailures` counter and `LastErrorMessage` in database
+- Caches `LastPacketBytes` for manual resend capability
 - Distinguishes between user-friendly `VenstarTranslatorException` messages (stored in database) and system exceptions (logged only)
 - Logs errors with exception details on failures
 - Logs warnings when broadcasts become stale (matching thermostat error threshold)
+
+**Manual Packet Resend**
+- Each sensor caches the last broadcast packet in the database (`LastPacketBytes`)
+- "Resend Last Packet" button available in web UI for enabled sensors
+- Resends the exact packet from the last broadcast (same sequence number, same temperature data)
+- Useful for troubleshooting thermostat connectivity issues
+- API endpoint: `POST /api/sensors/{id}/resend`
+- Returns error if sensor has never broadcast a packet
 
 ## Web UI
 

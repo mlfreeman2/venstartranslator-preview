@@ -78,6 +78,8 @@ public class TranslatedVenstarSensor
 
     public int ConsecutiveFailures { get; set; }
 
+    public byte[] LastPacketBytes { get; set; }
+
     [NotMapped]
     public int FailureThreshold => 5;
 
