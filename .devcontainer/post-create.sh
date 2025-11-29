@@ -3,9 +3,6 @@ set -e
 
 echo "📦 Installing development tools..."
 
-# SQLite is already installed in the base Alpine image
-echo "  ✓ SQLite3 available"
-
 # Ensure Claude Code is installed
 echo "  → Checking @anthropic-ai/claude-code..."
 if ! command -v claude &> /dev/null; then

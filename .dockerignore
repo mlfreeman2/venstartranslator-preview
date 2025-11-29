@@ -1,33 +1,39 @@
 # Build artifacts
-**/bin
-**/obj
+**/bin/
+**/obj/
+**/TestResults/
 
 # Database files (runtime generated)
 **/*.db
 **/*.db-shm
 **/*.db-wal
 
+# NuGet packages (restored during build)
+**/.nuget/
+**/packages/
+*.nupkg
+
 # Git and version control
-.git
+.git/
 .gitignore
 .gitattributes
 
 # IDE and editor files
-.vscode
-.vs
+.vscode/
+.vs/
 *.swp
 *.swo
 *~
-.idea
+.idea/
 
 # Development container
-.devcontainer
+.devcontainer/
 
 # CI/CD
-.github
+.github/
 
 # Claude AI
-.claude
+.claude/
 
 # Documentation (not needed in container)
 *.md
@@ -38,12 +44,20 @@ Dockerfile*
 docker-compose*.yml
 .dockerignore
 
-# Test projects (not copied by Dockerfile anyway)
+# Test projects (not needed in production image)
 VenstarTranslator.Tests/
+**/*Tests/
+**/*.Tests/
 
 # Configuration samples and templates
 *.sample
 *.template
+
+# Coverage and test reports
+coverage/
+coverlet.runsettings
+*.coverage
+*.coveragexml
 
 # Linter config
 .eslintrc.json
@@ -52,10 +66,23 @@ VenstarTranslator.Tests/
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Logs
 *.log
+logs/
 
 # Temporary files
 *.tmp
-*.bak
+tmp/
+temp/
+
+# User-specific files
+*.user
+*.suo
+
+# HACS integration folder (Home Assistant custom component, not needed in Docker)
+hacs/
+
+# Self-signed certificates (generated at runtime)
+self-signed-cert.pfx
