@@ -105,18 +105,20 @@ public class HealthChecksClient : IHealthChecksClient
         }
     }
 
-    public async Task RenameCheckAsync(string apiBaseUrl, string apiKey, string uuid, string newName)
+    public async Task<bool> RenameCheckAsync(string apiBaseUrl, string apiKey, string uuid, string newName)
     {
         try
         {
             var response = await SendManagementRequestAsync(
-                HttpMethod.Patch, $"{apiBaseUrl}/checks/{uuid}", apiKey,
+                HttpMethod.Post, $"{apiBaseUrl}/checks/{uuid}", apiKey,
                 new JObject { ["name"] = newName });
             response.EnsureSuccessStatusCode();
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to rename healthchecks.io check '{Uuid}' to '{Name}'", uuid, newName);
+            return false;
         }
     }
 
@@ -139,8 +141,7 @@ public class HealthChecksClient : IHealthChecksClient
         try
         {
             var response = await SendManagementRequestAsync(
-                HttpMethod.Patch, $"{apiBaseUrl}/checks/{uuid}", apiKey,
-                new JObject { ["status"] = "new" });
+                HttpMethod.Post, $"{apiBaseUrl}/checks/{uuid}/resume", apiKey);
             response.EnsureSuccessStatusCode();
         }
         catch (Exception ex)
@@ -154,7 +155,7 @@ public class HealthChecksClient : IHealthChecksClient
         try
         {
             var response = await SendManagementRequestAsync(
-                HttpMethod.Patch, $"{apiBaseUrl}/checks/{uuid}", apiKey,
+                HttpMethod.Post, $"{apiBaseUrl}/checks/{uuid}", apiKey,
                 new JObject { ["timeout"] = timeout, ["grace"] = grace });
             response.EnsureSuccessStatusCode();
         }

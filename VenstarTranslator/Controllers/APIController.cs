@@ -466,10 +466,13 @@ public class API : ControllerBase
             if (actualName == expectedOldName)
             {
                 var newConventionName = BuildCheckName(newInstanceName, sensor.SensorID, sensor.Name);
-                await _healthChecksClient.RenameCheckAsync(apiBaseUrl, apiKey, sensor.HealthCheckUuid, newConventionName);
-                _logger.LogInformation(
-                    "Renamed healthchecks.io check for sensor {SensorID} ({Name}): '{OldName}' -> '{NewName}'",
-                    sensor.SensorID, sensor.Name, expectedOldName, newConventionName);
+                var renamed = await _healthChecksClient.RenameCheckAsync(apiBaseUrl, apiKey, sensor.HealthCheckUuid, newConventionName);
+                if (renamed)
+                {
+                    _logger.LogInformation(
+                        "Renamed healthchecks.io check for sensor {SensorID} ({Name}): '{OldName}' -> '{NewName}'",
+                        sensor.SensorID, sensor.Name, expectedOldName, newConventionName);
+                }
             }
             else
             {
