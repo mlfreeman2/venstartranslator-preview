@@ -59,7 +59,7 @@ public class BroadcastTrackingFilterAttribute : JobFilterAttribute, IServerFilte
             var baseUrl = settingsService.GetSettings().HealthChecksBaseUrl;
             if (!string.IsNullOrWhiteSpace(baseUrl))
             {
-                healthCheckPingUrl = $"{baseUrl.TrimEnd('/')}/{sensor.HealthCheckUuid}";
+                healthCheckPingUrl = $"{baseUrl.TrimEnd('/')}/ping/{sensor.HealthCheckUuid}";
             }
         }
 
