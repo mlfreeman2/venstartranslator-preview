@@ -57,6 +57,9 @@ public class SensorJsonDTO
     [ValidHttpHeaders]
     public List<DataSourceHttpHeaderDTO> Headers { get; set; }
 
+    [JsonProperty(Order = 10)]
+    public string HealthCheckUuid { get; set; }
+
     /// <summary>
     /// Converts a TranslatedVenstarSensor entity to a SensorJsonDTO
     /// </summary>
@@ -72,7 +75,8 @@ public class SensorJsonDTO
             URL = sensor.URL,
             IgnoreSSLErrors = sensor.IgnoreSSLErrors,
             JSONPath = sensor.JSONPath,
-            Headers = sensor.Headers?.Select(h => DataSourceHttpHeaderDTO.FromHeader(h)).ToList()
+            Headers = sensor.Headers?.Select(h => DataSourceHttpHeaderDTO.FromHeader(h)).ToList(),
+            HealthCheckUuid = sensor.HealthCheckUuid
         };
     }
 
@@ -91,7 +95,8 @@ public class SensorJsonDTO
             URL = URL,
             IgnoreSSLErrors = IgnoreSSLErrors,
             JSONPath = JSONPath,
-            Headers = Headers?.Select(h => h.ToHeader()).ToList()
+            Headers = Headers?.Select(h => h.ToHeader()).ToList(),
+            HealthCheckUuid = HealthCheckUuid
         };
     }
 }

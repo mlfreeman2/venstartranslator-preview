@@ -12,3 +12,18 @@ pair_sensor:
           min: 0
           max: 19
           mode: box
+
+resend_last_packet:
+  name: Resend Last Packet
+  description: Resend the last broadcast packet for a specific sensor (same sequence number and temperature data). Useful for troubleshooting thermostat connectivity.
+  fields:
+    sensor_id:
+      name: Sensor ID
+      description: The sensor ID to resend (0-19)
+      required: true
+      example: 0
+      selector:
+        number:
+          min: 0
+          max: 19
+          mode: box

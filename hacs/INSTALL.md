@@ -244,6 +244,20 @@ data:
 
 Replace `0` with the sensor ID you want to pair.
 
+## Resend Last Packet Service
+
+If you need to troubleshoot thermostat connectivity, you can resend the exact packet from a sensor's last broadcast (same sequence number and temperature data):
+
+**Developer Tools** → **Services**:
+
+```yaml
+service: venstar_translator.resend_last_packet
+data:
+  sensor_id: 0
+```
+
+This will return an error if the sensor has never broadcast a packet.
+
 ## Storage and Persistence
 
 All configuration is stored in Home Assistant's storage:

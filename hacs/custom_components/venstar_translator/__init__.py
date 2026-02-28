@@ -18,9 +18,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Venstar Translator from a config entry."""
     _LOGGER.info("Setting up Venstar Translator integration")
 
-    # Initialize storage
+    # Initialize storage, passing MAC prefix from config entry for first-load sync
     storage = VenstarTranslatorStorage(hass)
-    await storage.async_load()
+    await storage.async_load(mac_prefix=entry.data.get("mac_prefix"))
 
     # Store in hass.data
     hass.data.setdefault(DOMAIN, {})
@@ -77,6 +77,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             packet = sensor.build_pairing_packet(temperature)
             await hass.async_add_executor_job(broadcast_udp_packet, packet)
 
+            # Reset stored sequence to 1 after pairing (matches C# behavior)
+            storage.update_sequence(sensor_id, 1)
+            await storage.async_save()
+
             _LOGGER.info(
                 f"Pairing packet sent for sensor {sensor_id} ({sensor_config['name']})"
             )
@@ -85,6 +89,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.error(f"Failed to send pairing packet for sensor {sensor_id}: {e}")
 
     hass.services.async_register(DOMAIN, "pair_sensor", handle_pair_sensor)
+
+    # Register resend_last_packet service
+    async def handle_resend_last_packet(call):
+        """Handle the resend_last_packet service call."""
+        sensor_id = call.data.get("sensor_id")
+
+        if str(sensor_id) not in storage.sensors:
+            _LOGGER.error(f"Sensor {sensor_id} not configured")
+            return
+
+        packet = storage.get_last_packet(sensor_id)
+        if packet is None:
+            _LOGGER.error(
+                f"Sensor {sensor_id}: no cached packet to resend "
+                f"(sensor has never broadcast)"
+            )
+            return
+
+        try:
+            await hass.async_add_executor_job(broadcast_udp_packet, packet)
+            _LOGGER.info(
+                f"Resent last packet for sensor {sensor_id} "
+                f"({storage.sensors[str(sensor_id)]['name']}), "
+                f"{len(packet)} bytes"
+            )
+        except Exception as e:
+            _LOGGER.error(f"Failed to resend packet for sensor {sensor_id}: {e}")
+
+    hass.services.async_register(DOMAIN, "resend_last_packet", handle_resend_last_packet)
 
     return True
 

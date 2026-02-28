@@ -30,6 +30,7 @@ public class SensorWebDTO : SensorJsonDTO
             IgnoreSSLErrors = sensor.IgnoreSSLErrors,
             JSONPath = sensor.JSONPath,
             Headers = sensor.Headers?.Select(h => DataSourceHttpHeaderDTO.FromHeader(h)).ToList(),
+            HealthCheckUuid = sensor.HealthCheckUuid,
             LastSuccessfulBroadcast = sensor.LastSuccessfulBroadcast,
             HasProblem = sensor.HasProblem,
             LastErrorMessage = sensor.LastErrorMessage

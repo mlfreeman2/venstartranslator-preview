@@ -263,13 +263,15 @@ class VenstarTranslatorOptionsFlow(OptionsFlow):
                 else:
                     # Update sensor
                     old_enabled = sensor_config.get("enabled", True)
+                    old_purpose = sensor_config.get("purpose")
                     new_enabled = user_input.get("enabled", True)
+                    new_purpose = user_input["purpose"]
 
                     storage.update_sensor(
                         sensor_id=sensor_id,
                         entity_id=user_input["entity_id"],
                         name=name,
-                        purpose=user_input["purpose"],
+                        purpose=new_purpose,
                         scale=user_input.get("scale", "F"),
                         enabled=new_enabled,
                     )
@@ -281,12 +283,22 @@ class VenstarTranslatorOptionsFlow(OptionsFlow):
                     ]
 
                     if old_enabled and not new_enabled:
-                        # Stop coordinator
+                        # Disabling: stop coordinator
                         if sensor_id in coordinators:
                             await coordinators[sensor_id].stop()
                             del coordinators[sensor_id]
                     elif not old_enabled and new_enabled:
-                        # Start coordinator
+                        # Enabling: start coordinator
+                        coordinator = VenstarSensorCoordinator(
+                            self.hass, self.config_entry.entry_id, sensor_id
+                        )
+                        await coordinator.start()
+                        coordinators[sensor_id] = coordinator
+                    elif new_enabled and old_purpose != new_purpose:
+                        # Purpose changed while enabled: restart to pick up new interval
+                        if sensor_id in coordinators:
+                            await coordinators[sensor_id].stop()
+                            del coordinators[sensor_id]
                         coordinator = VenstarSensorCoordinator(
                             self.hass, self.config_entry.entry_id, sensor_id
                         )
@@ -480,3 +492,8 @@ class VenstarTranslatorOptionsFlow(OptionsFlow):
 
         packet = sensor.build_pairing_packet(temperature)
         await self.hass.async_add_executor_job(broadcast_udp_packet, packet)
+
+        # Reset stored sequence to 1 after pairing (matches C# behavior)
+        storage = self._storage
+        storage.update_sequence(sensor_id, 1)
+        await storage.async_save()

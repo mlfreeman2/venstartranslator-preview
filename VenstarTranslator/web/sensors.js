@@ -11,6 +11,7 @@ let sortDirection = 'asc';
  */
 document.addEventListener('DOMContentLoaded', function() {
   loadSensors();
+  loadSettings();
   setupSortableHeaders();
 });
 
@@ -242,6 +243,7 @@ function addNewSensor() {
   document.getElementById('edit-url').value = '';
   document.getElementById('edit-ignoreSSLErrors').checked = false;
   document.getElementById('edit-jsonPath').value = '';
+  document.getElementById('edit-healthCheckUuid').value = '';
 
   // Clear headers
   document.getElementById('headers-container').innerHTML = '';
@@ -277,6 +279,7 @@ function editSensor(sensorID) {
   document.getElementById('edit-url').value = sensor.url;
   document.getElementById('edit-ignoreSSLErrors').checked = sensor.ignoreSSLErrors;
   document.getElementById('edit-jsonPath').value = sensor.jsonPath;
+  document.getElementById('edit-healthCheckUuid').value = sensor.healthCheckUuid || '';
 
   // Clear and populate headers
   const headersContainer = document.getElementById('headers-container');
@@ -356,6 +359,7 @@ function saveSensor() {
     url: document.getElementById('edit-url').value,
     ignoreSSLErrors: document.getElementById('edit-ignoreSSLErrors').checked,
     jsonPath: document.getElementById('edit-jsonPath').value,
+    healthCheckUuid: document.getElementById('edit-healthCheckUuid').value || null,
     headers: []
   };
 
@@ -594,4 +598,112 @@ function showErrorDetails(sensorID) {
   // Show the modal
   const modal = new bootstrap.Modal(document.getElementById('errorDetailsModal'));
   modal.show();
+}
+
+/**
+ * Load settings from API and update page title
+ */
+function loadSettings() {
+  fetch('/api/settings')
+    .then(response => response.json())
+    .then(data => {
+      applyInstanceName(data.instanceName);
+    })
+    .catch(error => {
+      console.error('Error loading settings:', error);
+    });
+}
+
+/**
+ * Apply instance name to page header and browser tab
+ */
+function applyInstanceName(name) {
+  const subtitle = document.getElementById('instance-name');
+  const defaultName = 'Venstar Sensor Emulator';
+
+  if (name && name !== defaultName) {
+    subtitle.textContent = name;
+    subtitle.style.display = 'block';
+    document.title = name;
+  } else {
+    subtitle.textContent = '';
+    subtitle.style.display = 'none';
+    document.title = defaultName;
+  }
+}
+
+/**
+ * Open the settings modal
+ */
+function openSettings() {
+  fetch('/api/settings')
+    .then(response => response.json())
+    .then(data => {
+      const defaultName = 'Venstar Sensor Emulator';
+      // Show the current DB/config value, but leave blank if it's just the default
+      document.getElementById('settings-instanceName').value =
+        (data.instanceName && data.instanceName !== defaultName) ? data.instanceName : '';
+      document.getElementById('settings-healthChecksBaseUrl').value = data.healthChecksBaseUrl || '';
+      document.getElementById('settings-healthChecksApiKey').value = data.healthChecksApiKey || '';
+
+      const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
+      modal.show();
+    })
+    .catch(error => {
+      console.error('Error loading settings:', error);
+      showResponseModal(
+        '<i class="fas fa-exclamation-triangle text-danger me-2"></i>Failed to load settings',
+        'Error'
+      );
+    });
+}
+
+/**
+ * Save settings from the modal
+ */
+function saveSettings() {
+  const instanceName = document.getElementById('settings-instanceName').value;
+  const healthChecksBaseUrl = document.getElementById('settings-healthChecksBaseUrl').value;
+  const healthChecksApiKey = document.getElementById('settings-healthChecksApiKey').value;
+
+  const saveBtn = document.querySelector('#settingsModal .btn-primary');
+  saveBtn.classList.add('disabled');
+  saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+
+  fetch('/api/settings', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      instanceName: instanceName || null,
+      healthChecksBaseUrl: healthChecksBaseUrl || null,
+      healthChecksApiKey: healthChecksApiKey || null
+    })
+  })
+  .then(response => {
+    if (!response.ok) {
+      return response.json().then(err => Promise.reject(err));
+    }
+    return response.json();
+  })
+  .then(() => {
+    // Close settings modal and reload settings + sensors to update the page
+    bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+    loadSettings();
+    loadSensors();
+    showResponseModal(
+      '<i class="fas fa-check-circle text-success me-2"></i>Settings saved!',
+      'Success'
+    );
+  })
+  .catch(error => {
+    let errorMessage = error.message || 'Unknown error';
+    showResponseModal(
+      '<i class="fas fa-exclamation-triangle text-danger me-2"></i>' + errorMessage,
+      'Error'
+    );
+  })
+  .finally(() => {
+    saveBtn.classList.remove('disabled');
+    saveBtn.innerHTML = 'Save';
+  });
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,7 @@ using Newtonsoft.Json.Linq;
 using VenstarTranslator.Exceptions;
 using VenstarTranslator.Models;
 using VenstarTranslator.Models.Db;
+using VenstarTranslator.Models.Enums;
 using VenstarTranslator.Services;
 
 namespace VenstarTranslator.Controllers;
@@ -29,13 +31,19 @@ public class API : ControllerBase
 
     private readonly IHangfireJobManager _jobManager;
 
-    public API(ILogger<API> logger, VenstarTranslatorDataCache db, IConfiguration config, ISensorOperations sensorOperations, IHangfireJobManager jobManager)
+    private readonly ISettingsService _settingsService;
+
+    private readonly IHealthChecksClient _healthChecksClient;
+
+    public API(ILogger<API> logger, VenstarTranslatorDataCache db, IConfiguration config, ISensorOperations sensorOperations, IHangfireJobManager jobManager, ISettingsService settingsService, IHealthChecksClient healthChecksClient)
     {
         _logger = logger;
         _db = db;
         _config = config;
         _sensorOperations = sensorOperations;
         _jobManager = jobManager;
+        _settingsService = settingsService;
+        _healthChecksClient = healthChecksClient;
     }
 
     [HttpGet]
@@ -129,6 +137,10 @@ public class API : ControllerBase
         // update working db
         var current = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == updatedDTO.SensorID);
 
+        // Capture old state for healthchecks.io management
+        string oldName = current.Name;
+        SensorPurpose oldPurpose = current.Purpose;
+
         // Track if enabled state is changing to reset problem tracking
         bool enabledStateChanged = current.Enabled != updatedDTO.Enabled;
 
@@ -139,6 +151,7 @@ public class API : ControllerBase
         current.JSONPath = updatedDTO.JSONPath;
         current.Scale = updatedDTO.Scale;
         current.IgnoreSSLErrors = updatedDTO.IgnoreSSLErrors;
+        current.HealthCheckUuid = updatedDTO.HealthCheckUuid;
 
         // Clear LastSuccessfulBroadcast when enabled state changes to start fresh
         if (enabledStateChanged)
@@ -166,12 +179,61 @@ public class API : ControllerBase
             _jobManager.RemoveRecurringJob(current.HangfireJobName);
         }
 
+        // healthchecks.io management API side effects
+        var (apiBase, apiKey) = GetManagementApiConfig();
+        if (apiBase != null && !string.IsNullOrEmpty(current.HealthCheckUuid))
+        {
+            var uuid = current.HealthCheckUuid;
+            var instanceName = _settingsService.GetSettings().InstanceName;
+
+            // Pause/unpause when enabled state changed
+            if (enabledStateChanged)
+            {
+                if (current.Enabled)
+                {
+                    _ = Task.Run(() => _healthChecksClient.UnpauseCheckAsync(apiBase, apiKey, uuid));
+                }
+                else
+                {
+                    _ = Task.Run(() => _healthChecksClient.PauseCheckAsync(apiBase, apiKey, uuid));
+                }
+            }
+
+            // Smart rename: only rename if check still has the convention name
+            if (current.Name != oldName)
+            {
+                _ = Task.Run(async () =>
+                {
+                    var expectedOldName = BuildCheckName(instanceName, current.SensorID, oldName);
+                    var actualName = await _healthChecksClient.GetCheckNameAsync(apiBase, apiKey, uuid);
+                    if (actualName == expectedOldName)
+                    {
+                        var newConventionName = BuildCheckName(instanceName, current.SensorID, current.Name);
+                        await _healthChecksClient.RenameCheckAsync(apiBase, apiKey, uuid, newConventionName);
+                    }
+                    else
+                    {
+                        _logger.LogInformation(
+                            "Skipping rename for sensor {SensorID}: check name '{ActualName}' doesn't match convention '{ExpectedName}'",
+                            current.SensorID, actualName, expectedOldName);
+                    }
+                });
+            }
+
+            // Update schedule if purpose changed
+            if (current.Purpose != oldPurpose)
+            {
+                var (timeout, grace) = GetCheckSchedule(current.Purpose);
+                _ = Task.Run(() => _healthChecksClient.UpdateCheckScheduleAsync(apiBase, apiKey, uuid, timeout, grace));
+            }
+        }
+
         return Ok(new MessageResponse { Message = "Successful!" });
     }
 
     [HttpPost]
     [Route("/api/sensors")]
-    public ActionResult AddSensor(SensorJsonDTO sensorDTO)
+    public async Task<ActionResult> AddSensor(SensorJsonDTO sensorDTO)
     {
         byte sensorID = 20;
         for (byte i = 0; i <= 19; i++)
@@ -200,6 +262,31 @@ public class API : ControllerBase
             _jobManager.AddOrUpdateRecurringJob(sensor.HangfireJobName, sensor.CronExpression, sensor.SensorID);
         }
 
+        // Auto-create healthchecks.io check if management API is configured
+        var (apiBase, apiKey) = GetManagementApiConfig();
+        if (apiBase != null && string.IsNullOrEmpty(sensor.HealthCheckUuid))
+        {
+            var instanceName = _settingsService.GetSettings().InstanceName;
+            var checkName = BuildCheckName(instanceName, sensor.SensorID, sensor.Name);
+            var (timeout, grace) = GetCheckSchedule(sensor.Purpose);
+            var uuid = await _healthChecksClient.CreateCheckAsync(apiBase, apiKey, checkName, timeout, grace);
+            if (uuid != null)
+            {
+                sensor.HealthCheckUuid = uuid;
+                _db.SaveChanges();
+                SensorOperations.SyncToJsonFile(_config, _db);
+
+                if (!sensor.Enabled)
+                {
+                    _ = Task.Run(() => _healthChecksClient.PauseCheckAsync(apiBase, apiKey, uuid));
+                }
+            }
+            else
+            {
+                _logger.LogWarning("Failed to create healthchecks.io check for new sensor {SensorID} ({Name})", sensor.SensorID, sensor.Name);
+            }
+        }
+
         return Ok(new MessageResponse { Message = "Successful!" });
     }
 
@@ -213,13 +300,61 @@ public class API : ControllerBase
         }
 
         var sensor = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == id);
+        var uuid = sensor.HealthCheckUuid;
+
         _jobManager.RemoveRecurringJob(sensor.HangfireJobName);
         _db.Sensors.Remove(sensor);
         _db.SaveChanges();
 
         SensorOperations.SyncToJsonFile(_config, _db);
 
+        // Delete the healthchecks.io check
+        var (apiBase, apiKey) = GetManagementApiConfig();
+        if (apiBase != null && !string.IsNullOrEmpty(uuid))
+        {
+            _ = Task.Run(() => _healthChecksClient.DeleteCheckAsync(apiBase, apiKey, uuid));
+        }
+
         return Ok(new MessageResponse { Message = "Successful!" });
+    }
+
+    [HttpGet]
+    [Route("/api/settings")]
+    public ActionResult GetSettings()
+    {
+        const string defaultName = "Venstar Sensor Emulator";
+
+        var settings = _settingsService.GetSettings();
+
+        if (string.IsNullOrWhiteSpace(settings.InstanceName))
+        {
+            settings.InstanceName = defaultName;
+        }
+
+        return new JsonResult(settings);
+    }
+
+    [HttpPut]
+    [Route("/api/settings")]
+    public async Task<ActionResult> UpdateSettings(SettingsDTO settings)
+    {
+        var toSave = new SettingsDTO
+        {
+            InstanceName = string.IsNullOrWhiteSpace(settings.InstanceName) ? null : settings.InstanceName.Trim(),
+            HealthChecksBaseUrl = string.IsNullOrWhiteSpace(settings.HealthChecksBaseUrl) ? null : settings.HealthChecksBaseUrl.Trim(),
+            HealthChecksApiKey = string.IsNullOrWhiteSpace(settings.HealthChecksApiKey) ? null : settings.HealthChecksApiKey.Trim()
+        };
+
+        _settingsService.SaveSettings(toSave);
+
+        // Backfill checks for sensors without UUIDs when API key is configured
+        if (!string.IsNullOrWhiteSpace(toSave.HealthChecksApiKey) && !string.IsNullOrWhiteSpace(toSave.HealthChecksBaseUrl))
+        {
+            var apiBase = HealthChecksClient.GetManagementApiBaseUrl(toSave.HealthChecksBaseUrl);
+            await BackfillHealthChecksAsync(apiBase, toSave.HealthChecksApiKey, toSave.InstanceName);
+        }
+
+        return Ok(new MessageResponse { Message = "Settings saved." });
     }
 
     [HttpPost]
@@ -293,5 +428,68 @@ public class API : ControllerBase
         {
             return StatusCode(500, new MessageResponse { Message = $"Unexpected error: {e.Message}" });
         }
+    }
+
+    private (string apiBaseUrl, string apiKey) GetManagementApiConfig()
+    {
+        var settings = _settingsService.GetSettings();
+        if (string.IsNullOrWhiteSpace(settings.HealthChecksApiKey))
+        {
+            return (null, null);
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.HealthChecksBaseUrl))
+        {
+            return (null, null);
+        }
+
+        var apiBase = HealthChecksClient.GetManagementApiBaseUrl(settings.HealthChecksBaseUrl);
+        return (apiBase, settings.HealthChecksApiKey);
+    }
+
+    private async Task BackfillHealthChecksAsync(string apiBaseUrl, string apiKey, string instanceName)
+    {
+        var sensorsWithoutUuid = _db.Sensors.Where(s => s.HealthCheckUuid == null || s.HealthCheckUuid == "").ToList();
+        foreach (var sensor in sensorsWithoutUuid)
+        {
+            var name = BuildCheckName(instanceName, sensor.SensorID, sensor.Name);
+            var (timeout, grace) = GetCheckSchedule(sensor.Purpose);
+            var uuid = await _healthChecksClient.CreateCheckAsync(apiBaseUrl, apiKey, name, timeout, grace);
+            if (uuid != null)
+            {
+                sensor.HealthCheckUuid = uuid;
+                _db.SaveChanges();
+                SensorOperations.SyncToJsonFile(_config, _db);
+                _logger.LogInformation(
+                    "Created healthchecks.io check for sensor {SensorID} ({Name}): {Uuid}",
+                    sensor.SensorID, sensor.Name, uuid);
+
+                if (!sensor.Enabled)
+                {
+                    _ = Task.Run(() => _healthChecksClient.PauseCheckAsync(apiBaseUrl, apiKey, uuid));
+                }
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Failed to create healthchecks.io check for sensor {SensorID} ({Name}). Will retry on next startup or settings save.",
+                    sensor.SensorID, sensor.Name);
+            }
+        }
+    }
+
+    private static string BuildCheckName(string instanceName, byte sensorID, string sensorName)
+    {
+        if (!string.IsNullOrWhiteSpace(instanceName))
+        {
+            return $"Venstar Translator - {instanceName} - [{sensorID}] {sensorName}";
+        }
+
+        return $"Venstar Translator - [{sensorID}] {sensorName}";
+    }
+
+    private static (int timeout, int grace) GetCheckSchedule(SensorPurpose purpose)
+    {
+        return purpose == SensorPurpose.Outdoor ? (300, 1200) : (60, 300);
     }
 }

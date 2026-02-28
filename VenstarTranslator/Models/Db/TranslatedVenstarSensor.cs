@@ -72,6 +72,8 @@ public class TranslatedVenstarSensor
     [ValidHttpHeaders]
     public List<DataSourceHttpHeader> Headers { get; set; }
 
+    public string HealthCheckUuid { get; set; }
+
     public DateTime? LastSuccessfulBroadcast { get; set; }
 
     public string LastErrorMessage { get; set; }

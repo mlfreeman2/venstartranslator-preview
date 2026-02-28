@@ -62,3 +62,17 @@
 //   - Each header requires Name and Value
 //   - Header names and values cannot be empty or whitespace
 //   - No duplicate header names allowed
+//
+// HealthCheckUuid (optional):
+//   - UUID of the healthchecks.io check for this sensor
+//   - Requires the Healthchecks.io Base URL to be configured in the web UI Settings
+//   - On successful data fetch: sends GET to {baseUrl}/{uuid}
+//   - On failed data fetch: sends POST to {baseUrl}/{uuid}/fail with error details
+//   - Omit or set to null to disable healthchecks.io integration for this sensor
+//   - Note: disabling a sensor stops all pings. Pause the check on healthchecks.io
+//     or set a generous grace period to avoid false alerts when a sensor is disabled.
+//
+// Global Settings:
+//   A settings.json file is auto-created in the same directory as sensors.json
+//   when you save settings via the web UI. It stores global configuration like
+//   Instance Name and Healthchecks.io Base URL.

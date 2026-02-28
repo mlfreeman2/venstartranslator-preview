@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -22,6 +23,7 @@ public class APIControllerTests : IDisposable
     private readonly Mock<IUdpBroadcaster> _mockUdpBroadcaster;
     private readonly ISensorOperations _sensorOps;
     private readonly Mock<IHangfireJobManager> _mockJobManager;
+    private readonly Mock<IHealthChecksClient> _mockHealthChecksClient;
     private readonly API _controller;
 
     public APIControllerTests()
@@ -37,6 +39,7 @@ public class APIControllerTests : IDisposable
         _mockDocumentFetcher = new Mock<IHttpDocumentFetcher>();
         _mockUdpBroadcaster = new Mock<IUdpBroadcaster>();
         _mockJobManager = new Mock<IHangfireJobManager>();
+        _mockHealthChecksClient = new Mock<IHealthChecksClient>();
 
         // Use real SensorOperations with mocked dependencies
         _sensorOps = new SensorOperations(_mockDocumentFetcher.Object, _mockUdpBroadcaster.Object);
@@ -51,7 +54,9 @@ public class APIControllerTests : IDisposable
             .Build();
 
         // Create controller
-        _controller = new API(_mockLogger.Object, _db, _config, _sensorOps, _mockJobManager.Object);
+        var mockSettingsService = new Mock<ISettingsService>();
+        mockSettingsService.Setup(s => s.GetSettings()).Returns(new Models.SettingsDTO());
+        _controller = new API(_mockLogger.Object, _db, _config, _sensorOps, _mockJobManager.Object, mockSettingsService.Object, _mockHealthChecksClient.Object);
     }
 
     public void Dispose()
@@ -243,13 +248,13 @@ public class APIControllerTests : IDisposable
     #region AddSensor Tests
 
     [Fact]
-    public void AddSensor_ValidSensor_ReturnsSuccess()
+    public async Task AddSensor_ValidSensor_ReturnsSuccess()
     {
         // Arrange
         var sensorDTO = CreateTestSensorDTO(name: "New Sensor");
 
         // Act
-        var result = _controller.AddSensor(sensorDTO);
+        var result = await _controller.AddSensor(sensorDTO);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result);
@@ -262,7 +267,7 @@ public class APIControllerTests : IDisposable
     }
 
     [Fact]
-    public void AddSensor_NoAvailableIDs_Returns400()
+    public async Task AddSensor_NoAvailableIDs_Returns400()
     {
         // Arrange - fill all 20 sensor slots
         for (byte i = 0; i < 20; i++)
@@ -274,7 +279,7 @@ public class APIControllerTests : IDisposable
         var newSensorDTO = CreateTestSensorDTO(name: "Overflow Sensor");
 
         // Act
-        var result = _controller.AddSensor(newSensorDTO);
+        var result = await _controller.AddSensor(newSensorDTO);
 
         // Assert
         var statusCodeResult = Assert.IsType<ObjectResult>(result);
@@ -284,7 +289,7 @@ public class APIControllerTests : IDisposable
     }
 
     [Fact]
-    public void AddSensor_AssignsLowestAvailableID()
+    public async Task AddSensor_AssignsLowestAvailableID()
     {
         // Arrange - add sensors with IDs 0, 1, 3 (skip 2)
         _db.Sensors.Add(CreateTestSensor(0, "Sensor 0"));
@@ -295,7 +300,7 @@ public class APIControllerTests : IDisposable
         var newSensorDTO = CreateTestSensorDTO(name: "New Sensor");
 
         // Act
-        _controller.AddSensor(newSensorDTO);
+        await _controller.AddSensor(newSensorDTO);
 
         // Assert - should get ID 2
         var addedSensor = _db.Sensors.FirstOrDefault(s => s.Name == "New Sensor");
@@ -304,13 +309,13 @@ public class APIControllerTests : IDisposable
     }
 
     [Fact]
-    public void AddSensor_InitializesLastSuccessfulBroadcastAsNull()
+    public async Task AddSensor_InitializesLastSuccessfulBroadcastAsNull()
     {
         // Arrange
         var sensorDTO = CreateTestSensorDTO(name: "New Sensor");
 
         // Act
-        _controller.AddSensor(sensorDTO);
+        await _controller.AddSensor(sensorDTO);
 
         // Assert
         var addedSensor = _db.Sensors.FirstOrDefault(s => s.Name == "New Sensor");
