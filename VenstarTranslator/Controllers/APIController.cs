@@ -338,6 +338,9 @@ public class API : ControllerBase
     [Route("/api/settings")]
     public async Task<ActionResult> UpdateSettings(SettingsDTO settings)
     {
+        var oldSettings = _settingsService.GetSettings();
+        var oldInstanceName = oldSettings.InstanceName;
+
         var toSave = new SettingsDTO
         {
             InstanceName = string.IsNullOrWhiteSpace(settings.InstanceName) ? null : settings.InstanceName.Trim(),
@@ -352,6 +355,12 @@ public class API : ControllerBase
         {
             var apiBase = HealthChecksClient.GetManagementApiBaseUrl(toSave.HealthChecksBaseUrl);
             await BackfillHealthChecksAsync(apiBase, toSave.HealthChecksApiKey, toSave.InstanceName);
+
+            // Rename existing checks if instance name changed
+            if (oldInstanceName != toSave.InstanceName)
+            {
+                await RenameChecksForInstanceNameChangeAsync(apiBase, toSave.HealthChecksApiKey, oldInstanceName, toSave.InstanceName);
+            }
         }
 
         return Ok(new MessageResponse { Message = "Settings saved." });
@@ -445,6 +454,30 @@ public class API : ControllerBase
 
         var apiBase = HealthChecksClient.GetManagementApiBaseUrl(settings.HealthChecksBaseUrl);
         return (apiBase, settings.HealthChecksApiKey);
+    }
+
+    private async Task RenameChecksForInstanceNameChangeAsync(string apiBaseUrl, string apiKey, string oldInstanceName, string newInstanceName)
+    {
+        var sensorsWithUuid = _db.Sensors.Where(s => s.HealthCheckUuid != null && s.HealthCheckUuid != "").ToList();
+        foreach (var sensor in sensorsWithUuid)
+        {
+            var expectedOldName = BuildCheckName(oldInstanceName, sensor.SensorID, sensor.Name);
+            var actualName = await _healthChecksClient.GetCheckNameAsync(apiBaseUrl, apiKey, sensor.HealthCheckUuid);
+            if (actualName == expectedOldName)
+            {
+                var newConventionName = BuildCheckName(newInstanceName, sensor.SensorID, sensor.Name);
+                await _healthChecksClient.RenameCheckAsync(apiBaseUrl, apiKey, sensor.HealthCheckUuid, newConventionName);
+                _logger.LogInformation(
+                    "Renamed healthchecks.io check for sensor {SensorID} ({Name}): '{OldName}' -> '{NewName}'",
+                    sensor.SensorID, sensor.Name, expectedOldName, newConventionName);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Skipping instance name rename for sensor {SensorID}: check name '{ActualName}' doesn't match convention '{ExpectedName}'",
+                    sensor.SensorID, actualName, expectedOldName);
+            }
+        }
     }
 
     private async Task BackfillHealthChecksAsync(string apiBaseUrl, string apiKey, string instanceName)
