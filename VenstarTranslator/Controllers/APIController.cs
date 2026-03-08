@@ -134,6 +134,12 @@ public class API : ControllerBase
             return StatusCode(404, new MessageResponse { Message = "Sensor not found." });
         }
 
+        if (!string.IsNullOrWhiteSpace(updatedDTO.HealthCheckUuid) &&
+            HealthChecksClient.GetPingBaseUrl(_settingsService.GetSettings()) == null)
+        {
+            return StatusCode(400, new MessageResponse { Message = "Healthchecks.io must be configured in Settings before assigning a Check UUID." });
+        }
+
         // update working db
         var current = _db.Sensors.Include(a => a.Headers).Single(a => a.SensorID == updatedDTO.SensorID);
 
@@ -199,25 +205,11 @@ public class API : ControllerBase
                 }
             }
 
-            // Smart rename: only rename if check still has the convention name
+            // Rename check to match convention
             if (current.Name != oldName)
             {
-                _ = Task.Run(async () =>
-                {
-                    var expectedOldName = BuildCheckName(instanceName, current.SensorID, oldName);
-                    var actualName = await _healthChecksClient.GetCheckNameAsync(apiBase, apiKey, uuid);
-                    if (actualName == expectedOldName)
-                    {
-                        var newConventionName = BuildCheckName(instanceName, current.SensorID, current.Name);
-                        await _healthChecksClient.RenameCheckAsync(apiBase, apiKey, uuid, newConventionName);
-                    }
-                    else
-                    {
-                        _logger.LogInformation(
-                            "Skipping rename for sensor {SensorID}: check name '{ActualName}' doesn't match convention '{ExpectedName}'",
-                            current.SensorID, actualName, expectedOldName);
-                    }
-                });
+                var newConventionName = BuildCheckName(instanceName, current.SensorID, current.Name);
+                _ = Task.Run(() => _healthChecksClient.RenameCheckAsync(apiBase, apiKey, uuid, newConventionName));
             }
 
             // Update schedule if purpose changed
@@ -248,6 +240,12 @@ public class API : ControllerBase
         if (sensorID > 19)
         {
             return StatusCode(400, new MessageResponse { Message = "No sensor IDs available. Delete some sensors first." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(sensorDTO.HealthCheckUuid) &&
+            HealthChecksClient.GetPingBaseUrl(_settingsService.GetSettings()) == null)
+        {
+            return StatusCode(400, new MessageResponse { Message = "Healthchecks.io must be configured in Settings before assigning a Check UUID." });
         }
 
         sensorDTO.SensorID = sensorID;
@@ -339,27 +337,38 @@ public class API : ControllerBase
     public async Task<ActionResult> UpdateSettings(SettingsDTO settings)
     {
         var oldSettings = _settingsService.GetSettings();
-        var oldInstanceName = oldSettings.InstanceName;
 
+        var mode = string.IsNullOrWhiteSpace(settings.HealthChecksMode) ? "none" : settings.HealthChecksMode.Trim().ToLowerInvariant();
         var toSave = new SettingsDTO
         {
             InstanceName = string.IsNullOrWhiteSpace(settings.InstanceName) ? null : settings.InstanceName.Trim(),
-            HealthChecksBaseUrl = string.IsNullOrWhiteSpace(settings.HealthChecksBaseUrl) ? null : settings.HealthChecksBaseUrl.Trim(),
+            HealthChecksMode = mode,
+            HealthChecksSelfHostedUrl = string.IsNullOrWhiteSpace(settings.HealthChecksSelfHostedUrl) ? null : settings.HealthChecksSelfHostedUrl.Trim(),
             HealthChecksApiKey = string.IsNullOrWhiteSpace(settings.HealthChecksApiKey) ? null : settings.HealthChecksApiKey.Trim()
         };
+
+        if (mode == "selfhosted" && string.IsNullOrWhiteSpace(toSave.HealthChecksSelfHostedUrl))
+        {
+            return StatusCode(400, new MessageResponse { Message = "Self-Hosted URL is required when Self-Hosted mode is selected." });
+        }
+
+        if (mode != "none" && !string.IsNullOrWhiteSpace(toSave.HealthChecksApiKey) && string.IsNullOrWhiteSpace(toSave.InstanceName))
+        {
+            return StatusCode(400, new MessageResponse { Message = "Instance Name is required when a Healthchecks.io API Key is provided." });
+        }
 
         _settingsService.SaveSettings(toSave);
 
         // Backfill checks for sensors without UUIDs when API key is configured
-        if (!string.IsNullOrWhiteSpace(toSave.HealthChecksApiKey) && !string.IsNullOrWhiteSpace(toSave.HealthChecksBaseUrl))
+        var apiBase = HealthChecksClient.GetApiBaseUrl(toSave);
+        if (apiBase != null && !string.IsNullOrWhiteSpace(toSave.HealthChecksApiKey))
         {
-            var apiBase = HealthChecksClient.GetManagementApiBaseUrl(toSave.HealthChecksBaseUrl);
             await BackfillHealthChecksAsync(apiBase, toSave.HealthChecksApiKey, toSave.InstanceName);
 
             // Rename existing checks if instance name changed
-            if (oldInstanceName != toSave.InstanceName)
+            if (oldSettings.InstanceName != toSave.InstanceName)
             {
-                await RenameChecksForInstanceNameChangeAsync(apiBase, toSave.HealthChecksApiKey, oldInstanceName, toSave.InstanceName);
+                await RenameChecksForInstanceNameChangeAsync(apiBase, toSave.HealthChecksApiKey, toSave.InstanceName);
             }
         }
 
@@ -447,38 +456,27 @@ public class API : ControllerBase
             return (null, null);
         }
 
-        if (string.IsNullOrWhiteSpace(settings.HealthChecksBaseUrl))
+        var apiBase = HealthChecksClient.GetApiBaseUrl(settings);
+        if (apiBase == null)
         {
             return (null, null);
         }
 
-        var apiBase = HealthChecksClient.GetManagementApiBaseUrl(settings.HealthChecksBaseUrl);
         return (apiBase, settings.HealthChecksApiKey);
     }
 
-    private async Task RenameChecksForInstanceNameChangeAsync(string apiBaseUrl, string apiKey, string oldInstanceName, string newInstanceName)
+    private async Task RenameChecksForInstanceNameChangeAsync(string apiBaseUrl, string apiKey, string newInstanceName)
     {
         var sensorsWithUuid = _db.Sensors.Where(s => s.HealthCheckUuid != null && s.HealthCheckUuid != "").ToList();
         foreach (var sensor in sensorsWithUuid)
         {
-            var expectedOldName = BuildCheckName(oldInstanceName, sensor.SensorID, sensor.Name);
-            var actualName = await _healthChecksClient.GetCheckNameAsync(apiBaseUrl, apiKey, sensor.HealthCheckUuid);
-            if (actualName == expectedOldName)
-            {
-                var newConventionName = BuildCheckName(newInstanceName, sensor.SensorID, sensor.Name);
-                var renamed = await _healthChecksClient.RenameCheckAsync(apiBaseUrl, apiKey, sensor.HealthCheckUuid, newConventionName);
-                if (renamed)
-                {
-                    _logger.LogInformation(
-                        "Renamed healthchecks.io check for sensor {SensorID} ({Name}): '{OldName}' -> '{NewName}'",
-                        sensor.SensorID, sensor.Name, expectedOldName, newConventionName);
-                }
-            }
-            else
+            var newConventionName = BuildCheckName(newInstanceName, sensor.SensorID, sensor.Name);
+            var renamed = await _healthChecksClient.RenameCheckAsync(apiBaseUrl, apiKey, sensor.HealthCheckUuid, newConventionName);
+            if (renamed)
             {
                 _logger.LogInformation(
-                    "Skipping instance name rename for sensor {SensorID}: check name '{ActualName}' doesn't match convention '{ExpectedName}'",
-                    sensor.SensorID, actualName, expectedOldName);
+                    "Renamed healthchecks.io check for sensor {SensorID} ({Name}) to '{NewName}'",
+                    sensor.SensorID, sensor.Name, newConventionName);
             }
         }
     }

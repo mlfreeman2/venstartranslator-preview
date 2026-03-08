@@ -643,8 +643,16 @@ function openSettings() {
       // Show the current DB/config value, but leave blank if it's just the default
       document.getElementById('settings-instanceName').value =
         (data.instanceName && data.instanceName !== defaultName) ? data.instanceName : '';
-      document.getElementById('settings-healthChecksBaseUrl').value = data.healthChecksBaseUrl || '';
+
+      // Set the radio button for healthchecks mode
+      const mode = data.healthChecksMode || 'none';
+      const radio = document.querySelector(`input[name="healthChecksMode"][value="${mode}"]`);
+      if (radio) radio.checked = true;
+
+      document.getElementById('settings-selfHostedUrl').value = data.healthChecksSelfHostedUrl || '';
       document.getElementById('settings-healthChecksApiKey').value = data.healthChecksApiKey || '';
+
+      toggleHealthChecksMode();
 
       const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
       modal.show();
@@ -659,12 +667,38 @@ function openSettings() {
 }
 
 /**
+ * Show/hide conditional fields based on healthchecks mode radio selection
+ */
+function toggleHealthChecksMode() {
+  const mode = document.querySelector('input[name="healthChecksMode"]:checked')?.value || 'none';
+  document.getElementById('selfhosted-url-group').style.display = mode === 'selfhosted' ? '' : 'none';
+  document.getElementById('api-key-group').style.display = mode !== 'none' ? '' : 'none';
+}
+
+/**
  * Save settings from the modal
  */
 function saveSettings() {
   const instanceName = document.getElementById('settings-instanceName').value;
-  const healthChecksBaseUrl = document.getElementById('settings-healthChecksBaseUrl').value;
+  const mode = document.querySelector('input[name="healthChecksMode"]:checked')?.value || 'none';
+  const selfHostedUrl = document.getElementById('settings-selfHostedUrl').value;
   const healthChecksApiKey = document.getElementById('settings-healthChecksApiKey').value;
+
+  if (mode === 'selfhosted' && !selfHostedUrl.trim()) {
+    showResponseModal(
+      '<i class="fas fa-exclamation-triangle text-warning me-2"></i>Self-Hosted URL is required when Self-Hosted mode is selected.',
+      'Validation Error'
+    );
+    return;
+  }
+
+  if (mode !== 'none' && healthChecksApiKey && !instanceName.trim()) {
+    showResponseModal(
+      '<i class="fas fa-exclamation-triangle text-warning me-2"></i>Instance Name is required when a Healthchecks.io API Key is provided.',
+      'Validation Error'
+    );
+    return;
+  }
 
   const saveBtn = document.querySelector('#settingsModal .btn-primary');
   saveBtn.classList.add('disabled');
@@ -675,8 +709,9 @@ function saveSettings() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       instanceName: instanceName || null,
-      healthChecksBaseUrl: healthChecksBaseUrl || null,
-      healthChecksApiKey: healthChecksApiKey || null
+      healthChecksMode: mode,
+      healthChecksSelfHostedUrl: mode === 'selfhosted' ? (selfHostedUrl || null) : null,
+      healthChecksApiKey: mode !== 'none' ? (healthChecksApiKey || null) : null
     })
   })
   .then(response => {

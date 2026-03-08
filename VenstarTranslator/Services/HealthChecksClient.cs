@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
+using VenstarTranslator.Models;
 
 namespace VenstarTranslator.Services;
 
@@ -87,24 +88,6 @@ public class HealthChecksClient : IHealthChecksClient
         }
     }
 
-    public async Task<string> GetCheckNameAsync(string apiBaseUrl, string apiKey, string uuid)
-    {
-        try
-        {
-            var response = await SendManagementRequestAsync(
-                HttpMethod.Get, $"{apiBaseUrl}/checks/{uuid}", apiKey);
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync();
-            return JObject.Parse(json)["name"]?.Value<string>();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to get healthchecks.io check name for UUID '{Uuid}'", uuid);
-            return null;
-        }
-    }
-
     public async Task<bool> RenameCheckAsync(string apiBaseUrl, string apiKey, string uuid, string newName)
     {
         try
@@ -179,19 +162,44 @@ public class HealthChecksClient : IHealthChecksClient
         }
     }
 
-    /// <summary>
-    /// Derive the management API base URL from the healthchecks.io ping base URL.
-    /// Extracts scheme+host+port and appends /api/v3.
-    /// Example: "http://healthchecks:8000/ping" → "http://healthchecks:8000/api/v3"
-    /// </summary>
-    internal static string GetManagementApiBaseUrl(string healthChecksBaseUrl)
-    {
-        if (string.IsNullOrWhiteSpace(healthChecksBaseUrl))
-        {
-            return null;
-        }
+    private const string SaasPingBaseUrl = "https://hc-ping.com";
+    private const string SaasApiBaseUrl = "https://healthchecks.io/api/v3";
 
-        var uri = new Uri(healthChecksBaseUrl);
+    /// <summary>
+    /// Get the ping base URL based on the healthchecks mode.
+    /// Returns null if mode is "none" or not configured.
+    /// </summary>
+    internal static string GetPingBaseUrl(SettingsDTO settings)
+    {
+        return settings?.HealthChecksMode switch
+        {
+            "saas" => SaasPingBaseUrl,
+            "selfhosted" when !string.IsNullOrWhiteSpace(settings.HealthChecksSelfHostedUrl)
+                => settings.HealthChecksSelfHostedUrl.TrimEnd('/'),
+            _ => null
+        };
+    }
+
+    /// <summary>
+    /// Get the management API base URL based on the healthchecks mode.
+    /// For SaaS, returns the healthchecks.io API URL.
+    /// For self-hosted, derives from the self-hosted URL (scheme+host+port + /api/v3).
+    /// Returns null if mode is "none" or not configured.
+    /// </summary>
+    internal static string GetApiBaseUrl(SettingsDTO settings)
+    {
+        return settings?.HealthChecksMode switch
+        {
+            "saas" => SaasApiBaseUrl,
+            "selfhosted" when !string.IsNullOrWhiteSpace(settings.HealthChecksSelfHostedUrl)
+                => DeriveApiBaseUrl(settings.HealthChecksSelfHostedUrl),
+            _ => null
+        };
+    }
+
+    private static string DeriveApiBaseUrl(string selfHostedUrl)
+    {
+        var uri = new Uri(selfHostedUrl);
         var port = uri.IsDefaultPort ? "" : $":{uri.Port}";
         return $"{uri.Scheme}://{uri.Host}{port}/api/v3";
     }

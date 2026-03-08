@@ -52,14 +52,14 @@ public class BroadcastTrackingFilterAttribute : JobFilterAttribute, IServerFilte
             return;
         }
 
-        // Build the healthchecks.io ping URL from global base URL + per-sensor UUID
+        // Build the healthchecks.io ping URL from settings mode + per-sensor UUID
         string healthCheckPingUrl = null;
         if (!string.IsNullOrWhiteSpace(sensor.HealthCheckUuid))
         {
-            var baseUrl = settingsService.GetSettings().HealthChecksBaseUrl;
-            if (!string.IsNullOrWhiteSpace(baseUrl))
+            var pingBaseUrl = HealthChecksClient.GetPingBaseUrl(settingsService.GetSettings());
+            if (pingBaseUrl != null)
             {
-                healthCheckPingUrl = $"{baseUrl.TrimEnd('/')}/ping/{sensor.HealthCheckUuid}";
+                healthCheckPingUrl = $"{pingBaseUrl}/ping/{sensor.HealthCheckUuid}";
             }
         }
 

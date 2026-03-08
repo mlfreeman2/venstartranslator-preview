@@ -4,6 +4,7 @@ using System.IO;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using VenstarTranslator.Models;
 
 namespace VenstarTranslator.Services;
@@ -37,7 +38,32 @@ public class SettingsService : ISettingsService
                 return new SettingsDTO();
             }
 
-            return JsonConvert.DeserializeObject<SettingsDTO>(json) ?? new SettingsDTO();
+            var settings = JsonConvert.DeserializeObject<SettingsDTO>(json) ?? new SettingsDTO();
+
+            // Migrate from old HealthChecksBaseUrl field if present
+            if (settings.HealthChecksMode == null)
+            {
+                var raw = JObject.Parse(json);
+                var oldBaseUrl = raw["healthChecksBaseUrl"]?.Value<string>();
+                if (!string.IsNullOrWhiteSpace(oldBaseUrl))
+                {
+                    if (oldBaseUrl.Contains("hc-ping.com", StringComparison.OrdinalIgnoreCase))
+                    {
+                        settings.HealthChecksMode = "saas";
+                    }
+                    else
+                    {
+                        settings.HealthChecksMode = "selfhosted";
+                        settings.HealthChecksSelfHostedUrl = oldBaseUrl;
+                    }
+                }
+                else
+                {
+                    settings.HealthChecksMode = "none";
+                }
+            }
+
+            return settings;
         }
         catch (Exception ex)
         {

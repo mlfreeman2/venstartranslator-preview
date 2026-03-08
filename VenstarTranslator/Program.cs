@@ -128,42 +128,47 @@ using (var scope = app.Services.CreateScope())
             var settingsService = scope.ServiceProvider.GetRequiredService<ISettingsService>();
             var healthChecksClient = scope.ServiceProvider.GetRequiredService<IHealthChecksClient>();
             var startupSettings = settingsService.GetSettings();
-            if (!string.IsNullOrWhiteSpace(startupSettings.HealthChecksApiKey) &&
-                !string.IsNullOrWhiteSpace(startupSettings.HealthChecksBaseUrl))
+            var apiBase = HealthChecksClient.GetApiBaseUrl(startupSettings);
+            if (apiBase != null && !string.IsNullOrWhiteSpace(startupSettings.HealthChecksApiKey))
             {
-                var apiBase = HealthChecksClient.GetManagementApiBaseUrl(startupSettings.HealthChecksBaseUrl);
-                var sensorsWithoutUuid = dbContext.Sensors
-                    .Where(s => s.HealthCheckUuid == null || s.HealthCheckUuid == "")
-                    .ToList();
-
-                foreach (var sensor in sensorsWithoutUuid)
+                if (string.IsNullOrWhiteSpace(startupSettings.InstanceName))
                 {
-                    string checkName = !string.IsNullOrWhiteSpace(startupSettings.InstanceName)
-                        ? $"Venstar Translator - {startupSettings.InstanceName} - [{sensor.SensorID}] {sensor.Name}"
-                        : $"Venstar Translator - [{sensor.SensorID}] {sensor.Name}";
-                    int timeout = sensor.Purpose == VenstarTranslator.Models.Enums.SensorPurpose.Outdoor ? 300 : 60;
-                    int grace = sensor.Purpose == VenstarTranslator.Models.Enums.SensorPurpose.Outdoor ? 1200 : 300;
+                    app.Logger.LogWarning("Healthchecks.io API key is configured but Instance Name is blank. "
+                        + "Skipping healthcheck backfill. Set an Instance Name in Settings to enable healthcheck management.");
+                }
+                else
+                {
+                    var sensorsWithoutUuid = dbContext.Sensors
+                        .Where(s => s.HealthCheckUuid == null || s.HealthCheckUuid == "")
+                        .ToList();
 
-                    var uuid = healthChecksClient.CreateCheckAsync(apiBase, startupSettings.HealthChecksApiKey, checkName, timeout, grace)
-                        .GetAwaiter().GetResult();
-
-                    if (uuid != null)
+                    foreach (var sensor in sensorsWithoutUuid)
                     {
-                        sensor.HealthCheckUuid = uuid;
-                        dbContext.SaveChanges();
+                        string checkName = $"Venstar Translator - {startupSettings.InstanceName} - [{sensor.SensorID}] {sensor.Name}";
+                        int timeout = sensor.Purpose == VenstarTranslator.Models.Enums.SensorPurpose.Outdoor ? 300 : 60;
+                        int grace = sensor.Purpose == VenstarTranslator.Models.Enums.SensorPurpose.Outdoor ? 1200 : 300;
 
-                        if (!sensor.Enabled)
+                        var uuid = healthChecksClient.CreateCheckAsync(apiBase, startupSettings.HealthChecksApiKey, checkName, timeout, grace)
+                            .GetAwaiter().GetResult();
+
+                        if (uuid != null)
                         {
-                            healthChecksClient.PauseCheckAsync(apiBase, startupSettings.HealthChecksApiKey, uuid)
-                                .GetAwaiter().GetResult();
+                            sensor.HealthCheckUuid = uuid;
+                            dbContext.SaveChanges();
+
+                            if (!sensor.Enabled)
+                            {
+                                healthChecksClient.PauseCheckAsync(apiBase, startupSettings.HealthChecksApiKey, uuid)
+                                    .GetAwaiter().GetResult();
+                            }
                         }
                     }
-                }
 
-                // Sync to JSON once after all backfill
-                if (sensorsWithoutUuid.Any(s => !string.IsNullOrEmpty(s.HealthCheckUuid)))
-                {
-                    SensorOperations.SyncToJsonFile(config, dbContext);
+                    // Sync to JSON once after all backfill
+                    if (sensorsWithoutUuid.Any(s => !string.IsNullOrEmpty(s.HealthCheckUuid)))
+                    {
+                        SensorOperations.SyncToJsonFile(config, dbContext);
+                    }
                 }
             }
         }

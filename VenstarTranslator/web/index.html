@@ -216,17 +216,35 @@
             <div class="mb-3">
               <label for="settings-instanceName" class="form-label">Instance Name</label>
               <input type="text" id="settings-instanceName" class="form-control" placeholder="Venstar Sensor Emulator">
-              <div class="form-text">A name to identify this instance. Shown in the page header and browser tab. Leave blank to use the default or value from appsettings.json.</div>
+              <div class="form-text">A name to identify this instance. Shown in the page header and browser tab. Required when a management API key is configured. Leave blank to use the default or value from appsettings.json.</div>
             </div>
             <div class="mb-3">
-              <label for="settings-healthChecksBaseUrl" class="form-label">Healthchecks.io Base URL <small class="text-muted">(optional)</small></label>
-              <input type="url" id="settings-healthChecksBaseUrl" class="form-control" placeholder="https://hc-ping.com">
-              <div class="form-text">The base URL for healthchecks.io pings. Required for health check monitoring to work. Per-sensor UUIDs are configured in each sensor's settings.</div>
+              <label class="form-label">Healthchecks.io Integration</label>
+              <div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="healthChecksMode" id="hc-mode-none" value="none" checked onchange="toggleHealthChecksMode()">
+                  <label class="form-check-label" for="hc-mode-none">None</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="healthChecksMode" id="hc-mode-saas" value="saas" onchange="toggleHealthChecksMode()">
+                  <label class="form-check-label" for="hc-mode-saas">SaaS (healthchecks.io)</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="healthChecksMode" id="hc-mode-selfhosted" value="selfhosted" onchange="toggleHealthChecksMode()">
+                  <label class="form-check-label" for="hc-mode-selfhosted">Self-Hosted</label>
+                </div>
+              </div>
+              <div class="form-text">Choose how to integrate with healthchecks.io for sensor broadcast monitoring.</div>
             </div>
-            <div class="mb-3">
-              <label for="settings-healthChecksApiKey" class="form-label">Healthchecks.io API Key <small class="text-muted">(optional)</small></label>
+            <div class="mb-3" id="selfhosted-url-group" style="display: none;">
+              <label for="settings-selfHostedUrl" class="form-label">Self-Hosted URL</label>
+              <input type="url" id="settings-selfHostedUrl" class="form-control" placeholder="http://healthchecks:8000">
+              <div class="form-text">Base URL of your self-hosted healthchecks instance (e.g., http://healthchecks:8000).</div>
+            </div>
+            <div class="mb-3" id="api-key-group" style="display: none;">
+              <label for="settings-healthChecksApiKey" class="form-label">Management API Key <small class="text-muted">(optional)</small></label>
               <input type="password" id="settings-healthChecksApiKey" class="form-control" placeholder="Your management API key">
-              <div class="form-text">Management API key for your healthchecks.io instance. When set, checks are auto-created, renamed, paused/unpaused, and deleted alongside sensors.</div>
+              <div class="form-text">When set, checks are auto-created, renamed, paused/unpaused, and deleted alongside sensors. Requires Instance Name.</div>
             </div>
           </form>
         </div>
