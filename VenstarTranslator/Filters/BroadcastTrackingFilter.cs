@@ -53,15 +53,7 @@ public class BroadcastTrackingFilterAttribute : JobFilterAttribute, IServerFilte
         }
 
         // Build the healthchecks.io ping URL from settings mode + per-sensor UUID
-        string healthCheckPingUrl = null;
-        if (!string.IsNullOrWhiteSpace(sensor.HealthCheckUuid))
-        {
-            var pingBaseUrl = HealthChecksClient.GetPingBaseUrl(settingsService.GetSettings());
-            if (pingBaseUrl != null)
-            {
-                healthCheckPingUrl = $"{pingBaseUrl}/ping/{sensor.HealthCheckUuid}";
-            }
-        }
+        var healthCheckPingUrl = HealthChecksClient.GetPingUrl(settingsService.GetSettings(), sensor.HealthCheckUuid);
 
         if (context.Exception == null)
         {

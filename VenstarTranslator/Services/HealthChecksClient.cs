@@ -181,6 +181,28 @@ public class HealthChecksClient : IHealthChecksClient
     }
 
     /// <summary>
+    /// Build the full ping URL for a check based on the healthchecks mode.
+    /// SaaS ping URLs have no path prefix (https://hc-ping.com/{uuid});
+    /// self-hosted instances serve pings at {baseUrl}/ping/{uuid}.
+    /// Returns null if mode is "none", not configured, or uuid is blank.
+    /// </summary>
+    internal static string GetPingUrl(SettingsDTO settings, string uuid)
+    {
+        if (string.IsNullOrWhiteSpace(uuid))
+        {
+            return null;
+        }
+
+        return settings?.HealthChecksMode switch
+        {
+            "saas" => $"{SaasPingBaseUrl}/{uuid}",
+            "selfhosted" when !string.IsNullOrWhiteSpace(settings.HealthChecksSelfHostedUrl)
+                => $"{settings.HealthChecksSelfHostedUrl.TrimEnd('/')}/ping/{uuid}",
+            _ => null
+        };
+    }
+
+    /// <summary>
     /// Get the management API base URL based on the healthchecks mode.
     /// For SaaS, returns the healthchecks.io API URL.
     /// For self-hosted, derives from the self-hosted URL (scheme+host+port + /api/v3).
