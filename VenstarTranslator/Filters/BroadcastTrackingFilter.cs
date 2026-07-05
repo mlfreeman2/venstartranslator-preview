@@ -1,12 +1,14 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading.Tasks;
 using Hangfire.Common;
 using Hangfire.Server;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using VenstarTranslator.Exceptions;
 using VenstarTranslator.Models.Db;
+using VenstarTranslator.Services;
 
 namespace VenstarTranslator.Filters;
 
@@ -41,12 +43,17 @@ public class BroadcastTrackingFilterAttribute : JobFilterAttribute, IServerFilte
         using var scope = ServiceProvider.CreateScope();
         using var dbContext = scope.ServiceProvider.GetRequiredService<VenstarTranslatorDataCache>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<BroadcastTrackingFilterAttribute>>();
+        var healthChecks = scope.ServiceProvider.GetRequiredService<IHealthChecksClient>();
+        var settingsService = scope.ServiceProvider.GetRequiredService<ISettingsService>();
 
         var sensor = dbContext.Sensors.FirstOrDefault(s => s.SensorID == (byte)sensorID);
         if (sensor == null)
         {
             return;
         }
+
+        // Build the healthchecks.io ping URL from settings mode + per-sensor UUID
+        var healthCheckPingUrl = HealthChecksClient.GetPingUrl(settingsService.GetSettings(), sensor.HealthCheckUuid);
 
         if (context.Exception == null)
         {
@@ -57,6 +64,13 @@ public class BroadcastTrackingFilterAttribute : JobFilterAttribute, IServerFilte
             dbContext.SaveChanges();
 
             logger.LogDebug("Broadcast succeeded for sensor {SensorID} ({SensorName})", sensor.SensorID, sensor.Name);
+
+            // Fire-and-forget healthchecks.io success ping
+            if (healthCheckPingUrl != null)
+            {
+                var url = healthCheckPingUrl;
+                _ = Task.Run(() => healthChecks.PingSuccessAsync(url));
+            }
         }
         else
         {
@@ -65,6 +79,8 @@ public class BroadcastTrackingFilterAttribute : JobFilterAttribute, IServerFilte
 
             // Increment consecutive failure counter
             sensor.ConsecutiveFailures++;
+
+            string failureBody;
 
             // Check if this is a VenstarTranslatorException (user-friendly message)
             if (actualException is VenstarTranslatorException vtEx)
@@ -82,6 +98,8 @@ public class BroadcastTrackingFilterAttribute : JobFilterAttribute, IServerFilte
                     sensor.ConsecutiveFailures,
                     sensor.LastSuccessfulBroadcast?.ToString("yyyy-MM-dd HH:mm:ss UTC") ?? "Never"
                 );
+
+                failureBody = vtEx.Message;
             }
             else
             {
@@ -96,6 +114,16 @@ public class BroadcastTrackingFilterAttribute : JobFilterAttribute, IServerFilte
                     sensor.ConsecutiveFailures,
                     sensor.LastSuccessfulBroadcast?.ToString("yyyy-MM-dd HH:mm:ss UTC") ?? "Never"
                 );
+
+                failureBody = HealthChecksClient.BuildFailureBody(actualException);
+            }
+
+            // Fire-and-forget healthchecks.io failure ping
+            if (healthCheckPingUrl != null)
+            {
+                var url = healthCheckPingUrl;
+                var body = failureBody;
+                _ = Task.Run(() => healthChecks.PingFailureAsync(url, body));
             }
 
             // Check if broadcasts have become stale (thermostat would show error at this point)

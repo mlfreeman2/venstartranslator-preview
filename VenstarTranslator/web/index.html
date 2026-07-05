@@ -7,8 +7,8 @@
   <title>Venstar Sensor Emulator</title>
 
   <!-- Bootstrap 5 -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 
   <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -23,8 +23,14 @@
         <div class="card-icon">
           <i class="fas fa-list"></i>
         </div>
-        <h2 class="card-title">Configured Sensors</h2>
+        <div class="card-title-group">
+          <h2 class="card-title">Configured Sensors</h2>
+          <small id="instance-name" class="text-muted instance-name"></small>
+        </div>
         <div class="card-actions">
+          <button class="btn btn-outline-secondary" onclick="openSettings()">
+            <i class="fas fa-gear"></i> Settings
+          </button>
           <button class="btn btn-secondary" onclick="window.open('./jsonpath.html', '_blank')">
             <i class="fa-brands fa-js"></i> Test JSON Path
           </button>
@@ -173,6 +179,12 @@
             </div>
 
             <div class="mb-3">
+              <label for="edit-healthCheckUuid" class="form-label">Healthchecks.io Check UUID <small class="text-muted">(optional)</small></label>
+              <input type="text" id="edit-healthCheckUuid" class="form-control" placeholder="your-uuid-here">
+              <div class="form-text">The UUID of the healthchecks.io check for this sensor. When a management API key is configured in Settings, this is populated automatically.</div>
+            </div>
+
+            <div class="mb-3">
               <label class="form-label">Custom Headers</label>
               <div id="headers-container">
                 <!-- Headers will be dynamically added here -->
@@ -186,6 +198,59 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="button" class="btn btn-primary" onclick="saveSensor()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal (Bootstrap) -->
+  <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="settingsModalLabel"><i class="fas fa-gear me-2"></i>Settings</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="settingsForm">
+            <div class="mb-3">
+              <label for="settings-instanceName" class="form-label">Instance Name</label>
+              <input type="text" id="settings-instanceName" class="form-control" placeholder="Venstar Sensor Emulator">
+              <div class="form-text">A name to identify this instance. Shown in the page header and browser tab. Required when a management API key is configured. Leave blank to use the default or value from appsettings.json.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Healthchecks.io Integration</label>
+              <div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="healthChecksMode" id="hc-mode-none" value="none" checked onchange="toggleHealthChecksMode()">
+                  <label class="form-check-label" for="hc-mode-none">None</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="healthChecksMode" id="hc-mode-saas" value="saas" onchange="toggleHealthChecksMode()">
+                  <label class="form-check-label" for="hc-mode-saas">SaaS (healthchecks.io)</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="healthChecksMode" id="hc-mode-selfhosted" value="selfhosted" onchange="toggleHealthChecksMode()">
+                  <label class="form-check-label" for="hc-mode-selfhosted">Self-Hosted</label>
+                </div>
+              </div>
+              <div class="form-text">Choose how to integrate with healthchecks.io for sensor broadcast monitoring.</div>
+            </div>
+            <div class="mb-3" id="selfhosted-url-group" style="display: none;">
+              <label for="settings-selfHostedUrl" class="form-label">Self-Hosted URL</label>
+              <input type="url" id="settings-selfHostedUrl" class="form-control" placeholder="http://healthchecks:8000">
+              <div class="form-text">Base URL of your self-hosted healthchecks instance (e.g., http://healthchecks:8000).</div>
+            </div>
+            <div class="mb-3" id="api-key-group" style="display: none;">
+              <label for="settings-healthChecksApiKey" class="form-label">Management API Key <small class="text-muted">(optional)</small></label>
+              <input type="password" id="settings-healthChecksApiKey" class="form-control" placeholder="Your management API key">
+              <div class="form-text">When set, checks are auto-created, renamed, paused/unpaused, and deleted alongside sensors. Requires Instance Name.</div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="saveSettings()">Save</button>
         </div>
       </div>
     </div>

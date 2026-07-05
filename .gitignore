@@ -6,6 +6,10 @@ obj/
 .DS_Store
 VenstarTranslator/VenstarTranslator.db
 
+# Local dev sensor/settings files (created by running with appsettings.Development.json)
+/sensors.dev.json
+/settings.json
+
 # Test coverage reports
 coverage/
 TestResults/

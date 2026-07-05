@@ -8,4 +8,5 @@ public interface ISensorOperations
     double GetLatestReading(TranslatedVenstarSensor sensor);
     void SendDataPacket(TranslatedVenstarSensor sensor);
     void SendPairingPacket(TranslatedVenstarSensor sensor);
+    void ResendLastPacket(TranslatedVenstarSensor sensor);
 }

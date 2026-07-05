@@ -12,6 +12,8 @@ Venstar Translator bridges the gap between your existing temperature sensors and
 - Both Fahrenheit and Celsius supported
 - Multiple sensor purposes: Outdoor, Remote, Return, Supply
 - Optional HTTPS support with custom or auto-generated self-signed certificates
+- Optional healthchecks.io integration (SaaS or self-hosted) for broadcast monitoring and alerting
+- Built-in problem detection with visual indicators when sensor broadcasts go stale
 
 ### Compatible Thermostats
 
@@ -143,6 +145,47 @@ See the full `docker-compose.yml.sample` in the root directory for a complete ex
    - Go to thermostat settings and add the new wireless sensor
    - It should appear with the name you configured
 
+### Settings
+
+Click the **Settings** gear icon in the web UI to configure application-wide options.
+
+#### Instance Name
+
+A custom name for this instance, shown in the page header and browser tab. Useful when running multiple instances. Required when a healthchecks.io management API key is configured.
+
+#### Healthchecks.io Integration
+
+Integrates with [healthchecks.io](https://healthchecks.io/) for external monitoring and alerting on sensor broadcast health. Choose one of three modes:
+
+- **None** (default): No healthchecks integration.
+- **SaaS (healthchecks.io)**: Uses the hosted healthchecks.io service. No URL configuration needed.
+- **Self-Hosted**: For self-hosted healthchecks instances. Enter your instance's base URL (e.g., `http://healthchecks:8000`).
+
+**Management API Key** (optional, available for SaaS and Self-Hosted modes):
+When provided, the application fully manages healthchecks.io checks alongside your sensors:
+- Automatically creates a check when a sensor is added
+- Renames checks when sensor names or instance name change
+- Pauses/unpauses checks when sensors are enabled/disabled
+- Deletes checks when sensors are removed
+- Requires an Instance Name to be set
+
+**Per-sensor Health Check UUID**: Each sensor has an optional UUID field. When a management API key is configured, UUIDs are auto-populated. Without an API key, you can manually enter UUIDs for checks you've created on healthchecks.io yourself. Either way, the application pings success/failure to healthchecks.io after each broadcast attempt.
+
+### Health Monitoring
+
+The web UI provides built-in monitoring for sensor broadcast health:
+
+- **Problem Indicators**: An orange pulsing "Problem" badge appears in the Status column when a sensor's broadcasts become stale. This mirrors when the thermostat itself would show a sensor error.
+- **Staleness Thresholds**:
+  - Outdoor sensors: 20 minutes (broadcasts every 5 minutes)
+  - All other sensor types: 5 minutes (broadcasts every minute)
+- **Details**: Hover over the problem badge to see the last successful broadcast timestamp.
+- **Auto-Recovery**: The problem indicator clears automatically when broadcasts resume.
+- **Resend Last Packet**: Each sensor has a "Resend Last Packet" button for troubleshooting thermostat connectivity. This resends the exact packet from the last broadcast.
+- **Logs**: Full exception details are logged to console/Docker logs. Check with `docker logs venstartranslator`.
+
+When healthchecks.io is configured, success and failure pings are sent after each broadcast attempt, enabling external alerting via email, Slack, or other notification channels.
+
 ### JSONPath Examples
 
 **New to JSONPath?** The easiest way to get started is to ask an AI:
@@ -259,8 +302,6 @@ Ecowitt stations expose a `/get_livedata_info` endpoint with nested sensor data:
 ```
 **JSONPath:** `$.wh25[0].intemp`
 
-See `sensors.ecowitt.json.sample` and `sensors.homeassistant.json.sample` in the root directory for complete examples.
-
 ### Advanced Configuration
 
 #### Multiple Instances (60+ sensors)
@@ -285,11 +326,17 @@ environment:
 
 #### Manual sensors.json Configuration
 
-While the web UI is recommended, you can also edit `./data/sensors.json` directly. The application validates and normalizes the file on startup. If validation fails, check the container logs:
+While the web UI is recommended, you can also edit `./data/sensors.json` directly (e.g. for restores from backup or pre-provisioning via configuration management). The application validates and normalizes the file on startup. If validation fails, check the container logs:
 
 ```bash
 docker logs venstartranslator
 ```
+
+Notes for hand-editing:
+- **Purpose** and **Scale** values are case-sensitive (`Outdoor`, `Remote`, `Return`, `Supply`; `F`, `C`)
+- Sensor URLs are fetched with HTTP GET only, with a 10-second timeout
+- A regex extracts the first number from the JSONPath result, so values like `"72.5 °F"` still work
+- **HealthCheckUuid** is optional; leave it out unless you're wiring up healthchecks.io checks by hand (see [Settings](#settings))
 
 ## Troubleshooting
 
@@ -331,7 +378,11 @@ The thermostat receives these packets exactly as if they came from genuine Venst
 
 ## Files and Backup
 
-All sensor configurations are stored in `./data/sensors.json`. This is the only file you need to back up. The application also creates SQLite databases in the container for internal state, but these are regenerated from `sensors.json` on startup.
+All persistent configuration is stored in the `./data` directory:
+- **`sensors.json`**: Sensor configurations (names, URLs, JSONPath queries, UUIDs, etc.)
+- **`settings.json`**: Application settings (instance name, healthchecks.io mode and API key)
+
+Back up both files to preserve your configuration. The application also creates SQLite databases in the container for internal state, but these are regenerated from the JSON files on startup.
 
 
 

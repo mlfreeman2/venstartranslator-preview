@@ -273,7 +273,9 @@ public class WIFICONFIG
     public static uint IPAddressToUInt32(IPAddress ip)
     {
         if (ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+        {
             throw new ArgumentException("Only IPv4 addresses are supported.", nameof(ip));
+        }
 
         byte[] bytes = ip.GetAddressBytes();
         return ((uint)bytes[0] << 24) |

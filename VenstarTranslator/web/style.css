@@ -77,6 +77,10 @@ body {
   border-bottom: 2px solid var(--border);
 }
 
+.card-title-group {
+  flex: 1;
+}
+
 .card-title {
   font-size: 1.5rem;
   font-weight: 600;
@@ -84,7 +88,13 @@ body {
   line-height: 2.5rem;
   margin-bottom: 0;
   color: var(--text-primary);
-  flex: 1;
+}
+
+.instance-name {
+  display: block;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  margin-top: 0.1rem;
 }
 
 .card-icon {

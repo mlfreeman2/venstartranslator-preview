@@ -1,78 +1,75 @@
 # Venstar Translator - Home Assistant Integration
 
-> **Status**: Work in Progress - Not yet functional
+> **⚠️ Status: Beta / Untested** — This integration is feature-complete but has **not yet been tested against real thermostat hardware**. The [Docker version](../README.md) is the tested and supported way to run Venstar Translator. If you try this integration, please report your results via GitHub issues.
 
-This directory contains the Home Assistant Custom Component (HACS) version of VenstarTranslator.
+This integration allows Home Assistant to emulate up to 20 Venstar ACC-TSENWIFIPRO wireless temperature sensors by broadcasting UDP packets to Venstar ColorTouch thermostats. It monitors HA temperature entities and translates their readings into the Venstar sensor protocol format.
 
-## Overview
+## Features
 
-This integration allows Home Assistant to emulate Venstar wireless temperature sensors by broadcasting UDP packets to Venstar ColorTouch thermostats. It monitors HA temperature entities and translates them into the Venstar sensor protocol format.
+- Emulates up to 20 Venstar wireless temperature sensors
+- Reads temperature from any HA sensor or climate entity
+- Supports all sensor purposes: Outdoor, Remote, Return, Supply
+- Fahrenheit and Celsius scales
+- Automatic broadcasting (every 1 minute or 5 minutes depending on sensor purpose)
+- Full sensor management UI (add, edit, delete, enable/disable)
+- Pairing service for initial thermostat setup and re-pairing
+
+## Requirements
+
+- Home Assistant 2025.7.1 or newer
+- Venstar ColorTouch thermostat on the **same VLAN/broadcast domain** as Home Assistant
+- Temperature sensor entities already configured in Home Assistant
+
+## Installation
+
+### Manual Installation
+
+1. Copy the `custom_components/venstar_translator` folder into your Home Assistant `custom_components` directory
+2. Restart Home Assistant
+3. Go to **Settings** > **Devices & Services** > **Add Integration**
+4. Search for "Venstar Translator"
+
+### Via HACS
+
+1. Add this repository as a custom repository in HACS
+2. Install "Venstar Translator"
+3. Restart Home Assistant
+4. Add the integration via **Settings** > **Devices & Services**
+
+See [INSTALL.md](INSTALL.md) for detailed setup instructions, sensor configuration, pairing, troubleshooting, and migration from the Docker version.
 
 ## Differences from Docker Version
 
-- **No HTTP/JSONPath**: Uses HA temperature entities directly
-- **No JSON file**: Configuration via HA UI (Config Flow)
-- **No Hangfire**: Uses Python asyncio scheduler
-- **Random MAC**: Generated once and persisted (no FakeMacPrefix)
-- **Native HA UI**: Add/edit/delete sensors through Settings
+| | Docker (C#) | Home Assistant |
+|---|---|---|
+| Temperature source | HTTP endpoints + JSONPath | HA entity states |
+| Configuration | `sensors.json` file | HA Config Flow UI |
+| Scheduling | Hangfire (cron) | Python asyncio |
+| MAC prefix | `FakeMacPrefix` env var | Random, persisted |
+| Storage | SQLite | HA Store API (JSON) |
 
-## Directory Structure
+The protocol output is identical -- same protobuf packets, same HMAC signatures, same UDP broadcasts.
 
-```
-custom_components/venstar_translator/
-├── __init__.py                 # Integration setup & coordinator
-├── manifest.json               # Integration metadata
-├── config_flow.py             # UI configuration flow
-├── const.py                   # Constants
-├── strings.json               # UI text strings
-├── translations/
-│   └── en.json               # English translations
-├── services.yaml             # Service definitions
-├── protobuf/
-│   ├── sensor_message.proto  # Protobuf definition
-│   └── venstar_pb2.py        # Compiled protobuf (generated)
-├── venstar_sensor.py         # Core sensor logic
-└── coordinator.py            # Broadcast scheduler
-```
+## Network Requirements
 
-## Development Status
+This integration uses UDP broadcast to `255.255.255.255:5001`. Home Assistant **must** be on the same VLAN as the Venstar thermostat. If running HA in Docker, use `network_mode: host`.
 
-See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for detailed implementation plan.
+## Services
 
-### Current Phase: Foundation (Phase 1)
+| Service | Description |
+|---|---|
+| `venstar_translator.pair_sensor` | Send a pairing packet for a specific sensor (by ID 0-19) |
+| `venstar_translator.resend_last_packet` | Resend the last broadcast packet for a sensor (for troubleshooting connectivity) |
 
-- [x] Directory structure created
-- [x] `manifest.json` defined
-- [x] Constants defined in `const.py`
-- [x] Protobuf definition written
-- [ ] Protobuf compiled to Python
-- [ ] Temperature lookup tables implemented
-- [ ] MAC generation logic implemented
-- [ ] Config flow skeleton
-- [ ] Storage layer implemented
+## Debug Logging
 
-## Building Protobuf
-
-To compile the protobuf definition:
-
-```bash
-cd custom_components/venstar_translator/protobuf
-protoc --python_out=. sensor_message.proto
+```yaml
+logger:
+  logs:
+    custom_components.venstar_translator: debug
 ```
 
-This will generate `venstar_pb2.py`.
-
-## Installation (Not Yet Available)
-
-> This integration is not yet functional. Do not install.
-
-Once complete, installation will be via HACS:
-
-1. Add this repository to HACS as a custom repository
-2. Install "Venstar Translator" from HACS
-3. Restart Home Assistant
-4. Go to Settings → Devices & Services → Add Integration
-5. Search for "Venstar Translator"
+See [DEBUG_LOGGING.md](DEBUG_LOGGING.md) for details.
 
 ## License
 

@@ -1,6 +1,7 @@
 """Storage management for Venstar Translator."""
 from __future__ import annotations
 
+import base64
 import logging
 import secrets
 from typing import Any
@@ -31,14 +32,19 @@ class VenstarTranslatorStorage:
         self.mac_prefix: str | None = None
         self.sensors: dict[str, dict[str, Any]] = {}
 
-    async def async_load(self) -> None:
-        """Load data from storage."""
+    async def async_load(self, mac_prefix: str | None = None) -> None:
+        """Load data from storage.
+
+        Args:
+            mac_prefix: MAC prefix from config entry (used on first load to
+                        ensure storage and config entry stay in sync).
+        """
         data = await self._store.async_load()
 
         if data is None:
             _LOGGER.info("No existing storage found, initializing new storage")
-            # Generate random MAC prefix on first load
-            self.mac_prefix = self._generate_mac_prefix()
+            # Use the MAC prefix from config entry if provided, otherwise generate
+            self.mac_prefix = mac_prefix or self._generate_mac_prefix()
             self.sensors = {}
             await self.async_save()
         else:
@@ -206,6 +212,38 @@ class VenstarTranslatorStorage:
             raise ValueError(f"Sensor {sensor_id} does not exist")
 
         self.sensors[sensor_id_str]["sequence"] = sequence
+
+    def update_last_packet(self, sensor_id: int, packet: bytes) -> None:
+        """Cache the last broadcast packet for a sensor.
+
+        Args:
+            sensor_id: Sensor ID
+            packet: Raw packet bytes to cache
+        """
+        sensor_id_str = str(sensor_id)
+        if sensor_id_str not in self.sensors:
+            raise ValueError(f"Sensor {sensor_id} does not exist")
+
+        self.sensors[sensor_id_str]["last_packet"] = base64.b64encode(packet).decode("utf-8")
+
+    def get_last_packet(self, sensor_id: int) -> bytes | None:
+        """Get the cached last broadcast packet for a sensor.
+
+        Args:
+            sensor_id: Sensor ID
+
+        Returns:
+            Raw packet bytes, or None if no packet has been cached
+        """
+        sensor_id_str = str(sensor_id)
+        if sensor_id_str not in self.sensors:
+            return None
+
+        encoded = self.sensors[sensor_id_str].get("last_packet")
+        if encoded is None:
+            return None
+
+        return base64.b64decode(encoded)
 
     @staticmethod
     def _generate_mac_prefix() -> str:

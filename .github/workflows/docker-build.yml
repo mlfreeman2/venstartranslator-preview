@@ -35,7 +35,7 @@ jobs:
       working-directory: VenstarTranslator.Tests
 
     - name: Run unit tests with coverage
-      run: dotnet test VenstarTranslator.Tests.csproj --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+      run: dotnet test VenstarTranslator.Tests.csproj --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --settings ../coverlet.runsettings --results-directory ./coverage
       working-directory: VenstarTranslator.Tests
 
     - name: Check for vulnerable packages

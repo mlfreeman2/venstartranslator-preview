@@ -46,6 +46,9 @@ builder.Services.AddHangfire((provider, configuration) =>
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
     .UseSQLiteStorage(hangfireDatabasePath, sqliteOptions);
+
+    // Disable automatic retries globally - BroadcastTrackingFilter handles failures
+    GlobalJobFilters.Filters.Add(new AutomaticRetryAttribute { Attempts = 0, LogEvents = false });
 });
 builder.Services.AddHangfireServer(options =>
 {
@@ -59,6 +62,9 @@ builder.Services.AddSingleton<IHttpDocumentFetcher, HttpDocumentFetcher>();
 builder.Services.AddSingleton<IUdpBroadcaster, UdpBroadcaster>();
 builder.Services.AddSingleton<ISensorOperations, SensorOperations>();
 builder.Services.AddSingleton<IHangfireJobManager, HangfireJobManager>();
+builder.Services.AddHttpClient("HealthChecks", c => c.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddSingleton<IHealthChecksClient, HealthChecksClient>();
+builder.Services.AddSingleton<ISettingsService, SettingsService>();
 
 var app = builder.Build();
 
@@ -115,6 +121,54 @@ using (var scope = app.Services.CreateScope())
                 if (sensor.Enabled)
                 {
                     jobManager.AddOrUpdateRecurringJob(sensor.HangfireJobName, sensor.CronExpression, sensor.SensorID);
+                }
+            }
+
+            // Backfill healthchecks.io checks for sensors without UUIDs
+            var settingsService = scope.ServiceProvider.GetRequiredService<ISettingsService>();
+            var healthChecksClient = scope.ServiceProvider.GetRequiredService<IHealthChecksClient>();
+            var startupSettings = settingsService.GetSettings();
+            var apiBase = HealthChecksClient.GetApiBaseUrl(startupSettings);
+            if (apiBase != null && !string.IsNullOrWhiteSpace(startupSettings.HealthChecksApiKey))
+            {
+                if (string.IsNullOrWhiteSpace(startupSettings.InstanceName))
+                {
+                    app.Logger.LogWarning("Healthchecks.io API key is configured but Instance Name is blank. "
+                        + "Skipping healthcheck backfill. Set an Instance Name in Settings to enable healthcheck management.");
+                }
+                else
+                {
+                    var sensorsWithoutUuid = dbContext.Sensors
+                        .Where(s => s.HealthCheckUuid == null || s.HealthCheckUuid == "")
+                        .ToList();
+
+                    foreach (var sensor in sensorsWithoutUuid)
+                    {
+                        string checkName = $"Venstar Translator - {startupSettings.InstanceName} - [{sensor.SensorID}] {sensor.Name}";
+                        int timeout = sensor.Purpose == VenstarTranslator.Models.Enums.SensorPurpose.Outdoor ? 300 : 60;
+                        int grace = sensor.Purpose == VenstarTranslator.Models.Enums.SensorPurpose.Outdoor ? 1200 : 300;
+
+                        var uuid = healthChecksClient.CreateCheckAsync(apiBase, startupSettings.HealthChecksApiKey, checkName, timeout, grace)
+                            .GetAwaiter().GetResult();
+
+                        if (uuid != null)
+                        {
+                            sensor.HealthCheckUuid = uuid;
+                            dbContext.SaveChanges();
+
+                            if (!sensor.Enabled)
+                            {
+                                healthChecksClient.PauseCheckAsync(apiBase, startupSettings.HealthChecksApiKey, uuid)
+                                    .GetAwaiter().GetResult();
+                            }
+                        }
+                    }
+
+                    // Sync to JSON once after all backfill
+                    if (sensorsWithoutUuid.Any(s => !string.IsNullOrEmpty(s.HealthCheckUuid)))
+                    {
+                        SensorOperations.SyncToJsonFile(config, dbContext);
+                    }
                 }
             }
         }
@@ -191,6 +245,7 @@ static void UpdateDatabaseSensors(VenstarTranslatorDataCache dbContext, List<Tra
             current.JSONPath = sensors[i].JSONPath;
             current.Scale = sensors[i].Scale;
             current.IgnoreSSLErrors = sensors[i].IgnoreSSLErrors;
+            current.HealthCheckUuid = sensors[i].HealthCheckUuid;
 
             current.Headers.Clear();
             dbContext.SaveChanges();

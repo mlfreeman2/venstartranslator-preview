@@ -29,7 +29,8 @@
       "Bash(chmod:*)",
       "Bash(/tmp/update_migrations.sh:*)",
       "Bash(cat:*)",
-      "Bash(xargs cat:*)"
+      "Bash(xargs cat:*)",
+      "WebFetch(domain:cdnjs.com)"
     ],
     "deny": [],
     "ask": []

@@ -188,8 +188,9 @@ class VenstarSensorCoordinator:
         # Broadcast UDP (run in executor to avoid blocking)
         await self.hass.async_add_executor_job(broadcast_udp_packet, packet)
 
-        # Update sequence number in storage
+        # Update sequence number and cache packet in storage
         storage.update_sequence(self.sensor_id, sensor.sequence)
+        storage.update_last_packet(self.sensor_id, packet)
         await storage.async_save()
 
         _LOGGER.debug(
