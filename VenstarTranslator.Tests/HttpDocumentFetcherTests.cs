@@ -320,6 +320,24 @@ public class HttpDocumentFetcherTests
             _fetcher.FetchDocument("not a valid url", false, null));
     }
 
+    [Fact]
+    public void FetchDocument_IgnoreSSLErrors_AcceptsAnyCertificateAndFetches()
+    {
+        // Arrange
+        var mockHandler = new MockHttpMessageHandler();
+        mockHandler.SetupResponse(HttpStatusCode.OK, "{\"temperature\": 72.5}");
+
+        var fetcher = new HttpDocumentFetcher(() => mockHandler);
+
+        // Act
+        var result = fetcher.FetchDocument("https://self-signed.example.com/api", true, null);
+
+        // Assert
+        Assert.Equal("{\"temperature\": 72.5}", result);
+        Assert.Same(HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+            mockHandler.ServerCertificateCustomValidationCallback);
+    }
+
     #endregion
 
     #region Helper Classes
