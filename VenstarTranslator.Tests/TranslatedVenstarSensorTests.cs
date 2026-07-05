@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using VenstarTranslator.Exceptions;
 using VenstarTranslator.Models.Db;
 using VenstarTranslator.Models.Enums;
 using Xunit;
@@ -199,4 +200,66 @@ public class TranslatedVenstarSensorTests
         var hashBytes = sha256.ComputeHash(data);
         return Convert.ToHexString(hashBytes);
     }
+
+    #region ExtractValue error paths
+
+    [Fact]
+    public void ExtractValue_JsonPathFindsNothing_ThrowsWithMessage()
+    {
+        var sensor = CreateTestSensor();
+        sensor.JSONPath = "$.temperature";
+
+        var ex = Assert.Throws<VenstarTranslatorException>(
+            () => sensor.ExtractValue("{\"other_field\": 72.5}"));
+
+        Assert.Equal("The specified JSON Path failed to find anything.", ex.Message);
+    }
+
+    [Fact]
+    public void ExtractValue_NonNumericValue_ThrowsWithMessage()
+    {
+        var sensor = CreateTestSensor();
+        sensor.JSONPath = "$.temperature";
+
+        var ex = Assert.Throws<VenstarTranslatorException>(
+            () => sensor.ExtractValue("{\"temperature\": \"unavailable\"}"));
+
+        Assert.Equal("The specified JSON Path found a non-numeric value.", ex.Message);
+    }
+
+    [Fact]
+    public void ExtractValue_InvalidJsonDocument_ThrowsWithMessage()
+    {
+        var sensor = CreateTestSensor();
+
+        var ex = Assert.Throws<VenstarTranslatorException>(
+            () => sensor.ExtractValue("this is not json"));
+
+        Assert.StartsWith("Invalid JSON document:", ex.Message);
+    }
+
+    [Fact]
+    public void ExtractValue_MalformedJsonPath_ThrowsWithMessage()
+    {
+        var sensor = CreateTestSensor();
+        sensor.JSONPath = "$.sensors[?(@.name==\"bad quotes\")].temp";
+
+        var ex = Assert.Throws<VenstarTranslatorException>(
+            () => sensor.ExtractValue("{\"sensors\": []}"));
+
+        Assert.StartsWith("JSON Path error:", ex.Message);
+    }
+
+    [Fact]
+    public void ExtractValue_NumberEmbeddedInText_ExtractsNumber()
+    {
+        var sensor = CreateTestSensor();
+        sensor.JSONPath = "$.temperature";
+
+        var value = sensor.ExtractValue("{\"temperature\": \"72.5 °F\"}");
+
+        Assert.Equal(72.5, value);
+    }
+
+    #endregion
 }

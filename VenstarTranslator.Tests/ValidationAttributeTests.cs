@@ -1,3 +1,4 @@
+using VenstarTranslator.Models;
 using VenstarTranslator.Models.Db;
 using VenstarTranslator.Models.Validation;
 using Xunit;
@@ -489,6 +490,71 @@ public class ValidationAttributeTests
         // Assert
         Assert.False(result);
         Assert.NotNull(attribute.ErrorMessage);
+    }
+
+    #endregion
+
+    #region ValidHttpHeadersAttribute DTO Tests
+
+    [Fact]
+    public void ValidHttpHeaders_EmptyDTOList_ReturnsTrue()
+    {
+        var attribute = new ValidHttpHeadersAttribute();
+        var headers = new List<DataSourceHttpHeaderDTO>();
+
+        Assert.True(attribute.IsValid(headers));
+    }
+
+    [Fact]
+    public void ValidHttpHeaders_ValidDTOHeaders_ReturnsTrue()
+    {
+        var attribute = new ValidHttpHeadersAttribute();
+        var headers = new List<DataSourceHttpHeaderDTO>
+        {
+            new DataSourceHttpHeaderDTO { Name = "Authorization", Value = "Bearer token123" },
+            new DataSourceHttpHeaderDTO { Name = "Accept", Value = "application/json" }
+        };
+
+        Assert.True(attribute.IsValid(headers));
+    }
+
+    [Theory]
+    [InlineData(null, "some-value")]
+    [InlineData("  ", "some-value")]
+    [InlineData("X-Header", null)]
+    [InlineData("X-Header", "  ")]
+    public void ValidHttpHeaders_BlankDTONameOrValue_ReturnsFalseWithMessage(string name, string value)
+    {
+        var attribute = new ValidHttpHeadersAttribute();
+        var headers = new List<DataSourceHttpHeaderDTO>
+        {
+            new DataSourceHttpHeaderDTO { Name = name, Value = value }
+        };
+
+        Assert.False(attribute.IsValid(headers));
+        Assert.Contains("null, blank, or white space", attribute.ErrorMessage);
+    }
+
+    [Fact]
+    public void ValidHttpHeaders_DuplicateDTONames_ReturnsFalseWithMessage()
+    {
+        var attribute = new ValidHttpHeadersAttribute();
+        var headers = new List<DataSourceHttpHeaderDTO>
+        {
+            new DataSourceHttpHeaderDTO { Name = "X-Header", Value = "one" },
+            new DataSourceHttpHeaderDTO { Name = "X-Header", Value = "two" }
+        };
+
+        Assert.False(attribute.IsValid(headers));
+        Assert.Contains("duplicate", attribute.ErrorMessage);
+    }
+
+    [Fact]
+    public void ValidHttpHeaders_UnrecognizedType_ReturnsTrue()
+    {
+        var attribute = new ValidHttpHeadersAttribute();
+
+        Assert.True(attribute.IsValid("not a header list"));
     }
 
     #endregion
