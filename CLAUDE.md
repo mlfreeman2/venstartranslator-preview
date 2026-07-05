@@ -186,7 +186,7 @@ Sensors are defined in `sensors.json` and validated on startup. The web UI at po
 - **Headers**: Array of HTTP headers (`Name`, `Value`) for authenticated endpoints
 - **HealthCheckUuid**: Optional healthchecks.io check UUID; auto-populated when a management API key is configured, or set manually for hand-created checks
 
-See `sensors.json.template`, `sensors.ecowitt.json.sample`, or `sensors.homeassistant.json.sample` in the root directory for examples.
+Sensors should normally be managed through the web UI; hand-editing `sensors.json` is supported for restores and pre-provisioning. See the "Manual sensors.json Configuration" and "JSONPath Examples" sections of README.md for field notes and example configurations.
 
 ## Important Implementation Details
 

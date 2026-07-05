@@ -302,8 +302,6 @@ Ecowitt stations expose a `/get_livedata_info` endpoint with nested sensor data:
 ```
 **JSONPath:** `$.wh25[0].intemp`
 
-See `sensors.ecowitt.json.sample` and `sensors.homeassistant.json.sample` in the root directory for complete examples.
-
 ### Advanced Configuration
 
 #### Multiple Instances (60+ sensors)
@@ -328,11 +326,17 @@ environment:
 
 #### Manual sensors.json Configuration
 
-While the web UI is recommended, you can also edit `./data/sensors.json` directly. The application validates and normalizes the file on startup. If validation fails, check the container logs:
+While the web UI is recommended, you can also edit `./data/sensors.json` directly (e.g. for restores from backup or pre-provisioning via configuration management). The application validates and normalizes the file on startup. If validation fails, check the container logs:
 
 ```bash
 docker logs venstartranslator
 ```
+
+Notes for hand-editing:
+- **Purpose** and **Scale** values are case-sensitive (`Outdoor`, `Remote`, `Return`, `Supply`; `F`, `C`)
+- Sensor URLs are fetched with HTTP GET only, with a 10-second timeout
+- A regex extracts the first number from the JSONPath result, so values like `"72.5 °F"` still work
+- **HealthCheckUuid** is optional; leave it out unless you're wiring up healthchecks.io checks by hand (see [Settings](#settings))
 
 ## Troubleshooting
 
