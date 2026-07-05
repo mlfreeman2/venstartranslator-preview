@@ -1,5 +1,7 @@
 # Venstar Translator - Home Assistant Integration
 
+> **⚠️ Status: Beta / Untested** — This integration is feature-complete but has **not yet been tested against real thermostat hardware**. The [Docker version](../README.md) is the tested and supported way to run Venstar Translator. If you try this integration, please report your results via GitHub issues.
+
 This integration allows Home Assistant to emulate up to 20 Venstar ACC-TSENWIFIPRO wireless temperature sensors by broadcasting UDP packets to Venstar ColorTouch thermostats. It monitors HA temperature entities and translates their readings into the Venstar sensor protocol format.
 
 ## Features

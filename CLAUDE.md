@@ -37,12 +37,20 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 
 ### Core Components
 
-**TranslatedVenstarSensor** (`Models/Db/TranslatedVenstarSensor.cs:22`)
+**TranslatedVenstarSensor** (`Models/Db/TranslatedVenstarSensor.cs:20`)
 - Main domain model representing a sensor configuration
-- Handles temperature data fetching via HTTP, JSONPath extraction, and UDP broadcast
+- Extracts temperature values from fetched JSON documents via JSONPath
 - Contains Protocol Buffer serialization logic for both pairing and data packets
 - Manages HMAC-SHA256 signatures for authenticated sensor communications
 - Temperature lookup tables map sensor readings to Venstar's expected format (Fahrenheit and Celsius)
+
+**Services** (`Services/`)
+- `SensorOperations`: Orchestrates the fetch → extract → build packet → broadcast flow for data, pairing, and resend packets; static `SyncToJsonFile()` writes the database back to `sensors.json`
+- `HttpDocumentFetcher`: Fetches JSON from sensor URLs (10-second timeout, custom headers, optional SSL bypass)
+- `UdpBroadcaster`: Broadcasts packets to `255.255.255.255:5001`
+- `HangfireJobManager`: Adds/removes recurring Hangfire jobs
+- `SettingsService`: Reads/writes `settings.json` (stored next to `sensors.json`); migrates the legacy `healthChecksBaseUrl` field to the mode-based format
+- `HealthChecksClient`: healthchecks.io success/failure pings and management API operations (create/rename/pause/resume/delete checks)
 
 **Program.cs**
 - Application configuration and dependency injection setup
@@ -59,12 +67,15 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 - All other sensor types broadcast every minute (`* * * * *`)
 
 **APIController.cs** (`Controllers/APIController.cs`)
-- REST API for sensor CRUD operations
-- All modifications to sensors automatically sync to `sensors.json` via `SyncToSensorsJson()`
+- REST API for sensor CRUD operations and application settings
+- All modifications to sensors automatically sync to `sensors.json` via `SensorOperations.SyncToJsonFile()`
 - `/api/testjsonpath`: Test JSONPath queries against sample JSON documents
 - `/api/fetchurl`: Fetch and display JSON from a configured sensor's URL
 - `/api/sensors/{id}/pair`: Send pairing packet to thermostat
 - `/api/sensors/{id}/latest`: Test temperature fetch from data source
+- `/api/sensors/{id}/resend`: Rebroadcast the last cached packet
+- `/api/settings` (GET/PUT): Application settings (instance name, healthchecks.io configuration)
+- Sensor and settings changes drive the healthchecks.io check lifecycle (create/rename/pause/resume/delete) when a management API key is configured
 
 ### Data Flow
 
@@ -75,6 +86,7 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 5. Temperature is mapped to Venstar's lookup table format
 6. Protocol Buffer packet is serialized with HMAC-SHA256 signature
 7. UDP broadcast sent 5 times to `255.255.255.255:5001`
+8. Success or failure is pinged to healthchecks.io after each broadcast attempt (when configured)
 
 ### Key Technologies
 
@@ -138,6 +150,22 @@ Environment variables (can be set in `appsettings.json` or Docker Compose):
 
 **FakeMacPrefix**: Change the last character (e.g., `428e0486d7`, `428e0486d9`) to run multiple instances with different sensor ID ranges. Each instance supports 20 sensors (IDs 0-19).
 
+## Application Settings
+
+Global settings are edited via the web UI Settings dialog (gear icon) and persisted by `SettingsService` to `settings.json` in the same directory as `sensors.json`:
+- **InstanceName**: Shown in the page header/browser tab; required when a healthchecks.io management API key is configured
+- **HealthChecksMode**: `none` (default), `saas` (hosted healthchecks.io), or `selfhosted`
+- **HealthChecksSelfHostedUrl**: Base URL of a self-hosted healthchecks instance (only used in `selfhosted` mode)
+- **HealthChecksApiKey**: Optional management API key
+
+### Healthchecks.io Integration
+- Ping URL construction is centralized in `HealthChecksClient.GetPingUrl()`: SaaS pings go to `https://hc-ping.com/{uuid}` (no path prefix), self-hosted pings go to `{baseUrl}/ping/{uuid}`
+- Success pings are `GET` to the ping URL; failure pings are `POST` to `{pingUrl}/fail` with error details in the body (truncated to 10 KB)
+- Pings are fired by `BroadcastTrackingFilter` after every broadcast attempt for sensors with a `HealthCheckUuid`
+- Management API: SaaS uses `https://healthchecks.io/api/v3`; self-hosted derives `{scheme}://{host}[:port]/api/v3` from the configured URL
+- With an API key and instance name configured, checks are managed automatically: created for new sensors (timeout/grace 300s/1200s for Outdoor, 60s/300s for others), renamed when a sensor or the instance is renamed, paused/resumed on disable/enable, deleted with the sensor
+- On startup and on settings save, checks are backfilled for any sensors missing a UUID
+
 ## Sensor Configuration
 
 Sensors are defined in `sensors.json` and validated on startup. The web UI at port 8080 provides a CRUD interface and JSONPath tester.
@@ -156,6 +184,7 @@ Sensors are defined in `sensors.json` and validated on startup. The web UI at po
 - **JSONPath**: Query to extract temperature value (supports Newtonsoft.Json syntax)
 - **IgnoreSSLErrors**: Skip certificate validation (e.g. for self-signed HTTPS data sources)
 - **Headers**: Array of HTTP headers (`Name`, `Value`) for authenticated endpoints
+- **HealthCheckUuid**: Optional healthchecks.io check UUID; auto-populated when a management API key is configured, or set manually for hand-created checks
 
 See `sensors.json.template`, `sensors.ecowitt.json.sample`, or `sensors.homeassistant.json.sample` in the root directory for examples.
 
@@ -202,6 +231,7 @@ The web UI provides real-time sensor health monitoring that mirrors the thermost
 - Updates `LastSuccessfulBroadcast` timestamp on successful broadcasts
 - Tracks `ConsecutiveFailures` counter and `LastErrorMessage` in database
 - Caches `LastPacketBytes` for manual resend capability
+- Fires healthchecks.io success/failure pings (fire-and-forget) for sensors with a `HealthCheckUuid`
 - Distinguishes between user-friendly `VenstarTranslatorException` messages (stored in database) and system exceptions (logged only)
 - Logs errors with exception details on failures
 - Logs warnings when broadcasts become stale (matching thermostat error threshold)
@@ -217,9 +247,9 @@ The web UI provides real-time sensor health monitoring that mirrors the thermost
 ## Web UI
 
 Located in `web/` directory:
-- `index.html`: Main sensor management interface with real-time problem indicators
+- `index.html`: Main sensor management interface with real-time problem indicators and the Settings modal
 - `jsonpath.html`: JSONPath query tester
-- `sensors.js`: Sensor table rendering and tooltip initialization
+- `sensors.js`: Sensor table rendering, tooltip initialization, and Settings dialog logic
 - `modals.js`: Modal dialog management
 - `style.css`: Custom styling including problem badge animations
 - Static files served via ASP.NET Core FileServer middleware

@@ -2,9 +2,11 @@
 
 This guide covers installing the Venstar Translator integration into Home Assistant as a custom component.
 
+> **⚠️ Status: Beta / Untested** — This integration has not yet been tested against real thermostat hardware. See the [integration README](README.md) for details.
+
 ## Prerequisites
 
-- Home Assistant Core 2024.1.0 or newer
+- Home Assistant Core 2025.7.1 or newer
 - Python 3.11 or newer (comes with HA)
 - Venstar ColorTouch thermostat on the same network/VLAN
 - Temperature sensor entities already configured in Home Assistant
