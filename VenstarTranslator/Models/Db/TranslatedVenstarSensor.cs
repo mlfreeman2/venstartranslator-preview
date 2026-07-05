@@ -165,7 +165,7 @@ public class TranslatedVenstarSensor
         // Check bounds (-40.0°C to 86.5°C)
         if (roundedCelsius < -40.0m || roundedCelsius > 86.5m)
         {
-            throw new OverflowException($"Temperature {temperature}°{scale} (={roundedCelsius}°C) is outside the valid range of -40.0°C to 86.5°C");
+            throw new VenstarTranslatorException($"Temperature {temperature}°{scale} (={roundedCelsius}°C) is outside the valid range of -40.0°C to 86.5°C");
         }
 
         // Calculate index: index = (celsius + 40) × 2

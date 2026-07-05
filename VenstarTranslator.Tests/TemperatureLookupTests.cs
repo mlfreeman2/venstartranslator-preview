@@ -1,4 +1,5 @@
 using System.Reflection;
+using VenstarTranslator.Exceptions;
 using VenstarTranslator.Models.Db;
 using VenstarTranslator.Models.Enums;
 using VenstarTranslator.Models.Protobuf;
@@ -97,7 +98,7 @@ public class TemperatureLookupTests
         };
 
         // Act & Assert
-        Assert.Throws<OverflowException>(() => sensor.BuildDataPacket(temperature));
+        Assert.Throws<VenstarTranslatorException>(() => sensor.BuildDataPacket(temperature));
     }
 
     [Fact]
@@ -221,7 +222,7 @@ public class TemperatureLookupTests
             method.Invoke(null, new object[] { temperature, scale })
         );
 
-        Assert.IsType<OverflowException>(ex.InnerException);
+        Assert.IsType<VenstarTranslatorException>(ex.InnerException);
     }
 
     [Fact]
