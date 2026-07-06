@@ -1,5 +1,7 @@
 # VenstarTranslator → Home Assistant Custom Component (HACS) Implementation Plan
 
+> **Note (July 2026)**: This is the original design document, kept for historical reference. Some details have since changed — most notably, temperature indexes are now *calculated* directly (matching the C# implementation) rather than looked up in tables, and the integration uses `entry.runtime_data` instead of `hass.data`. See [PROGRESS.md](PROGRESS.md) for current status.
+
 ## Executive Summary
 
 This document outlines converting the ASP.NET Core VenstarTranslator application into a native Home Assistant Custom Component. The integration will monitor Home Assistant temperature entity states and broadcast UDP packets in the Venstar protocol format.

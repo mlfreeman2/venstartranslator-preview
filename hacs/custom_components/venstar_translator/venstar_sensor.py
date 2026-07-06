@@ -6,10 +6,6 @@ import hashlib
 import hmac
 import logging
 import socket
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
 
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -26,6 +22,11 @@ from .const import (
     SCALE_FAHRENHEIT,
     UDP_PORT,
 )
+# Imported at module level so the (slow) protobuf descriptor build happens
+# during integration import, which Home Assistant runs in the executor.
+# Importing lazily inside packet builders triggers HA's "blocking call to
+# import_module inside the event loop" warning on the first broadcast.
+from .protobuf import sensor_message_pb2
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -159,9 +160,6 @@ class VenstarSensor:
 
     def _get_protobuf_type(self) -> int:
         """Map purpose string to protobuf SensorType enum value."""
-        # Import here to avoid circular dependency
-        from .protobuf import sensor_message_pb2
-
         if self.purpose == PURPOSE_OUTDOOR:
             return sensor_message_pb2.INFO.OUTDOOR
         elif self.purpose == PURPOSE_REMOTE:
@@ -173,6 +171,30 @@ class VenstarSensor:
         else:
             raise ValueError(f"Invalid sensor purpose: {self.purpose}")
 
+    def _build_info(self, sequence: int, temp_index: int):
+        """Build the INFO protobuf message.
+
+        The Temperature field is omitted when the index is 0 (exactly -40.0°C)
+        to stay byte-identical with the C# implementation, whose protobuf-net
+        serializer skips zero-valued optional fields. Receivers read an absent
+        optional uint32 as 0, so the decoded value is the same either way.
+        """
+        info = sensor_message_pb2.INFO(
+            Sequence=sequence,
+            SensorId=self.sensor_id,
+            Mac=self.mac_address,
+            FwMajor=FW_MAJOR,
+            FwMinor=FW_MINOR,
+            Model=sensor_message_pb2.INFO.TEMPSENSOR,
+            Power=sensor_message_pb2.INFO.BATTERY,
+            Name=self.name,
+            Type=self._get_protobuf_type(),
+            Battery=100
+        )
+        if temp_index != 0:
+            info.Temperature = temp_index
+        return info
+
     def build_data_packet(self, temperature: float) -> bytes:
         """Build protobuf data packet with HMAC signature.
 
@@ -182,10 +204,6 @@ class VenstarSensor:
         Returns:
             Serialized protobuf SensorMessage ready for UDP broadcast
         """
-        # Import here to avoid circular dependency
-        from .protobuf import sensor_message_pb2
-
-        # Get temperature index for lookup table
         temp_index = get_temperature_index(temperature, self.scale)
 
         _LOGGER.debug(
@@ -194,19 +212,7 @@ class VenstarSensor:
         )
 
         # Build INFO message
-        info = sensor_message_pb2.INFO(
-            Sequence=self.sequence,
-            SensorId=self.sensor_id,
-            Mac=self.mac_address,
-            FwMajor=FW_MAJOR,
-            FwMinor=FW_MINOR,
-            Model=sensor_message_pb2.INFO.TEMPSENSOR,
-            Power=sensor_message_pb2.INFO.BATTERY,
-            Name=self.name,
-            Type=self._get_protobuf_type(),
-            Temperature=temp_index,
-            Battery=100
-        )
+        info = self._build_info(sequence=self.sequence, temp_index=temp_index)
 
         # Generate HMAC signature
         info_bytes = info.SerializeToString()
@@ -254,9 +260,6 @@ class VenstarSensor:
         Returns:
             Serialized protobuf SensorMessage ready for UDP broadcast
         """
-        # Import here to avoid circular dependency
-        from .protobuf import sensor_message_pb2
-
         temp_index = get_temperature_index(temperature, self.scale)
 
         _LOGGER.info(
@@ -266,19 +269,7 @@ class VenstarSensor:
         )
 
         # Build INFO message
-        info = sensor_message_pb2.INFO(
-            Sequence=1,
-            SensorId=self.sensor_id,
-            Mac=self.mac_address,
-            FwMajor=FW_MAJOR,
-            FwMinor=FW_MINOR,
-            Model=sensor_message_pb2.INFO.TEMPSENSOR,
-            Power=sensor_message_pb2.INFO.BATTERY,
-            Name=self.name,
-            Type=self._get_protobuf_type(),
-            Temperature=temp_index,
-            Battery=100
-        )
+        info = self._build_info(sequence=1, temp_index=temp_index)
 
         # Build SENSORDATA message (pairing uses key directly as signature)
         sensor_data = sensor_message_pb2.SENSORDATA(

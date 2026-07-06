@@ -1,5 +1,18 @@
 # Implementation Progress
 
+## 🔄 Update: July 2026 — Home Assistant 2026.4 Compatibility Pass
+
+- [x] Regenerated `sensor_message_pb2.py` with protoc 31.1 (was 6.33.0-rc2, which refused to load on HA's pinned protobuf runtime — 6.31.1 in HA 2025.7 through 6.32.0 in HA 2026.4). Loads on HA 2025.7.1+.
+- [x] Fixed options flow crash on HA 2025.12+: `self.config_entry` is provided by the `OptionsFlow` base class and lost its setter; the explicit assignment was removed.
+- [x] Modernized to `entry.runtime_data` (replacing `hass.data[DOMAIN]`), added `single_config_entry` and `integration_type` to the manifest, removed the invalid `homeassistant` manifest key, added service schemas, and services are now removed on unload.
+- [x] **Verified packet parity with C#**: automated harness compared 5,282 packets (temperature sweeps of both scales, all purposes, error boundaries, sequence wrap, pairing) — byte-for-byte identical, including the direct temperature-index calculation. One fix came out of this: the `Temperature` field is now omitted when the index is 0 (exactly -40.0°C), matching protobuf-net's zero-default skipping.
+- [x] Docs refreshed (real packet examples, corrected index range, HACS structure caveat, Actions terminology).
+- [x] **Fixed options-flow menu dispatch**: HA menus call `async_step_<option_id>` directly, so "Done (Pair All Sensors)" and "Delete Sensor" crashed with `UnknownStep` and "Edit Sensor" silently returned to the menu — only "Add Sensor" ever worked. Menu options now name real steps (`select_sensor_to_edit`, `select_sensor_to_delete`, new `done` step), and the dead post-back dispatch code was removed.
+- [x] Climate entities now work as temperature sources: their measured temperature is read from the `current_temperature` attribute (their state is the HVAC mode, so `float(state.state)` always failed).
+- [x] Protobuf gencode is imported at module load (executor) instead of lazily inside packet builders, which triggered HA's "blocking call to import_module inside the event loop" warning on first broadcast.
+- [x] Broadcast-path storage writes are debounced (10 s) instead of hitting disk once per sensor per minute; config changes still write immediately. Broadcast loops run as named HA background tasks.
+- [x] **End-to-end verified on HA 2026.4.4** (protobuf 6.32.0, Python 3.14) with `pytest-homeassistant-custom-component`: config flow setup, second-instance abort, every options-flow menu path (add / edit with purpose change / delete / pair-all success and failure), both services including a climate-entity source, and clean unload.
+
 ## ✅ Completed Components
 
 ### Phase 1: Foundation
@@ -11,7 +24,7 @@
 
 ### Phase 2: Core Logic
 - [x] **venstar_sensor.py** - Complete sensor packet building logic
-  - Temperature lookup tables (Fahrenheit and Celsius)
+  - Direct temperature-index calculation (Fahrenheit and Celsius), matching the C# implementation
   - MAC address generation from prefix + sensor ID
   - HMAC-SHA256 signature generation
   - Data packet building with incrementing sequence numbers

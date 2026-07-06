@@ -6,8 +6,7 @@ This guide covers installing the Venstar Translator integration into Home Assist
 
 ## Prerequisites
 
-- Home Assistant Core 2025.7.1 or newer
-- Python 3.11 or newer (comes with HA)
+- Home Assistant 2025.7.1 or newer (developed and validated against 2026.4.x)
 - Venstar ColorTouch thermostat on the same network/VLAN
 - Temperature sensor entities already configured in Home Assistant
 
@@ -41,6 +40,7 @@ This guide covers installing the Venstar Translator integration into Home Assist
    │       ├── translations/
    │       │   └── en.json
    │       └── protobuf/
+   │           ├── __init__.py
    │           ├── sensor_message.proto
    │           └── sensor_message_pb2.py
    ```
@@ -58,20 +58,13 @@ This guide covers installing the Venstar Translator integration into Home Assist
 
    You should NOT see any import errors or exceptions.
 
-### Method 2: Via HACS (Future)
+### Method 2: Via HACS (Not Currently Possible)
 
-> **Note**: This integration is not yet available in the HACS default repository.
-
-Once submitted to HACS:
-
-1. Open HACS in Home Assistant
-2. Go to **Integrations**
-3. Click **+ Explore & Download Repositories**
-4. Search for "Venstar Translator"
-5. Click **Download**
-6. Restart Home Assistant
+HACS requires `custom_components/` at the **root** of a repository; this integration lives in the `hacs/` subdirectory of the main VenstarTranslator repository, so it cannot be added as a HACS custom repository in its current form. Use manual installation.
 
 ## Initial Setup
+
+Only one instance of the integration can be added (enforced via `single_config_entry` in the manifest). Each instance supports up to 20 sensors.
 
 ### Step 1: Add the Integration
 
@@ -79,9 +72,6 @@ Once submitted to HACS:
 2. Click **+ Add Integration**
 3. Search for "Venstar Translator"
 4. Click to add it
-
-   ![Add Integration](docs/screenshots/add-integration.png)
-
 5. Click **Submit** on the setup dialog
 
    The integration will automatically:
@@ -93,9 +83,6 @@ Once submitted to HACS:
 
 1. Find "Venstar Translator" in your integrations list
 2. Click **Configure**
-
-   ![Configure Button](docs/screenshots/configure-button.png)
-
 3. You'll see the sensor management screen:
 
    ```
@@ -146,7 +133,7 @@ Repeat Step 3 to add up to 20 sensors total.
 
 1. After adding all desired sensors, click **Done (Pair All Sensors)**
 
-2. The integration will send pairing packets for all enabled sensors via UDP broadcast
+2. The integration will send pairing packets for all enabled sensors via UDP broadcast, then show a confirmation dialog (including which sensors, if any, could not be paired because their temperature entity was unavailable)
 
 3. **On your Venstar thermostat:**
    - Consult your thermostat's manual for instructions on pairing wireless sensors
@@ -232,33 +219,33 @@ Edit the sensor and toggle the **Enabled** checkbox. Disabled sensors:
 - Don't appear on thermostat
 - Free up broadcast bandwidth
 
-## Manual Pairing Service
+## Manual Pairing Action
 
 If you need to re-pair a single sensor (e.g., after thermostat reboot):
 
-**Developer Tools** → **Services**:
+**Developer Tools** → **Actions**:
 
 ```yaml
-service: venstar_translator.pair_sensor
+action: venstar_translator.pair_sensor
 data:
   sensor_id: 0
 ```
 
 Replace `0` with the sensor ID you want to pair.
 
-## Resend Last Packet Service
+## Resend Last Packet Action
 
 If you need to troubleshoot thermostat connectivity, you can resend the exact packet from a sensor's last broadcast (same sequence number and temperature data):
 
-**Developer Tools** → **Services**:
+**Developer Tools** → **Actions**:
 
 ```yaml
-service: venstar_translator.resend_last_packet
+action: venstar_translator.resend_last_packet
 data:
   sensor_id: 0
 ```
 
-This will return an error if the sensor has never broadcast a packet.
+This logs an error if the sensor has never broadcast a packet.
 
 ## Storage and Persistence
 
@@ -272,6 +259,7 @@ This JSON file contains:
 - MAC address prefix (generated once)
 - All sensor configurations
 - Sequence numbers (persist across restarts)
+- The last broadcast packet per sensor (base64, used by `resend_last_packet`)
 
 **Backup recommendation**: Include `.storage/` in your HA backup routine.
 
@@ -293,8 +281,8 @@ This JSON file contains:
 
 ### Integration won't load?
 
-1. **Check Python version**: Must be 3.11+
-2. **Check protobuf**: Ensure `sensor_message_pb2.py` exists
+1. **Check Home Assistant version**: Must be 2025.7.1+. On older versions the generated protobuf code refuses to load (`VersionError` mentioning "gencode" and "runtime" versions in the log) because HA ships an older `protobuf` runtime
+2. **Check protobuf**: Ensure `protobuf/sensor_message_pb2.py` and `protobuf/__init__.py` exist
 3. **Check logs**: Look for import errors
 4. **Reinstall**: Delete and re-copy files
 

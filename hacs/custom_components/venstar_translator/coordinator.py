@@ -3,15 +3,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from homeassistant.core import HomeAssistant
+    from homeassistant.core import HomeAssistant, State
+
+    from .storage import VenstarTranslatorStorage
 
 from .const import (
     DEFAULT_INTERVAL,
-    DOMAIN,
     OUTDOOR_INTERVAL,
     PURPOSE_OUTDOOR,
 )
@@ -20,32 +20,48 @@ from .venstar_sensor import VenstarSensor, broadcast_udp_packet
 _LOGGER = logging.getLogger(__name__)
 
 
+def extract_temperature(state: State | None) -> float | None:
+    """Extract a temperature reading from an HA state object.
+
+    Climate entities report the measured temperature in their
+    current_temperature attribute (their state is the HVAC mode, e.g. "heat");
+    everything else uses the state value itself.
+
+    Returns None if the entity is missing/unavailable or non-numeric.
+    """
+    if state is None or state.state in ("unknown", "unavailable"):
+        return None
+    if state.domain == "climate":
+        value = state.attributes.get("current_temperature")
+    else:
+        value = state.state
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 class VenstarSensorCoordinator:
     """Manages broadcast scheduling and execution for a single sensor."""
 
     def __init__(
         self,
         hass: HomeAssistant,
-        entry_id: str,
+        storage: VenstarTranslatorStorage,
         sensor_id: int,
     ) -> None:
         """Initialize the coordinator.
 
         Args:
             hass: Home Assistant instance
-            entry_id: Config entry ID
+            storage: Shared storage instance for this config entry
             sensor_id: Sensor ID (0-19)
         """
         self.hass = hass
-        self.entry_id = entry_id
+        self._storage = storage
         self.sensor_id = sensor_id
         self._task: asyncio.Task | None = None
         self._stop_event = asyncio.Event()
-
-    @property
-    def _storage(self):
-        """Get storage instance from hass.data."""
-        return self.hass.data[DOMAIN][self.entry_id]["storage"]
 
     @property
     def _sensor_config(self) -> dict:
@@ -80,7 +96,12 @@ class VenstarSensorCoordinator:
         )
 
         self._stop_event.clear()
-        self._task = asyncio.create_task(self._broadcast_loop(interval))
+        # HA-tracked background task: named in diagnostics and cancelled
+        # automatically at shutdown (bare asyncio.create_task is neither)
+        self._task = self.hass.async_create_background_task(
+            self._broadcast_loop(interval),
+            name=f"venstar_translator broadcast loop sensor {self.sensor_id}",
+        )
 
     async def stop(self) -> None:
         """Stop the broadcast scheduler."""
@@ -154,14 +175,13 @@ class VenstarSensorCoordinator:
             )
             return None
 
-        try:
-            return float(state.state)
-        except (ValueError, TypeError) as e:
+        temperature = extract_temperature(state)
+        if temperature is None:
             _LOGGER.error(
-                f"Invalid temperature value from {sensor_config['entity_id']}: "
-                f"{state.state} - {e}"
+                f"No numeric temperature available from {sensor_config['entity_id']} "
+                f"(state: {state.state})"
             )
-            return None
+        return temperature
 
     async def _broadcast_sensor(self, temperature: float) -> None:
         """Build packet and broadcast via UDP.
@@ -189,9 +209,10 @@ class VenstarSensorCoordinator:
         await self.hass.async_add_executor_job(broadcast_udp_packet, packet)
 
         # Update sequence number and cache packet in storage
+        # (debounced write - this runs once per sensor per broadcast interval)
         storage.update_sequence(self.sensor_id, sensor.sequence)
         storage.update_last_packet(self.sensor_id, packet)
-        await storage.async_save()
+        await storage.async_save(immediate=False)
 
         _LOGGER.debug(
             f"Broadcast sensor {self.sensor_id} ({sensor_config['name']}): "

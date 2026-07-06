@@ -8,7 +8,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import callback
 from homeassistant.helpers import selector
 
 from .const import (
@@ -18,7 +18,7 @@ from .const import (
     VALID_PURPOSES,
     VALID_SCALES,
 )
-from .coordinator import VenstarSensorCoordinator
+from .coordinator import VenstarSensorCoordinator, extract_temperature
 from .venstar_sensor import VenstarSensor, broadcast_udp_packet
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,22 +66,28 @@ class VenstarTranslatorConfigFlow(ConfigFlow, domain=DOMAIN):
         config_entry: ConfigEntry,
     ) -> OptionsFlow:
         """Get the options flow for this handler."""
-        return VenstarTranslatorOptionsFlow(config_entry)
+        # self.config_entry is provided by the OptionsFlow base class;
+        # assigning it explicitly crashes since HA 2025.12.
+        return VenstarTranslatorOptionsFlow()
 
 
 class VenstarTranslatorOptionsFlow(OptionsFlow):
     """Handle options flow for Venstar Translator."""
 
-    def __init__(self, config_entry: ConfigEntry) -> None:
+    def __init__(self) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
         self._sensor_to_edit: int | None = None
         self._sensor_to_delete: int | None = None
 
     @property
     def _storage(self):
         """Get storage instance."""
-        return self.hass.data[DOMAIN][self.config_entry.entry_id]["storage"]
+        return self.config_entry.runtime_data.storage
+
+    @property
+    def _coordinators(self):
+        """Get the coordinator registry for this config entry."""
+        return self.config_entry.runtime_data.coordinators
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -92,21 +98,12 @@ class VenstarTranslatorOptionsFlow(OptionsFlow):
     async def async_step_sensor_list(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Show list of configured sensors with management options."""
+        """Show list of configured sensors with management options.
+
+        Menu selections dispatch directly to async_step_<option_id>, so every
+        menu option below must be the name of a step method on this class.
+        """
         storage = self._storage
-
-        if user_input is not None:
-            action = user_input.get("action")
-
-            if action == "done":
-                # User finished configuration - pair all sensors
-                return await self.async_step_pair_all_sensors()
-            elif action == "add_sensor":
-                return await self.async_step_add_sensor()
-            elif action == "edit_sensor":
-                return await self.async_step_select_sensor_to_edit()
-            elif action == "delete_sensor":
-                return await self.async_step_select_sensor_to_delete()
 
         # Build sensor list description
         sensor_count = len(storage.sensors)
@@ -117,14 +114,14 @@ class VenstarTranslatorOptionsFlow(OptionsFlow):
             for sensor_id, config in sorted(storage.sensors.items(), key=lambda x: int(x[0])):
                 status = "✓ Enabled" if config.get("enabled", True) else "✗ Disabled"
                 sensor_lines.append(
-                    f"  [{sensor_id}] {config['name']} - {config['purpose']} - {status}"
+                    f"- [{sensor_id}] {config['name']} - {config['purpose']} - {status}"
                 )
             sensor_list = "\n".join(sensor_lines)
             description = f"Configured sensors ({sensor_count}/{MAX_SENSORS}):\n\n{sensor_list}"
 
         menu_options = ["add_sensor"]
         if sensor_count > 0:
-            menu_options.extend(["edit_sensor", "delete_sensor"])
+            menu_options.extend(["select_sensor_to_edit", "select_sensor_to_delete"])
         menu_options.append("done")
 
         return self.async_show_menu(
@@ -132,6 +129,12 @@ class VenstarTranslatorOptionsFlow(OptionsFlow):
             menu_options=menu_options,
             description_placeholders={"sensors": description}
         )
+
+    async def async_step_done(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Finish configuration: pair all sensors (menu entry point)."""
+        return await self.async_step_pair_all_sensors()
 
     async def async_step_add_sensor(
         self, user_input: dict[str, Any] | None = None
@@ -162,12 +165,10 @@ class VenstarTranslatorOptionsFlow(OptionsFlow):
                     # Start coordinator for this sensor if enabled
                     if user_input.get("enabled", True):
                         coordinator = VenstarSensorCoordinator(
-                            self.hass, self.config_entry.entry_id, sensor_id
+                            self.hass, storage, sensor_id
                         )
                         await coordinator.start()
-                        self.hass.data[DOMAIN][self.config_entry.entry_id]["coordinators"][
-                            sensor_id
-                        ] = coordinator
+                        self._coordinators[sensor_id] = coordinator
 
                     _LOGGER.info(f"Added sensor {sensor_id}: {name}")
                     return await self.async_step_sensor_list()
@@ -278,9 +279,7 @@ class VenstarTranslatorOptionsFlow(OptionsFlow):
                     await storage.async_save()
 
                     # Handle coordinator lifecycle
-                    coordinators = self.hass.data[DOMAIN][self.config_entry.entry_id][
-                        "coordinators"
-                    ]
+                    coordinators = self._coordinators
 
                     if old_enabled and not new_enabled:
                         # Disabling: stop coordinator
@@ -290,7 +289,7 @@ class VenstarTranslatorOptionsFlow(OptionsFlow):
                     elif not old_enabled and new_enabled:
                         # Enabling: start coordinator
                         coordinator = VenstarSensorCoordinator(
-                            self.hass, self.config_entry.entry_id, sensor_id
+                            self.hass, storage, sensor_id
                         )
                         await coordinator.start()
                         coordinators[sensor_id] = coordinator
@@ -300,7 +299,7 @@ class VenstarTranslatorOptionsFlow(OptionsFlow):
                             await coordinators[sensor_id].stop()
                             del coordinators[sensor_id]
                         coordinator = VenstarSensorCoordinator(
-                            self.hass, self.config_entry.entry_id, sensor_id
+                            self.hass, storage, sensor_id
                         )
                         await coordinator.start()
                         coordinators[sensor_id] = coordinator
@@ -385,9 +384,7 @@ class VenstarTranslatorOptionsFlow(OptionsFlow):
         if user_input is not None:
             if user_input.get("confirm"):
                 # Stop coordinator if running
-                coordinators = self.hass.data[DOMAIN][self.config_entry.entry_id][
-                    "coordinators"
-                ]
+                coordinators = self._coordinators
                 if sensor_id in coordinators:
                     await coordinators[sensor_id].stop()
                     del coordinators[sensor_id]
@@ -428,15 +425,15 @@ class VenstarTranslatorOptionsFlow(OptionsFlow):
 
             try:
                 # Get current temperature
-                state = self.hass.states.get(sensor_config["entity_id"])
-                if not state or state.state in ("unknown", "unavailable"):
+                temperature = extract_temperature(
+                    self.hass.states.get(sensor_config["entity_id"])
+                )
+                if temperature is None:
                     _LOGGER.warning(
                         f"Skipping pairing for sensor {sensor_id}: temperature unavailable"
                     )
                     failed_sensors.append(sensor_config["name"])
                     continue
-
-                temperature = float(state.state)
 
                 # Send pairing packet
                 await self._send_pairing_packet(
@@ -467,9 +464,10 @@ class VenstarTranslatorOptionsFlow(OptionsFlow):
                 }
             )
         else:
-            return self.async_create_entry(
-                title="",
-                data={},
+            # async_abort renders the translated "pairing_complete" message;
+            # there are no entry options to save (state lives in storage).
+            return self.async_abort(
+                reason="pairing_complete",
                 description_placeholders={"count": str(paired_count)}
             )
 

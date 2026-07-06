@@ -17,8 +17,8 @@
         "description": "{sensors}",
         "menu_options": {
           "add_sensor": "Add Sensor",
-          "edit_sensor": "Edit Sensor",
-          "delete_sensor": "Delete Sensor",
+          "select_sensor_to_edit": "Edit Sensor",
+          "select_sensor_to_delete": "Delete Sensor",
           "done": "Done (Pair All Sensors)"
         }
       },

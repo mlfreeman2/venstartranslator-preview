@@ -1,12 +1,13 @@
 {
   "domain": "venstar_translator",
   "name": "Venstar Translator",
-  "version": "0.1.0",
-  "documentation": "https://github.com/rsmaxwell/venstartranslator-preview/tree/main/hacs",
-  "issue_tracker": "https://github.com/rsmaxwell/venstartranslator-preview/issues",
-  "requirements": ["protobuf>=4.25.0"],
-  "codeowners": ["@rsmaxwell"],
+  "codeowners": ["@mlfreeman2"],
   "config_flow": true,
+  "documentation": "https://github.com/mlfreeman2/venstartranslator-preview/tree/main/hacs",
+  "integration_type": "service",
   "iot_class": "local_push",
-  "homeassistant": "2025.7.1"
+  "issue_tracker": "https://github.com/mlfreeman2/venstartranslator-preview/issues",
+  "requirements": ["protobuf>=6.31.1"],
+  "single_config_entry": true,
+  "version": "0.2.0"
 }

@@ -20,18 +20,18 @@ Then restart Home Assistant.
 ## What Gets Logged
 
 ### Pairing Packets (INFO level)
-When you click "Done" in the config UI or call the `pair_sensor` service:
+When you click "Done" in the config UI or call the `pair_sensor` action:
 
 ```
-Building PAIRING packet for sensor 0 (Living Room): temp=72.5°F, temp_index=112, mac=428e0486d800, purpose=Remote
-Sensor 0: Pairing signature_key=abcdef1234567890... (truncated)
-Sensor 0: Built pairing packet, size=87 bytes, hex=0a552a530802100018c42e204220... (truncated)
+Building PAIRING packet for sensor 0 (Living Room): temp=72.5°F, temp_index=126, mac=428e0486d800, purpose=Remote
+Sensor 0: Pairing signature_key=8u7K6Lua4yu8kNIc... (truncated)
+Sensor 0: Built pairing packet, size=98 bytes, hex=082bd2025d0a2d080110001a0c343238... (truncated)
 Pairing packet sent for sensor 0 (Living Room)
 ```
 
 **Key details logged:**
 - Sensor ID and name
-- Temperature value and lookup table index
+- Temperature value and computed temperature index
 - MAC address
 - Sensor purpose (Outdoor/Remote/Return/Supply)
 - Signature key (truncated for security)
@@ -41,21 +41,21 @@ Pairing packet sent for sensor 0 (Living Room)
 Every scheduled broadcast (60s or 300s):
 
 ```
-Building data packet for sensor 0 (Living Room): temp=72.5°F, temp_index=112, seq=42
-Sensor 0: INFO bytes=54, signature=1a2b3c4d5e6f7g8h... (truncated)
-Sensor 0: Built data packet, size=87 bytes, next_seq=43
-Broadcasting UDP packet: size=87 bytes, destination=255.255.255.255:5001, repeats=5, hex=0a552a530802...
-UDP broadcast 1/5: sent 87 bytes to 255.255.255.255:5001
-UDP broadcast 2/5: sent 87 bytes to 255.255.255.255:5001
-UDP broadcast 3/5: sent 87 bytes to 255.255.255.255:5001
-UDP broadcast 4/5: sent 87 bytes to 255.255.255.255:5001
-UDP broadcast 5/5: sent 87 bytes to 255.255.255.255:5001
+Building data packet for sensor 0 (Living Room): temp=72.5°F, temp_index=126, seq=42
+Sensor 0: INFO bytes=45, signature=swvLz2AiXF89/1In... (truncated)
+Sensor 0: Built data packet, size=98 bytes, next_seq=43
+Broadcasting UDP packet: size=98 bytes, destination=255.255.255.255:5001, repeats=5, hex=082ad2025d0a2d082a10001a0c343238...
+UDP broadcast 1/5: sent 98 bytes to 255.255.255.255:5001
+UDP broadcast 2/5: sent 98 bytes to 255.255.255.255:5001
+UDP broadcast 3/5: sent 98 bytes to 255.255.255.255:5001
+UDP broadcast 4/5: sent 98 bytes to 255.255.255.255:5001
+UDP broadcast 5/5: sent 98 bytes to 255.255.255.255:5001
 Successfully broadcast 5 UDP packets
 Broadcast sensor 0 (Living Room): 72.5°F (seq=42)
 ```
 
 **Key details logged:**
-- Temperature and lookup index
+- Temperature and computed temperature index
 - Current sequence number
 - HMAC signature (truncated)
 - Packet size
@@ -74,35 +74,37 @@ Stopping coordinator for sensor 0
 When things go wrong:
 
 ```
-Failed to broadcast UDP packet: [Errno 101] Network is unreachable, packet_size=87, port=5001
+Failed to broadcast UDP packet: [Errno 101] Network is unreachable, packet_size=98, port=5001
 Cannot pair sensor 0: temperature unavailable from entity sensor.living_room_temperature
 Invalid temperature value from sensor.outdoor_temp: unavailable - could not convert string to float: 'unavailable'
-Temperature 200°F out of range (rounded to 200, valid range: -40 to 188)
+Error broadcasting sensor 0 (Living Room): Temperature 200.0°F (=93.5°C) is outside the valid range of -40.0°C to 86.5°C
 ```
 
 ## Comparing with C# Version
 
-To verify the Python implementation matches the C# version:
+The Python packet builder has been verified byte-for-byte against the C# implementation with an automated harness (5,282 packets covering both temperature scales in fine increments, all purposes, boundary/error temperatures, sequence wrap values, and pairing packets). To re-verify manually:
 
 1. **Enable debug logging in both versions**
 2. **Compare packet hex output** - should be identical for same inputs:
    - Same temperature
    - Same sequence number
-   - Same sensor ID and MAC
+   - Same sensor ID, name, purpose, and MAC
 
-Example comparison:
+Example comparison (sensor 0, MAC prefix `428e0486d8`, "Living Room", Remote, 72.5°F, seq 42):
 
 **C# log:**
 ```
-Sensor 0: Built data packet, hex=0a552a530802100018c42e2042201a7b8c9d...
+Sensor 0: Built data packet, hex=082ad2025d0a2d082a10001a0c343238...
 ```
 
 **Python log:**
 ```
-Sensor 0: Built data packet, size=87 bytes, hex=0a552a530802100018c42e2042201a7b8c9d...
+Sensor 0: Built data packet, size=98 bytes, hex=082ad2025d0a2d082a10001a0c343238...
 ```
 
 If hex strings match → protobuf implementation is correct!
+
+One deliberate quirk: when the temperature index is 0 (exactly -40.0°C / -40°F), the `Temperature` field is omitted from the packet entirely, matching the C# serializer's behavior of skipping zero-valued optional fields. Receivers decode the absent field as 0, so the reading is unchanged.
 
 ## Useful Grep Commands
 
@@ -140,7 +142,7 @@ grep "ERROR.*venstar_translator" /config/home-assistant.log
 
 1. Check coordinator logs - is it broadcasting?
 2. Check sequence numbers - are they incrementing?
-3. Check temperature index - is it valid (0-248 for F, 0-253 for C)?
+3. Check temperature index - is it valid (0-253, where 0 = -40.0°C and 253 = 86.5°C)?
 4. Check HMAC signature - is it being generated?
 
 ### Broadcasts stopping?
@@ -167,22 +169,31 @@ This reduces logging to only:
 
 ## Packet Structure Reference
 
-Example pairing packet breakdown (hex):
+Real pairing packet breakdown (sensor 0, MAC prefix `428e0486d8`, name "Living Room", Remote, 72.5°F). Full hex:
+
 ```
-0a55              # Field 1 (Command): SENSORPAIR (43 = 0x2b)
-  2a53            # Field 42 (SensorData)
-    0802          # Field 1 (Info.Sequence): 1
-    1000          # Field 2 (Info.SensorId): 0
-    18c42e        # Field 3 (Info.Mac): "428e0486d800"
-    2004          # Field 4 (Info.FwMajor): 4
-    2002          # Field 5 (Info.FwMinor): 2
-    3001          # Field 6 (Info.Model): TEMPSENSOR (1)
-    3801          # Field 7 (Info.Power): BATTERY (1)
-    420c4c69...   # Field 8 (Info.Name): "Living Room"
-    4803          # Field 9 (Info.Type): REMOTE (3)
-    5070          # Field 10 (Info.Temperature): 112 (72°F)
-    5864          # Field 11 (Info.Battery): 100
-  12...           # Field 2 (Signature): base64 signature
+082bd2025d0a2d080110001a0c3432386530343836643830302004280230013801420b4c6976696e6720526f6f6d4803507e5864122c<44-char base64 signature>
+```
+
+Field by field:
+```
+08 2b                  # Field 1 (Command), varint: 43 = SENSORPAIR (data packets use 42 = SENSORDATA)
+d2 02 5d               # Field 42 (SensorData), length-delimited, 93 bytes
+  0a 2d                # Field 1 (Info), length-delimited, 45 bytes
+    08 01              # Field 1 (Sequence): 1
+    10 00              # Field 2 (SensorId): 0
+    1a 0c 3432...3030  # Field 3 (Mac): "428e0486d800" (12 ASCII chars)
+    20 04              # Field 4 (FwMajor): 4
+    28 02              # Field 5 (FwMinor): 2
+    30 01              # Field 6 (Model): TEMPSENSOR (1)
+    38 01              # Field 7 (Power): BATTERY (1)
+    42 0b 4c69...6f6d  # Field 8 (Name): "Living Room" (11 UTF-8 bytes)
+    48 03              # Field 9 (Type): REMOTE (3)
+    50 7e              # Field 10 (Temperature): 126 (72.5°F → 73°F → 23.0°C)
+    58 64              # Field 11 (Battery): 100
+  12 2c ...            # Field 2 (Signature): 44-char base64 string
+                       #   pairing: the signature key itself
+                       #   data: HMAC-SHA256 of the Info bytes
 ```
 
 Use this to manually inspect packets if needed!

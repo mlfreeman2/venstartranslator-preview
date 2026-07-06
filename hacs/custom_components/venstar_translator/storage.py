@@ -17,6 +17,13 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# Debounce window for broadcast-path saves (sequence numbers / cached packets).
+# Immediate writes after every broadcast would hit the disk once per sensor per
+# minute forever, which is real wear on SD-card installs. Losing a few
+# sequence increments in a hard crash is harmless: the protocol's own 65000→1
+# rollover means the thermostat already tolerates sequence regressions.
+SAVE_DELAY = 10.0
+
 
 class VenstarTranslatorStorage:
     """Manage persistent storage for Venstar Translator."""
@@ -55,14 +62,27 @@ class VenstarTranslatorStorage:
                 f"{len(self.sensors)} sensors configured"
             )
 
-    async def async_save(self) -> None:
-        """Save data to storage."""
-        data = {
+    def _data_to_save(self) -> dict[str, Any]:
+        """Return the data to persist."""
+        return {
             "mac_prefix": self.mac_prefix,
             "sensors": self.sensors,
         }
-        await self._store.async_save(data)
-        _LOGGER.debug(f"Saved storage: {len(self.sensors)} sensors")
+
+    async def async_save(self, immediate: bool = True) -> None:
+        """Save data to storage.
+
+        Args:
+            immediate: Write now (config changes). Pass False for high-frequency
+                       bookkeeping (sequence numbers, cached packets) to debounce
+                       disk writes; pending delayed writes are flushed by the
+                       Store helper when Home Assistant stops.
+        """
+        if immediate:
+            await self._store.async_save(self._data_to_save())
+        else:
+            self._store.async_delay_save(self._data_to_save, SAVE_DELAY)
+        _LOGGER.debug(f"Saved storage: {len(self.sensors)} sensors (immediate={immediate})")
 
     def get_next_sensor_id(self) -> int | None:
         """Find the next available sensor ID (0-19).

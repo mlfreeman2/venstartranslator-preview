@@ -1,20 +1,45 @@
 """The Venstar Translator integration."""
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 import logging
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+import voluptuous as vol
 
-from .const import DOMAIN
-from .coordinator import VenstarSensorCoordinator
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, ServiceCall
+
+from .const import DOMAIN, MAX_SENSORS
+from .coordinator import VenstarSensorCoordinator, extract_temperature
 from .storage import VenstarTranslatorStorage
 from .venstar_sensor import VenstarSensor, broadcast_udp_packet
 
 _LOGGER = logging.getLogger(__name__)
 
+SERVICE_PAIR_SENSOR = "pair_sensor"
+SERVICE_RESEND_LAST_PACKET = "resend_last_packet"
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+SERVICE_SCHEMA = vol.Schema(
+    {
+        vol.Required("sensor_id"): vol.All(
+            vol.Coerce(int), vol.Range(min=0, max=MAX_SENSORS - 1)
+        ),
+    }
+)
+
+
+@dataclass
+class VenstarRuntimeData:
+    """Runtime data stored on the Venstar Translator config entry."""
+
+    storage: VenstarTranslatorStorage
+    coordinators: dict[int, VenstarSensorCoordinator] = field(default_factory=dict)
+
+
+type VenstarConfigEntry = ConfigEntry[VenstarRuntimeData]
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: VenstarConfigEntry) -> bool:
     """Set up Venstar Translator from a config entry."""
     _LOGGER.info("Setting up Venstar Translator integration")
 
@@ -22,28 +47,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     storage = VenstarTranslatorStorage(hass)
     await storage.async_load(mac_prefix=entry.data.get("mac_prefix"))
 
-    # Store in hass.data
-    hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = {
-        "storage": storage,
-        "coordinators": {},
-    }
+    entry.runtime_data = VenstarRuntimeData(storage=storage)
 
     # Initialize coordinators for each enabled sensor
-    coordinators = {}
     for sensor_id_str, sensor_config in storage.sensors.items():
         if sensor_config.get("enabled", True):
             sensor_id = int(sensor_id_str)
-            coordinator = VenstarSensorCoordinator(hass, entry.entry_id, sensor_id)
+            coordinator = VenstarSensorCoordinator(hass, storage, sensor_id)
             await coordinator.start()
-            coordinators[sensor_id] = coordinator
-
-    hass.data[DOMAIN][entry.entry_id]["coordinators"] = coordinators
+            entry.runtime_data.coordinators[sensor_id] = coordinator
 
     # Register pair_sensor service
-    async def handle_pair_sensor(call):
+    async def handle_pair_sensor(call: ServiceCall) -> None:
         """Handle the pair_sensor service call."""
-        sensor_id = call.data.get("sensor_id")
+        sensor_id = call.data["sensor_id"]
 
         if str(sensor_id) not in storage.sensors:
             _LOGGER.error(f"Sensor {sensor_id} not configured")
@@ -52,8 +69,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         sensor_config = storage.sensors[str(sensor_id)]
 
         # Get current temperature
-        state = hass.states.get(sensor_config["entity_id"])
-        if not state or state.state in ("unknown", "unavailable"):
+        temperature = extract_temperature(hass.states.get(sensor_config["entity_id"]))
+        if temperature is None:
             _LOGGER.error(
                 f"Cannot pair sensor {sensor_id}: temperature unavailable from "
                 f"entity {sensor_config['entity_id']}"
@@ -61,8 +78,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             return
 
         try:
-            temperature = float(state.state)
-
             # Create sensor instance
             sensor = VenstarSensor(
                 sensor_id=sensor_id,
@@ -88,12 +103,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception as e:
             _LOGGER.error(f"Failed to send pairing packet for sensor {sensor_id}: {e}")
 
-    hass.services.async_register(DOMAIN, "pair_sensor", handle_pair_sensor)
+    hass.services.async_register(
+        DOMAIN, SERVICE_PAIR_SENSOR, handle_pair_sensor, schema=SERVICE_SCHEMA
+    )
 
     # Register resend_last_packet service
-    async def handle_resend_last_packet(call):
+    async def handle_resend_last_packet(call: ServiceCall) -> None:
         """Handle the resend_last_packet service call."""
-        sensor_id = call.data.get("sensor_id")
+        sensor_id = call.data["sensor_id"]
 
         if str(sensor_id) not in storage.sensors:
             _LOGGER.error(f"Sensor {sensor_id} not configured")
@@ -117,21 +134,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except Exception as e:
             _LOGGER.error(f"Failed to resend packet for sensor {sensor_id}: {e}")
 
-    hass.services.async_register(DOMAIN, "resend_last_packet", handle_resend_last_packet)
+    hass.services.async_register(
+        DOMAIN, SERVICE_RESEND_LAST_PACKET, handle_resend_last_packet, schema=SERVICE_SCHEMA
+    )
 
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: VenstarConfigEntry) -> bool:
     """Unload a config entry."""
     _LOGGER.info("Unloading Venstar Translator integration")
 
     # Stop all coordinators
-    data = hass.data[DOMAIN][entry.entry_id]
-    for coordinator in data.get("coordinators", {}).values():
+    for coordinator in entry.runtime_data.coordinators.values():
         await coordinator.stop()
+    entry.runtime_data.coordinators.clear()
 
-    # Clean up
-    hass.data[DOMAIN].pop(entry.entry_id)
+    # Remove services so stale handlers can't touch unloaded storage
+    hass.services.async_remove(DOMAIN, SERVICE_PAIR_SENSOR)
+    hass.services.async_remove(DOMAIN, SERVICE_RESEND_LAST_PACKET)
 
     return True
