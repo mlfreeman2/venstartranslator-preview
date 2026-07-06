@@ -105,7 +105,7 @@ jobs:
           type=raw,value=${{ steps.branch.outputs.name }}-${{ steps.timestamp.outputs.timestamp }},enable=${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta') }}
 
     - name: Build and push Docker image
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         context: .
         platforms: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta') && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
