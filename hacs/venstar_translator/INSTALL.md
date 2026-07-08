@@ -20,7 +20,7 @@ This guide covers installing the Venstar Translator integration into Home Assist
 
    ```bash
    # From the repository root
-   cp -r hacs/custom_components/venstar_translator /config/custom_components/
+   cp -r hacs/venstar_translator/custom_components/venstar_translator /config/custom_components/
    ```
 
    Your directory structure should look like:

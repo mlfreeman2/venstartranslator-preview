@@ -28,7 +28,7 @@ The minimum Home Assistant version matters: the bundled protobuf code requires t
 
 ### Manual Installation
 
-1. Copy the `custom_components/venstar_translator` folder into your Home Assistant `custom_components` directory
+1. Copy the `hacs/venstar_translator/custom_components/venstar_translator` folder into your Home Assistant `custom_components` directory
 2. Restart Home Assistant
 3. Go to **Settings** > **Devices & Services** > **Add Integration**
 4. Search for "Venstar Translator"
@@ -72,7 +72,7 @@ Available under **Developer Tools** → **Actions**:
 
 ```bash
 pip install "grpcio-tools==1.75.1"
-cd custom_components/venstar_translator/protobuf
+cd hacs/venstar_translator/custom_components/venstar_translator/protobuf
 python -m grpc_tools.protoc -I. --python_out=. sensor_message.proto
 ```
 

@@ -28,8 +28,8 @@
 	"mounts": [
 		// SSH keys for git operations
 		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind,readonly",
-		// Claude configuration persistence
-		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/claude,target=/home/vscode/.config/claude,type=bind,consistency=cached",
+		// Claude Code config/auth persistence (per-project named volume survives rebuilds)
+		"source=claude-code-config-${devcontainerId},target=/home/vscode/.config/claude,type=volume",
 		// NuGet package cache to speed up builds
 		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.nuget,target=/home/vscode/.nuget,type=bind,consistency=cached",
 		// GitHub CLI auth persistence (survives container rebuilds)
@@ -67,6 +67,7 @@
 	"updateContentCommand": "dotnet restore 2>/dev/null || true",
 	"containerEnv": {
 		"ASPNETCORE_ENVIRONMENT": "Development",
-		"ASPNETCORE_URLS": "http://+:8080"
+		"ASPNETCORE_URLS": "http://+:8080",
+		"CLAUDE_CONFIG_DIR": "/home/vscode/.config/claude"
 	}
 }

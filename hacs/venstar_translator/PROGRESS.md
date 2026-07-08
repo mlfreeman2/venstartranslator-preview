@@ -160,7 +160,7 @@ custom_components/venstar_translator/
 
 When ready for distribution:
 
-1. Copy `hacs/custom_components/venstar_translator/` to HA's `config/custom_components/`
+1. Copy `hacs/venstar_translator/custom_components/venstar_translator/` to HA's `config/custom_components/`
 2. Restart Home Assistant
 3. Go to Settings → Devices & Services → Add Integration
 4. Search for "Venstar Translator"
