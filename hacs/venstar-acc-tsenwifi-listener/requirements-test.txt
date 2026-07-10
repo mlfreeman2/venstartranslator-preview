@@ -1,0 +1,7 @@
+# Test harness dependencies (manifest requirements are NOT auto-installed in tests).
+# Pin pytest-homeassistant-custom-component to a release matching the HA version
+# you develop against — its versions track HA releases.
+pytest
+pytest-asyncio
+pytest-homeassistant-custom-component
+protobuf>=6.31.1,<8

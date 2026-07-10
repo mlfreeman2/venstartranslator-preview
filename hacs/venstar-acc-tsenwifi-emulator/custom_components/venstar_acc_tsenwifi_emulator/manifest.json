@@ -1,0 +1,13 @@
+{
+  "domain": "venstar_acc_tsenwifi_emulator",
+  "name": "Venstar ACC-TSENWIFI Emulator",
+  "codeowners": ["@mlfreeman2"],
+  "config_flow": true,
+  "documentation": "https://github.com/mlfreeman2/venstar-acc-tsenwifi-emulator",
+  "integration_type": "service",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/mlfreeman2/venstar-acc-tsenwifi-emulator/issues",
+  "requirements": ["protobuf>=6.31.1,<8"],
+  "single_config_entry": true,
+  "version": "0.3.0"
+}

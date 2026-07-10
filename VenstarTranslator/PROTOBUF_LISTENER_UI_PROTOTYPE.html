@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="en">
+<!-- UI prototype for the Protobuf Listener page — see PROTOBUF_LISTENER_PLAN.md §5.
+     Self-contained: open directly in any browser. Simulated traffic; sensor packets
+     are the golden fixtures from hacs/venstar_listener/tests/fixtures/. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Protobuf Listener — UI Prototype</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --success-a: #10b981; --success-b: #059669;
+    --error-a: #ef4444;  --error-b: #dc2626;
+    --warning: #f59e0b;
+    --bg-a: #667eea; --bg-b: #764ba2;
+    --surface: #ffffff;
+    --text-1: #1e293b;
+    --text-2: #64748b;
+    --border: #e2e8f0;
+    --thead-a: #f8fafc; --thead-b: #f1f5f9;
+    --row-hover: #f8fafc;
+    --panel-bg: #f8fafc;
+    --hex-bg: #f1f5f9;
+    --hex-text: #334155;
+    --absent: #94a3b8;
+    --chip-neutral-bg: #e2e8f0;
+    --chip-neutral-text: #475569;
+    --ribbon-bg: #fffbeb;
+    --ribbon-border: #fde68a;
+    --ribbon-text: #92400e;
+    --guide: #d7dfea;
+    --info-bg: #eff6ff;
+    --info-border: #bfdbfe;
+    --info-text: #1e40af;
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -2px rgba(0,0,0,.05);
+    --shadow: 0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px 0 rgba(0,0,0,.06);
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-a: #262c4e; --bg-b: #40305c;
+      --surface: #1a2333;
+      --text-1: #e6edf7;
+      --text-2: #93a4bc;
+      --border: #2e3c55;
+      --thead-a: #202b40; --thead-b: #1b2537;
+      --row-hover: #202b40;
+      --panel-bg: #151e2e;
+      --hex-bg: #0e1624;
+      --hex-text: #9db1cc;
+      --absent: #64748b;
+      --chip-neutral-bg: #2e3c55;
+      --chip-neutral-text: #b3c2d8;
+      --ribbon-bg: #2a2417;
+      --ribbon-border: #4d3d1a;
+      --ribbon-text: #e4b95d;
+      --guide: #2e3c55;
+      --info-bg: #16233c;
+      --info-border: #2b4977;
+      --info-text: #9cc3f5;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg-a: #262c4e; --bg-b: #40305c;
+    --surface: #1a2333;
+    --text-1: #e6edf7;
+    --text-2: #93a4bc;
+    --border: #2e3c55;
+    --thead-a: #202b40; --thead-b: #1b2537;
+    --row-hover: #202b40;
+    --panel-bg: #151e2e;
+    --hex-bg: #0e1624;
+    --hex-text: #9db1cc;
+    --absent: #64748b;
+    --chip-neutral-bg: #2e3c55;
+    --chip-neutral-text: #b3c2d8;
+    --ribbon-bg: #2a2417;
+    --ribbon-border: #4d3d1a;
+    --ribbon-text: #e4b95d;
+    --guide: #2e3c55;
+    --info-bg: #16233c;
+    --info-border: #2b4977;
+    --info-text: #9cc3f5;
+  }
+  :root[data-theme="light"] {
+    --bg-a: #667eea; --bg-b: #764ba2;
+    --surface: #ffffff;
+    --text-1: #1e293b;
+    --text-2: #64748b;
+    --border: #e2e8f0;
+    --thead-a: #f8fafc; --thead-b: #f1f5f9;
+    --row-hover: #f8fafc;
+    --panel-bg: #f8fafc;
+    --hex-bg: #f1f5f9;
+    --hex-text: #334155;
+    --absent: #94a3b8;
+    --chip-neutral-bg: #e2e8f0;
+    --chip-neutral-text: #475569;
+    --ribbon-bg: #fffbeb;
+    --ribbon-border: #fde68a;
+    --ribbon-text: #92400e;
+    --guide: #d7dfea;
+    --info-bg: #eff6ff;
+    --info-border: #bfdbfe;
+    --info-text: #1e40af;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, var(--bg-a) 0%, var(--bg-b) 100%);
+    min-height: 100vh;
+    color: var(--text-1);
+    line-height: 1.6;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+  .card {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border);
+  }
+  .card-header {
+    display: flex; align-items: center; gap: 1rem;
+    margin-bottom: 1.25rem; padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .card-icon {
+    width: 2.5rem; height: 2.5rem; flex: none;
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-title-group { flex: 1; min-width: 220px; }
+  .card-title { font-size: 1.5rem; font-weight: 600; line-height: 1.3; }
+  .status-line {
+    font-size: .85rem; color: var(--text-2);
+    display: flex; align-items: center; gap: .45rem;
+  }
+  .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--absent); flex: none;
+  }
+  .dot.live { background: var(--success-a); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,.55); }
+    50%      { box-shadow: 0 0 0 5px rgba(16,185,129,0); }
+  }
+  .card-actions { margin-left: auto; display: flex; gap: .5rem; flex-wrap: wrap; }
+
+  .btn {
+    border: none; border-radius: 8px; cursor: pointer;
+    font: inherit; font-size: .875rem; font-weight: 500;
+    padding: .5rem 1rem; color: #fff;
+    display: inline-flex; align-items: center; gap: .45rem;
+    transition: transform .2s ease, box-shadow .2s ease, opacity .2s ease;
+  }
+  .btn:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-start { background: linear-gradient(135deg, var(--success-a), var(--success-b)); }
+  .btn-start:hover:not(:disabled) { box-shadow: 0 4px 12px rgba(16,185,129,.3); }
+  .btn-stop { background: linear-gradient(135deg, var(--error-a), var(--error-b)); }
+  .btn-stop:hover:not(:disabled) { box-shadow: 0 4px 12px rgba(239,68,68,.3); }
+  .btn-secondary { background: linear-gradient(135deg, #64748b, #475569); }
+  .btn-ghost {
+    background: none; color: var(--primary);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover:not(:disabled) { border-color: var(--primary); }
+  .glyph { font-size: .7rem; line-height: 1; }
+
+  .ribbon {
+    background: var(--ribbon-bg);
+    border: 1px solid var(--ribbon-border);
+    color: var(--ribbon-text);
+    border-radius: 10px;
+    padding: .55rem .9rem;
+    font-size: .8rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .import-banner {
+    background: var(--info-bg);
+    border: 1px solid var(--info-border);
+    color: var(--info-text);
+    border-radius: 10px;
+    padding: .55rem .9rem;
+    font-size: .8rem;
+    margin-bottom: 1.25rem;
+    display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+  }
+  .import-banner .btn { padding: .3rem .7rem; font-size: .78rem; margin-left: auto; }
+
+  .toolbar {
+    display: flex; align-items: center; gap: .75rem;
+    margin-bottom: 1rem; flex-wrap: wrap;
+  }
+  .toolbar .spacer { flex: 1; }
+  .switch { display: inline-flex; align-items: center; gap: .5rem; cursor: pointer; font-size: .85rem; color: var(--text-2); user-select: none; }
+  .switch input { position: absolute; opacity: 0; }
+  .switch .track {
+    width: 34px; height: 19px; border-radius: 10px; flex: none;
+    background: var(--chip-neutral-bg); position: relative;
+    transition: background .2s ease;
+  }
+  .switch .track::after {
+    content: ""; position: absolute; top: 2.5px; left: 3px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--surface); box-shadow: var(--shadow);
+    transition: transform .2s ease;
+  }
+  .switch input:checked + .track { background: var(--primary); }
+  .switch input:checked + .track::after { transform: translateX(14px); }
+  .switch input:focus-visible + .track { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+  .table-wrap {
+    border: 1px solid var(--border); border-radius: 12px;
+    overflow-x: auto; box-shadow: var(--shadow);
+  }
+  table.capture { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 760px; }
+  table.capture thead th {
+    background: linear-gradient(135deg, var(--thead-a), var(--thead-b));
+    color: var(--text-1);
+    font-weight: 600; font-size: .78rem;
+    text-transform: uppercase; letter-spacing: .05em;
+    padding: .9rem 1rem; text-align: left;
+    border-bottom: 2px solid var(--border);
+    user-select: none; white-space: nowrap;
+  }
+  table.capture tbody td {
+    padding: .7rem 1rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    font-size: .875rem;
+  }
+  tr.pkt { cursor: pointer; transition: background-color .15s ease; }
+  tr.pkt:hover, tr.pkt:focus-visible { background: var(--row-hover); outline: none; }
+  tr.pkt.fresh { animation: fadeRow .5s ease; }
+  @keyframes fadeRow { from { opacity: 0; } to { opacity: 1; } }
+  tr.pkt td.chev { text-align: center; width: 2.2rem; color: var(--text-2); }
+  tr.pkt .chevron { display: inline-block; transition: transform .15s ease; font-size: .7rem; }
+  tr.pkt.open .chevron { transform: rotate(90deg); }
+  td.t-time { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text-2); }
+  td.t-src  { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.t-len  { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; color: var(--text-2); }
+  td.t-sum .mono { font-family: var(--mono); }
+
+  .badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 7px; padding: .28rem .6rem;
+    font-size: .72rem; font-weight: 600; letter-spacing: .03em;
+    color: #fff; white-space: nowrap;
+  }
+  .cmd-SENSORDATA   { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+  .cmd-SENSORPAIR   { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+  .cmd-SETSENSORNAME{ background: linear-gradient(135deg, #0d9488, #14b8a6); }
+  .cmd-WIFI         { background: linear-gradient(135deg, #0284c7, #0ea5e9); }
+  .cmd-FIRMWARE     { background: linear-gradient(135deg, #d97706, #f59e0b); }
+  .cmd-none         { background: var(--chip-neutral-bg); color: var(--chip-neutral-text); }
+  .fault-badge {
+    background: linear-gradient(135deg, var(--error-a), var(--error-b));
+    color: #fff; border-radius: 6px; padding: .1rem .45rem;
+    font-size: .72rem; font-weight: 600;
+  }
+  .xn {
+    background: var(--chip-neutral-bg); color: var(--chip-neutral-text);
+    border-radius: 6px; padding: .1rem .4rem;
+    font-size: .72rem; font-weight: 600; margin-left: .45rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .pdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .35rem; vertical-align: 1px; }
+  .p-Outdoor { background: #10b981; }
+  .p-Remote  { background: #8b5cf6; }
+  .p-Return  { background: #ef4444; }
+  .p-Supply  { background: #0ea5e9; }
+  .muted { color: var(--text-2); }
+
+  tr.detail > td {
+    background: var(--panel-bg);
+    padding: 1rem 1.25rem 1.25rem;
+  }
+  .detail-grid { display: flex; flex-direction: column; gap: 1rem; }
+
+  .tree { font-size: .85rem; }
+  .tree .node-children {
+    margin-left: .6rem; padding-left: 1rem;
+    border-left: 1px solid var(--guide);
+    display: flex; flex-direction: column; gap: .12rem;
+  }
+  .tree .node-head {
+    display: inline-flex; align-items: center; gap: .35rem;
+    cursor: pointer; border: none; background: none;
+    font: inherit; color: var(--text-1); font-weight: 600;
+    padding: .1rem .3rem .1rem 0; border-radius: 6px;
+  }
+  .tree .node-head:hover { color: var(--primary); }
+  .tree .node-head:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .tree .node-head .tchev { display: inline-block; font-size: .6rem; transition: transform .15s ease; color: var(--text-2); }
+  .tree .node.collapsed > .node-children { display: none; }
+  .tree .node:not(.collapsed) > .node-head .tchev { transform: rotate(90deg); }
+  .tree .leaf { display: flex; gap: .5rem; align-items: baseline; padding: .05rem 0; flex-wrap: wrap; }
+  .tree .fname { color: var(--text-2); font-weight: 500; min-width: 7.5rem; }
+  .tree .fval { word-break: break-all; }
+  .tree .fval.mono { font-family: var(--mono); font-size: .8rem; }
+  .tree .fval.num { font-variant-numeric: tabular-nums; }
+  .tree .absent { color: var(--absent); font-style: italic; }
+  .tree .enrich { color: var(--text-2); font-size: .8rem; }
+  .tree .note { color: var(--absent); font-size: .78rem; font-style: italic; }
+
+  .hexblock {
+    background: var(--hex-bg); color: var(--hex-text);
+    font-family: var(--mono); font-size: .78rem;
+    border-radius: 10px; border: 1px solid var(--border);
+    padding: .8rem 1rem; line-height: 1.7;
+    word-break: break-all; user-select: all;
+  }
+  .hexlabel {
+    font-size: .72rem; font-weight: 600; letter-spacing: .05em;
+    text-transform: uppercase; color: var(--text-2);
+    margin-bottom: .3rem;
+  }
+  .decode-error { color: var(--error-a); font-size: .85rem; margin-bottom: .5rem; }
+
+  .empty {
+    border: 2px dashed var(--border); border-radius: 12px;
+    padding: 3rem 1rem; text-align: center; color: var(--text-2);
+  }
+  .empty strong { color: var(--text-1); }
+  .foot {
+    margin-top: 1rem; font-size: .78rem; color: var(--text-2);
+    display: flex; gap: 1rem; flex-wrap: wrap;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dot.live, tr.pkt.fresh { animation: none; }
+    .btn, tr.pkt, .chevron, .tchev, .switch .track, .switch .track::after { transition: none; }
+  }
+  @media (max-width: 768px) {
+    .container { padding: 1rem; }
+    .card { padding: 1.25rem; }
+    .card-actions { margin-left: 0; }
+  }
+</style>
+
+<div class="container">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round">
+          <path d="M4.9 19.1 12 12" />
+          <circle cx="12" cy="12" r="1.6" fill="#fff" stroke="none" />
+          <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+          <path d="M18.4 5.6a9 9 0 0 1 0 12.8" />
+        </svg>
+      </div>
+      <div class="card-title-group">
+        <h1 class="card-title">Protobuf Listener</h1>
+        <div class="status-line"><span class="dot" id="dot"></span><span id="status">Socket closed — Start binds 0.0.0.0:5001</span></div>
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-start" id="btnStart"><span class="glyph">&#9654;</span> Start listening</button>
+        <button class="btn btn-stop" id="btnStop" disabled><span class="glyph">&#9632;</span> Stop</button>
+        <button class="btn btn-secondary" id="btnBack" title="Prototype only — the real page closes this tab (window.close())">Back to Sensor Config</button>
+      </div>
+    </div>
+
+    <div class="ribbon"><strong>Prototype — simulated traffic.</strong>
+      Sensor packets are the repo&rsquo;s C# golden fixtures (real bytes); the physical-style, fault, and
+      non-sensor packets are synthetic but wire-accurate. The real page batches new messages every 30&nbsp;s;
+      this prototype delivers them live. Save/Import round-trips the documented
+      <code>venstar-protobuf-capture/1</code> file format &mdash; import runs a real in-page wire decoder here;
+      the shipped page decodes server-side.</div>
+
+    <div class="import-banner" id="importBanner" hidden>
+      <span id="importInfo"></span>
+      <button class="btn btn-ghost" id="btnExitImport" type="button">Return to live view</button>
+    </div>
+
+    <div class="toolbar">
+      <label class="switch"><input type="checkbox" id="dupToggle"><span class="track"></span>Collapse duplicates (&times;5 bursts)</label>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost" id="btnSave" disabled>Save capture</button>
+      <button class="btn btn-ghost" id="btnImport">Import capture&hellip;</button>
+      <input type="file" id="fileInput" accept=".json,application/json" hidden>
+      <button class="btn btn-ghost" id="btnPoll" disabled>Poll now</button>
+      <button class="btn btn-ghost" id="btnClear" disabled>Clear view</button>
+    </div>
+
+    <div class="empty" id="empty">
+      <strong>Nothing captured yet.</strong><br>
+      Press <strong>Start listening</strong> to bind UDP 0.0.0.0:5001 and watch broadcast traffic arrive.
+    </div>
+
+    <div class="table-wrap" id="tableWrap" hidden>
+      <table class="capture">
+        <thead>
+          <tr>
+            <th>Time</th><th>Source</th><th>Command</th><th>Summary</th>
+            <th style="text-align:right">Len</th><th aria-label="Details"></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="foot">
+      <span id="counts">0 captured</span>
+      <span>Layout mirrors the VenstarTranslator web conventions (CDN-free approximation for this prototype).</span>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- packet catalogue ----------
+   Sensor packets: real hex from hacs/venstar_listener/tests/fixtures/csharp_golden_packets.json.
+   Synthetic packets generated and re-parse-verified (gen_synth_packets.py).       */
+
+const SIG = {
+  goldenF:   "mpWBlRCN5HEtFgaofjXhHbcOAjAQKqBqoNFnRBPTYrM=",
+  goldenC:   "PW0nelraYesW8dsoXfc/cxv4N3QGkmknXeEbVq5SqHU=",
+  goldenMin: "F5lq4okGRA9NXLsTROJ8f/weixSp/E5Lhk/lnAOfdSk=",
+  goldenMax: "Z+Jvnua2bIEPdytjLPZoxMaR6poncxTFEpHvR2qariA=",
+  pairKey:   "8u7K6Lua4yu8kNIc4f4cecwHJN5QmjTslUn6SeaYDgg=",
+  synth:     "c2ltdWxhdGVkLXNpZ25hdHVyZS1ub3QtYS1yZWFsLWhtYWM=",
+};
+
+function info(o) {
+  return { Sequence: o.seq, SensorId: o.id, Mac: o.mac, FwMajor: o.fwM, FwMinor: o.fwm,
+           Model: "TEMPSENSOR", Power: o.power, Name: o.name, Type: o.type,
+           Temperature: o.temp, Battery: o.batt, Humidity: o.hum };
+}
+function sensorBody(cmd, i, sig) { return { Command: cmd, SensorData: { Info: i, Signature: sig } }; }
+
+/* seqPatch: [byteIndex, kind]  — 'b1': single-byte varint (values 1..127)
+                                   'b2lo': low byte of 2-byte varint, hi byte stays (300..383) */
+const TPL = {
+  pairF: { cmd: "SENSORPAIR", src: "192.168.1.40:41822", cls: "cmd-SENSORPAIR",
+    hex: "082bd2025a0a2a080110001a0c34323865303438366438303020042802300138014208476f6c64656e2046480350785864122c3875374b364c7561347975386b4e496334663463656377484a4e35516d6a54736c556e36536561594467673d",
+    body: () => sensorBody("SENSORPAIR", info({ seq: 1, id: 0, mac: "428e0486d800", fwM: 4, fwm: 2,
+      power: "BATTERY", name: "Golden F", type: "REMOTE", temp: 120, batt: 100, hum: null }), SIG.pairKey) },
+  goldenF: { cmd: "SENSORDATA", src: "192.168.1.40:41822", cls: "cmd-SENSORDATA", seq0: 42, seqPatch: [8, "b1"],
+    hex: "082ad2025a0a2a082a10001a0c34323865303438366438303020042802300138014208476f6c64656e20464803507c5864122c6d7057426c52434e354845744667616f666a58684862634f416a41514b7142716f4e466e5242505459724d3d",
+    body: (s) => sensorBody("SENSORDATA", info({ seq: s, id: 0, mac: "428e0486d800", fwM: 4, fwm: 2,
+      power: "BATTERY", name: "Golden F", type: "REMOTE", temp: 124, batt: 100, hum: null }), SIG.goldenF) },
+  goldenC: { cmd: "SENSORDATA", src: "192.168.1.40:41822", cls: "cmd-SENSORDATA",
+    hex: "082ad2025c0a2c08e7fb0310031a0c34323865303438366438303320042802300138014208476f6c64656e20434801503b5864122c5057306e656c7261596573573864736f5866632f637876344e3351476b6d6b6e58654562567135537148553d",
+    body: () => sensorBody("SENSORDATA", info({ seq: 64999, id: 3, mac: "428e0486d803", fwM: 4, fwm: 2,
+      power: "BATTERY", name: "Golden C", type: "OUTDOOR", temp: 59, batt: 100, hum: null }), SIG.goldenC) },
+  goldenMin: { cmd: "SENSORDATA", src: "192.168.1.40:41822", cls: "cmd-SENSORDATA", seq0: 2, seqPatch: [8, "b1"],
+    hex: "082ad2025a0a2a080210051a0c3432386530343836643830352004280230013801420a476f6c64656e204d696e48045864122c46356c71346f6b475241394e584c7354524f4a38662f7765697853702f45354c686b2f6c6e414f6664536b3d",
+    body: (s) => sensorBody("SENSORDATA", info({ seq: s, id: 5, mac: "428e0486d805", fwM: 4, fwm: 2,
+      power: "BATTERY", name: "Golden Min", type: "SUPPLY", temp: null, batt: 100, hum: null }), SIG.goldenMin) },
+  goldenMax: { cmd: "SENSORDATA", src: "192.168.1.40:41822", cls: "cmd-SENSORDATA", seq0: 3, seqPatch: [8, "b1"],
+    hex: "082ad2025d0a2d080310061a0c3432386530343836643830362004280230013801420a476f6c64656e204d6178480250fd015864122c5a2b4a766e756132624945506479746a4c505a6f784d615236706f6e6378544645704876523271617269413d",
+    body: (s) => sensorBody("SENSORDATA", info({ seq: s, id: 6, mac: "428e0486d806", fwM: 4, fwm: 2,
+      power: "BATTERY", name: "Golden Max", type: "RETURN", temp: 253, batt: 100, hum: null }), SIG.goldenMax) },
+  porch: { cmd: "SENSORDATA", src: "192.168.1.87:38112", cls: "cmd-SENSORDATA", seq0: 300, seqPatch: [8, "b2lo"],
+    hex: "082ad2025f0a2b08ac0210021a0c61346366313262326565303120032809300138024205506f726368480150830158576029123063326c74645778686447566b4c584e705a323568644856795a53317562335174595331795a5746734c57687459574d3d",
+    body: (s) => sensorBody("SENSORDATA", info({ seq: s, id: 2, mac: "a4cf12b2ee01", fwM: 3, fwm: 9,
+      power: "WIRED", name: "Porch", type: "OUTDOOR", temp: 131, batt: 87, hum: 41 }), SIG.synth) },
+  atticFault: { cmd: "SENSORDATA", src: "192.168.1.87:38112", cls: "cmd-SENSORDATA", seq0: 87, seqPatch: [8, "b1"],
+    hex: "082ad2025c0a28085710071a0c613463663132623265653037200328093001380142054174746963480350fe01580c123063326c74645778686447566b4c584e705a323568644856795a53317562335174595331795a5746734c57687459574d3d",
+    body: (s) => sensorBody("SENSORDATA", info({ seq: s, id: 7, mac: "a4cf12b2ee07", fwM: 3, fwm: 9,
+      power: "BATTERY", name: "Attic", type: "REMOTE", temp: 254, batt: 12, hum: null }), SIG.synth) },
+  setname: { cmd: "SETSENSORNAME", src: "192.168.1.60:5001", cls: "cmd-SETSENSORNAME", single: true,
+    hex: "0829ca020d420b4c6976696e6720526f6f6d",
+    body: () => ({ Command: "SETSENSORNAME", SensorName: { Name: "Living Room" } }) },
+  wifiscan: { cmd: "WIFISCANRESULTS", src: "192.168.1.87:38112", cls: "cmd-WIFI", single: true,
+    hex: "082dea021d0a0d0a07486f6d654e6574100318480a0c0a06496f542d324710021837",
+    body: () => ({ Command: "WIFISCANRESULTS", WifiScanResults: { WifiScanResults: [
+      { SSID: "HomeNet", SecurityType: 3, SignalStrength: 72 },
+      { SSID: "IoT-2G", SecurityType: 2, SignalStrength: 55 }] } }) },
+  fwchunk: { cmd: "FIRMWARECHUNK", src: "192.168.1.60:5001", cls: "cmd-FIRMWARE", single: true,
+    hex: "082ef2020e081110021a08deadbeefcafef00d",
+    body: () => ({ Command: "FIRMWARECHUNK", FirmwareChunk: { Sequence: 17, Type: "MODULE", Data: "deadbeefcafef00d" } }) },
+  ssdp: { cmd: null, src: "192.168.1.1:1900", cls: "cmd-none", single: true, garbage: true,
+    hex: "4d2d534541524348202a20485454502f312e310d0a484f53543a203233392e3235352e3235352e3235303a313930300d0a",
+    error: "invalid wire type 7 at offset 0" },
+};
+
+/* ---------- helpers ---------- */
+const $ = (id) => document.getElementById(id);
+const tbody = $("tbody");
+const PURPOSE = { OUTDOOR: "Outdoor", REMOTE: "Remote", RETURN: "Return", SUPPLY: "Supply" };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function tempParts(idx) {
+  if (idx === 254) return { fault: "shorted" };
+  if (idx === 255) return { fault: "open" };
+  const c = idx / 2 - 40, f = c * 9 / 5 + 32;
+  return { c: c.toFixed(1), f: f.toFixed(1) };
+}
+function patchSeq(tpl, seq) {
+  if (!tpl.seqPatch) return tpl.hex;
+  const [byteIdx, kind] = tpl.seqPatch;
+  const h = tpl.hex;
+  const hexByte = (n) => n.toString(16).padStart(2, "0");
+  if (kind === "b1") return h.slice(0, byteIdx * 2) + hexByte(seq & 0x7f) + h.slice(byteIdx * 2 + 2);
+  /* b2lo: low varint byte with continuation bit; hi byte (0x02) untouched — valid for 300..383 */
+  return h.slice(0, byteIdx * 2) + hexByte(0x80 | (seq & 0x7f)) + h.slice(byteIdx * 2 + 2);
+}
+function fmtTime(d) {
+  return d.toTimeString().slice(0, 8) + "." + String(d.getMilliseconds()).padStart(3, "0");
+}
+
+/* ---------- minimal wire-format decoder ----------
+   Powers "Import capture" in this prototype so any venstar-protobuf-capture/1
+   file genuinely decodes. The shipped page decodes server-side (POST import). */
+function walk(bytes) {
+  const out = new Map();
+  let i = 0;
+  function varint() {
+    let v = 0, s = 0;
+    for (;;) {
+      if (i >= bytes.length) throw new Error("truncated varint");
+      const b = bytes[i++];
+      v += (b & 0x7f) * 2 ** s;
+      if (!(b & 0x80)) return v;
+      s += 7;
+      if (s > 56) throw new Error("varint too long");
+    }
+  }
+  while (i < bytes.length) {
+    const t = varint(), f = Math.floor(t / 8), w = t & 7;
+    if (f === 0) throw new Error("field number 0");
+    let v;
+    if (w === 0) v = varint();
+    else if (w === 2) {
+      const n = varint();
+      if (i + n > bytes.length) throw new Error("truncated field " + f);
+      v = bytes.slice(i, i + n); i += n;
+    } else if (w === 5) { if (i + 4 > bytes.length) throw new Error("truncated fixed32"); i += 4; continue; }
+    else if (w === 1) { if (i + 8 > bytes.length) throw new Error("truncated fixed64"); i += 8; continue; }
+    else throw new Error("wire type " + w);
+    if (!out.has(f)) out.set(f, []);
+    out.get(f).push(v);
+  }
+  return out;
+}
+const td = new TextDecoder();
+const one = (m, f) => (m.has(f) ? m.get(f)[0] : null);
+const oneStr = (m, f) => { const v = one(m, f); return v == null ? null : td.decode(v); };
+const oneHex = (m, f) => { const v = one(m, f); return v == null ? null : Array.from(v, (b) => b.toString(16).padStart(2, "0")).join(""); };
+const ENUMS = {
+  Command: { 41: "SETSENSORNAME", 42: "SENSORDATA", 43: "SENSORPAIR", 44: "WIFICONFIG",
+             45: "WIFISCANRESULTS", 46: "FIRMWARECHUNK", 47: "FIRMWARECOMPLETE", 126: "SUCCESS", 127: "FAILURE" },
+  Type: { 1: "OUTDOOR", 2: "RETURN", 3: "REMOTE", 4: "SUPPLY" },
+  Power: { 1: "BATTERY", 2: "WIRED" },
+  Model: { 1: "TEMPSENSOR" },
+  FwType: { 2: "MODULE", 3: "SERVICEPACK" },
+};
+const en = (t, v) => (v == null ? null : (ENUMS[t][v] !== undefined ? ENUMS[t][v] : v + " (unknown)"));
+const dq = (v) => (v == null ? null : [(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255].join("."));
+const CLS = { SENSORDATA: "cmd-SENSORDATA", SENSORPAIR: "cmd-SENSORPAIR", SETSENSORNAME: "cmd-SETSENSORNAME",
+              WIFICONFIG: "cmd-WIFI", WIFISCANRESULTS: "cmd-WIFI", FIRMWARECHUNK: "cmd-FIRMWARE",
+              FIRMWARECOMPLETE: "cmd-FIRMWARE", SUCCESS: "cmd-none", FAILURE: "cmd-none" };
+
+function decodeHexPacket(hex) {
+  const fail = (why) => ({ garbage: true, error: why });
+  let msg;
+  try {
+    if (!/^([0-9a-fA-F]{2})+$/.test(hex)) throw new Error("not an even-length hex string");
+    msg = walk(Uint8Array.from(hex.match(/../g), (h) => parseInt(h, 16)));
+  } catch (e) { return fail(e.message || String(e)); }
+  const cmd = en("Command", one(msg, 1));
+  if (cmd == null || cmd.endsWith("(unknown)")) return fail("no recognizable Command field");
+  const body = { Command: cmd };
+  try {
+    if (cmd === "SENSORDATA" || cmd === "SENSORPAIR") {
+      const sd = one(msg, 42);
+      if (sd == null) return fail(cmd + " without SensorData body");
+      const sdm = walk(sd), im = one(sdm, 1);
+      if (im == null) return fail("SensorData without Info");
+      const m = walk(im);
+      const nfo = { Sequence: one(m, 1), SensorId: one(m, 2), Mac: oneStr(m, 3), FwMajor: one(m, 4),
+        FwMinor: one(m, 5), Model: en("Model", one(m, 6)), Power: en("Power", one(m, 7)),
+        Name: oneStr(m, 8), Type: en("Type", one(m, 9)), Temperature: one(m, 10),
+        Battery: one(m, 11), Humidity: one(m, 12) };
+      if (!nfo.Mac) return fail("Info without Mac");
+      body.SensorData = { Info: nfo, Signature: oneStr(sdm, 2) };
+    } else if (cmd === "SETSENSORNAME") {
+      const sn = one(msg, 41);
+      if (sn == null) return fail("SETSENSORNAME without body");
+      body.SensorName = { Name: oneStr(walk(sn), 8) };
+    } else if (cmd === "WIFICONFIG") {
+      const wc = one(msg, 44);
+      if (wc == null) return fail("WIFICONFIG without body");
+      const m = walk(wc);
+      body.WifiConfig = { SSID: oneStr(m, 1), SecurityType: one(m, 2), DHCP: one(m, 3),
+        Password: one(m, 4) == null ? null : "•••••• (masked in UI; present in raw hex/export)",
+        IPv4_Address: dq(one(m, 5)), Mask: dq(one(m, 6)), Gateway: dq(one(m, 7)), DnsAddress: dq(one(m, 8)) };
+    } else if (cmd === "WIFISCANRESULTS") {
+      const wr = one(msg, 45);
+      if (wr == null) return fail("WIFISCANRESULTS without body");
+      body.WifiScanResults = { WifiScanResults: (walk(wr).get(1) || []).map((b) => {
+        const m = walk(b);
+        return { SSID: oneStr(m, 1), SecurityType: one(m, 2), SignalStrength: one(m, 3) };
+      }) };
+    } else if (cmd === "FIRMWARECHUNK") {
+      const fc = one(msg, 46);
+      if (fc == null) return fail("FIRMWARECHUNK without body");
+      const m = walk(fc);
+      body.FirmwareChunk = { Sequence: one(m, 1), Type: en("FwType", one(m, 2)), Data: oneHex(m, 3) };
+    } else if (cmd === "FIRMWARECOMPLETE") {
+      const fc = one(msg, 47);
+      if (fc == null) return fail("FIRMWARECOMPLETE without body");
+      const m = walk(fc);
+      body.FirmwareComplete = { Sequence: one(m, 1), ModuleChecksum: one(m, 2), ServicePackSignature: oneHex(m, 3) };
+    }
+    /* SUCCESS / FAILURE: body-less, Command alone suffices */
+  } catch (e) { return fail(e.message || String(e)); }
+  return { body };
+}
+
+function summaryHTML(p) {
+  if (p.garbage) return '<span class="muted">not a Venstar message</span>';
+  const b = p.body;
+  if (b.SensorData) {
+    const i = b.SensorData.Info;
+    const purpose = PURPOSE[i.Type] || "Remote";
+    let temp;
+    if (i.Temperature === null) {
+      temp = '&minus;40.0 &deg;C <span class="muted">(field absent = index 0)</span>';
+    } else {
+      const t = tempParts(i.Temperature);
+      temp = t.fault ? '<span class="fault-badge">FAULT: ' + t.fault.toUpperCase() + "</span>"
+                     : t.f + " &deg;F / " + t.c + " &deg;C <span class=\"muted\">(idx " + i.Temperature + ")</span>";
+    }
+    const batt = i.Battery == null ? "" : " batt " + i.Battery + "% &middot;";
+    return '<span class="pdot p-' + purpose + '"></span>' + esc(i.Name == null ? "(unnamed)" : i.Name) +
+      ' <span class="muted">&middot; id ' + i.SensorId + " &middot;</span> " + temp +
+      ' <span class="muted">&middot;' + batt + " seq " + i.Sequence + "</span>";
+  }
+  if (b.SensorName) return 'Name &rarr; &ldquo;' + esc(b.SensorName.Name == null ? "?" : b.SensorName.Name) + "&rdquo;";
+  if (b.WifiScanResults) {
+    const items = b.WifiScanResults.WifiScanResults;
+    return items.length + " networks <span class=\"muted\">(" +
+      items.map((x) => esc(x.SSID == null ? "?" : x.SSID) + " " + x.SignalStrength + "%").join(", ") + ")</span>";
+  }
+  if (b.FirmwareChunk) {
+    const c = b.FirmwareChunk;
+    return esc(c.Type == null ? "?" : c.Type) + ' chunk <span class="muted">&middot; seq ' + c.Sequence + " &middot; " + (c.Data ? c.Data.length / 2 : 0) + " B payload</span>";
+  }
+  if (b.WifiConfig) return 'Wi-Fi config <span class="muted">&middot; SSID &ldquo;' + esc(b.WifiConfig.SSID == null ? "?" : b.WifiConfig.SSID) + "&rdquo;</span>";
+  if (b.FirmwareComplete) return 'Firmware complete <span class="muted">&middot; seq ' + b.FirmwareComplete.Sequence + "</span>";
+  return '<span class="muted">acknowledgement (no body)</span>';
+}
+
+/* ---------- field tree ---------- */
+const MONO_KEYS = new Set(["Mac", "Signature", "Data", "SSID"]);
+function leafHTML(key, val, ctx) {
+  let vhtml;
+  if (val === null) {
+    vhtml = '<span class="absent">absent</span>';
+    if (key === "Temperature") vhtml += ' <span class="note">absent = index 0 &rarr; &minus;40.0 &deg;C (emitter omits the field at exactly index 0)</span>';
+  } else if (key === "Temperature") {
+    const t = tempParts(val);
+    vhtml = '<span class="fval num">' + val + "</span> " + (t.fault
+      ? '<span class="fault-badge">FAULT: ' + t.fault.toUpperCase() + " SENSOR</span>"
+      : '<span class="enrich">&rarr; ' + t.c + " &deg;C / " + t.f + " &deg;F</span>");
+  } else if (typeof val === "number") {
+    vhtml = '<span class="fval num">' + val + "</span>";
+    if (key === "Battery" || key === "Humidity" || key === "SignalStrength") vhtml += ' <span class="enrich">%</span>';
+  } else {
+    vhtml = '<span class="fval' + (MONO_KEYS.has(key) ? " mono" : "") + '">' + esc(val) + "</span>";
+  }
+  return '<div class="leaf"><span class="fname">' + esc(key) + "</span>" + vhtml + "</div>";
+}
+function nodeHTML(label, obj) {
+  let inner = "";
+  if (Array.isArray(obj)) {
+    inner = obj.map((item, n) => nodeHTML("[" + n + "]", item)).join("");
+  } else {
+    for (const [k, v] of Object.entries(obj)) {
+      if (v !== null && typeof v === "object") inner += nodeHTML(k, v);
+      else inner += leafHTML(k, v);
+    }
+  }
+  return '<div class="node"><button class="node-head" type="button" aria-expanded="true">' +
+    '<span class="tchev">&#9654;</span>' + esc(label) + "</button>" +
+    '<div class="node-children">' + inner + "</div></div>";
+}
+function detailHTML(p) {
+  let out = '<div class="detail-grid">';
+  if (p.garbage) {
+    out += '<div class="decode-error">Not decodable as a Venstar message &mdash; ' + esc(p.error) + "</div>";
+  } else {
+    out += '<div class="tree">' + nodeHTML("SensorMessage", p.body) + "</div>";
+  }
+  out += '<div><div class="hexlabel">Raw datagram &middot; ' + (p.hex.length / 2) + " bytes</div>" +
+    '<div class="hexblock">' + p.hex.replace(/(..)/g, "$1 ").trim() + "</div></div></div>";
+  return out;
+}
+
+/* ---------- capture model + rendering ---------- */
+let model = [];      // newest first
+let nextId = 1;
+let running = false;
+let captured = 0;
+let mode = "live";   // "live" | "import" (viewing an imported capture)
+let liveStash = null;
+let startedIso = null;
+
+function render() {
+  const collapse = $("dupToggle").checked;
+  tbody.innerHTML = "";
+  let i = 0;
+  while (i < model.length) {
+    const p = model[i];
+    let n = 1;
+    if (collapse) while (i + n < model.length && model[i + n].dupKey === p.dupKey) n++;
+    tbody.appendChild(rowPair(p, n));
+    i += n;
+  }
+  const has = model.length > 0;
+  $("empty").hidden = has;
+  $("tableWrap").hidden = !has;
+  $("btnClear").disabled = !has || mode === "import";
+  $("btnSave").disabled = !has || mode === "import";
+  $("counts").textContent = mode === "import"
+    ? model.length + " packets from imported capture"
+    : captured + " captured" + (running ? "" : model.length ? " · buffer retained" : "");
+}
+function rowPair(p, dupN) {
+  const frag = document.createDocumentFragment();
+  const tr = document.createElement("tr");
+  tr.className = "pkt" + (p.fresh ? " fresh" : "");
+  tr.tabIndex = 0;
+  tr.setAttribute("aria-expanded", "false");
+  const badge = p.cmd
+    ? '<span class="badge ' + p.cls + '">' + p.cmd + "</span>"
+    : '<span class="badge cmd-none">NOT VENSTAR</span>';
+  tr.innerHTML =
+    '<td class="t-time">' + fmtTime(p.at) + "</td>" +
+    '<td class="t-src">' + p.src + "</td>" +
+    "<td>" + badge + (dupN > 1 ? '<span class="xn">&times;' + dupN + "</span>" : "") + "</td>" +
+    '<td class="t-sum">' + summaryHTML(p) + "</td>" +
+    '<td class="t-len">' + (p.hex.length / 2) + " B</td>" +
+    '<td class="chev"><span class="chevron">&#9654;</span></td>';
+  const trD = document.createElement("tr");
+  trD.className = "detail";
+  trD.hidden = true;
+  trD.innerHTML = '<td colspan="6"></td>';
+  const toggle = () => {
+    const open = trD.hidden;
+    if (open && !trD.firstElementChild.firstElementChild) trD.firstElementChild.innerHTML = detailHTML(p);
+    trD.hidden = !open;
+    tr.classList.toggle("open", open);
+    tr.setAttribute("aria-expanded", String(open));
+  };
+  tr.addEventListener("click", toggle);
+  tr.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+  });
+  trD.addEventListener("click", (e) => {
+    const head = e.target.closest(".node-head");
+    if (!head) return;
+    const node = head.parentElement;
+    const collapsed = node.classList.toggle("collapsed");
+    head.setAttribute("aria-expanded", String(!collapsed));
+  });
+  frag.appendChild(tr);
+  frag.appendChild(trD);
+  p.fresh = false;
+  return frag;
+}
+
+function addPacket(tpl, seq) {
+  const p = {
+    id: nextId++,
+    at: new Date(),
+    src: tpl.src,
+    cmd: tpl.cmd,
+    cls: tpl.cls,
+    garbage: !!tpl.garbage,
+    error: tpl.error,
+    hex: tpl.seqPatch ? patchSeq(tpl, seq) : tpl.hex,
+    body: tpl.body ? tpl.body(seq) : null,
+    fresh: true,
+  };
+  p.dupKey = p.garbage ? "g" + p.id
+    : p.cmd + "|" + (p.body && p.body.SensorData ? p.body.SensorData.Info.Mac + "|" + p.body.SensorData.Info.Sequence : p.id);
+  model.unshift(p);
+  if (model.length > 250) model.pop();
+  captured++;
+  render();
+}
+
+/* ---------- simulation engine ---------- */
+const SCRIPT = [
+  "pairF", "goldenF", "porch", "goldenC", "setname", "goldenF", "wifiscan",
+  "atticFault", "ssdp", "goldenMin", "fwchunk", "goldenF", "porch", "goldenMax",
+];
+let scriptPos = 0;
+const seqState = {};
+let timers = [];
+
+function nextBurst() {
+  if (!running) return;
+  let key = SCRIPT[scriptPos % SCRIPT.length];
+  if (scriptPos >= SCRIPT.length && (key === "pairF" || key === "setname" || key === "wifiscan" || key === "fwchunk")) {
+    key = "goldenF"; // one-time events don't loop
+  }
+  scriptPos++;
+  const tpl = TPL[key];
+  let seq = null;
+  if (tpl.seq0 !== undefined) {
+    if (!(key in seqState)) seqState[key] = tpl.seq0;
+    seq = seqState[key];
+    const max = tpl.seqPatch && tpl.seqPatch[1] === "b2lo" ? 383 : 127;
+    seqState[key] = seq + 1 > max ? tpl.seq0 : seq + 1;
+  }
+  const copies = tpl.single ? 1 : 5;
+  for (let n = 0; n < copies; n++) {
+    timers.push(setTimeout(() => { if (running) { addPacket(tpl, seq); updateStatus(); } }, n * 85));
+  }
+  timers.push(setTimeout(nextBurst, 4200 + Math.random() * 2400));
+}
+function updateStatus() {
+  if (running) {
+    $("status").textContent = "Listening on :5001 · started " + startedAt + " · " + captured + " captured · 0 dropped";
+  }
+}
+
+let startedAt = "";
+$("btnStart").addEventListener("click", () => {
+  if (mode === "import") {           // Start always begins a fresh live session
+    mode = "live";
+    liveStash = null;
+    $("importBanner").hidden = true;
+  }
+  running = true;
+  captured = 0;
+  model = [];
+  scriptPos = 0;
+  for (const k of Object.keys(seqState)) delete seqState[k];
+  startedAt = new Date().toTimeString().slice(0, 8);
+  startedIso = new Date().toISOString();
+  $("dot").classList.add("live");
+  $("btnStart").disabled = true;
+  $("btnStop").disabled = false;
+  $("btnPoll").disabled = false;
+  updateStatus();
+  render();
+  nextBurst();
+});
+function stopCapture() {
+  running = false;
+  timers.forEach(clearTimeout);
+  timers = [];
+  $("dot").classList.remove("live");
+  $("btnStart").disabled = false;
+  $("btnStop").disabled = true;
+  $("btnPoll").disabled = true;
+  $("status").textContent = "Stopped · socket closed · buffer retained (" + captured + ") — Start begins a fresh session";
+  render();
+}
+$("btnStop").addEventListener("click", stopCapture);
+$("btnPoll").addEventListener("click", () => {
+  timers.forEach(clearTimeout);
+  timers = [];
+  nextBurst();
+});
+$("btnClear").addEventListener("click", () => {
+  model = [];
+  render();
+});
+$("dupToggle").addEventListener("change", render);
+$("btnBack").addEventListener("click", () => {
+  $("btnBack").textContent = "(prototype — no-op)";
+  setTimeout(() => { $("btnBack").textContent = "Back to Sensor Config"; }, 1200);
+});
+
+/* ---------- save / import capture (venstar-protobuf-capture/1) ---------- */
+const pad2 = (n) => String(n).padStart(2, "0");
+
+$("btnSave").addEventListener("click", () => {
+  if (!model.length || mode !== "live") return;
+  if (model.some((p) => p.body && p.body.WifiConfig) &&
+      !confirm("This capture contains a WIFICONFIG packet — it includes Wi-Fi credentials in cleartext. Save anyway?")) return;
+  const d = new Date();
+  const doc = {
+    format: "venstar-protobuf-capture/1",
+    exportedAtUtc: d.toISOString(),
+    port: 5001,
+    startedAtUtc: startedIso,
+    packets: [...model].reverse().map((p) => ({ receivedAtUtc: p.at.toISOString(), source: p.src, hex: p.hex })),
+  };
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" }));
+  a.download = "venstar-capture-" + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) +
+    "-" + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds()) + ".json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+});
+
+function mkImportedRow(e, at, d) {
+  const body = d.body || null;
+  const cmd = body ? body.Command : null;
+  const p = {
+    id: nextId++, at, src: e.source || "?", hex: e.hex.trim().toLowerCase(),
+    cmd, cls: cmd ? (CLS[cmd] || "cmd-none") : "cmd-none",
+    garbage: !!d.garbage, error: d.error, body, fresh: false,
+  };
+  p.dupKey = body && body.SensorData
+    ? cmd + "|" + body.SensorData.Info.Mac + "|" + body.SensorData.Info.Sequence
+    : "i" + p.id;
+  return p;
+}
+function enterImport(fileName, rows, skipped) {
+  if (running) stopCapture();
+  if (mode === "live") liveStash = { model, captured };
+  mode = "import";
+  model = rows;
+  $("importInfo").textContent = "Viewing imported capture — " + fileName + " · " + rows.length +
+    " packets" + (skipped ? " · " + skipped + " skipped" : "");
+  $("btnExitImport").textContent = "Return to live view";
+  $("importBanner").hidden = false;
+  $("status").textContent = "Viewing imported capture · live socket state unchanged";
+  $("dot").classList.remove("live");
+  render();
+}
+function exitImport() {
+  mode = "live";
+  $("importBanner").hidden = true;
+  if (liveStash) ({ model, captured } = liveStash);
+  liveStash = null;
+  $("status").textContent = model.length
+    ? "Stopped · socket closed · buffer retained (" + captured + ") — Start begins a fresh session"
+    : "Socket closed — Start binds 0.0.0.0:5001";
+  render();
+}
+function importFailed(fileName, why) {
+  $("importInfo").textContent = "Import failed — " + fileName + ": " + why;
+  $("btnExitImport").textContent = "Dismiss";
+  $("importBanner").hidden = false;
+}
+$("btnExitImport").addEventListener("click", () => {
+  if (mode === "import") exitImport();
+  else $("importBanner").hidden = true;
+});
+$("btnImport").addEventListener("click", () => $("fileInput").click());
+$("fileInput").addEventListener("change", async () => {
+  const f = $("fileInput").files[0];
+  $("fileInput").value = "";
+  if (!f) return;
+  let doc;
+  try { doc = JSON.parse(await f.text()); }
+  catch { importFailed(f.name, "not valid JSON"); return; }
+  const fmt = String((doc && doc.format) || "");
+  if (!fmt.startsWith("venstar-protobuf-capture/1")) {
+    importFailed(f.name, 'unsupported format "' + (fmt || "(missing)") + '" — expected venstar-protobuf-capture/1');
+    return;
+  }
+  const entries = Array.isArray(doc.packets) ? doc.packets.slice(0, 5000) : [];
+  let skipped = 0;
+  const rows = [];
+  for (const e of entries) {
+    if (!e || typeof e.hex !== "string" || !e.hex.trim()) { skipped++; continue; }
+    rows.push(mkImportedRow(e, new Date(e.receivedAtUtc || 0), decodeHexPacket(e.hex.trim())));
+  }
+  if (!rows.length) { importFailed(f.name, "no usable packets" + (skipped ? " (" + skipped + " skipped)" : "")); return; }
+  rows.sort((a, b) => b.at - a.at);
+  enterImport(f.name, rows, skipped);
+});
+</script>
+</html>

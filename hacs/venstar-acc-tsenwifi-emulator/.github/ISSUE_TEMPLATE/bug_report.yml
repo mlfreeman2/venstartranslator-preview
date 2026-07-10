@@ -1,0 +1,63 @@
+name: Bug report
+description: Something in the emulator integration doesn't work as documented
+labels: ["bug"]
+body:
+  - type: input
+    id: ha-version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.4.1"
+    validations:
+      required: true
+  - type: input
+    id: integration-version
+    attributes:
+      label: Integration version
+      description: Shown in HACS, or in `custom_components/venstar_acc_tsenwifi_emulator/manifest.json`
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: Install method
+      options:
+        - HACS (custom repository)
+        - Manual copy
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: checkboxes
+    id: network
+    attributes:
+      label: Network checklist
+      description: UDP broadcast only works inside one broadcast domain.
+      options:
+        - label: Home Assistant is on the same VLAN/broadcast domain as the thermostat
+          required: true
+        - label: "If HA runs in Docker, it uses `network_mode: host`"
+  - type: textarea
+    id: debug-log
+    attributes:
+      label: Debug log
+      description: |
+        Enable debug logging per [DEBUG_LOGGING.md](https://github.com/mlfreeman2/venstar-acc-tsenwifi-emulator/blob/main/DEBUG_LOGGING.md):
+        ```yaml
+        logger:
+          logs:
+            custom_components.venstar_acc_tsenwifi_emulator: debug
+        ```
+        Restart HA, reproduce the problem, and paste the relevant log lines.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: thermostat
+    attributes:
+      label: Thermostat model (if relevant)
+      placeholder: "T8900"

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VenstarTranslator is an ASP.NET Core 10.0 application that fetches temperature readings from arbitrary JSON endpoints and translates them into the format expected by Venstar ColorTouch thermostats. It emulates up to 20 Venstar ACC-TSENWIFIPRO sensors by broadcasting UDP packets on port 5001. The application uses Protocol Buffers for data serialization and broadcasts packets to `255.255.255.255:5001`.
+VenstarTranslator is an ASP.NET Core 10.0 application that fetches temperature readings from arbitrary JSON endpoints and translates them into the format expected by Venstar ColorTouch thermostats. It emulates up to 20 Venstar wireless temperature sensors (ACC-TSENWIFI / ACC-TSENWIFIPRO — the PRO was discontinued in August 2025; the wire protocol's model field says only `TEMPSENSOR`) by broadcasting UDP packets on port 5001. The application uses Protocol Buffers for data serialization and broadcasts packets to `255.255.255.255:5001`. Two companion Home Assistant integrations live in their own repos: [venstar-acc-tsenwifi-emulator](https://github.com/mlfreeman2/venstar-acc-tsenwifi-emulator) and [venstar-acc-tsenwifi-listener](https://github.com/mlfreeman2/venstar-acc-tsenwifi-listener); PROTOCOL.md and the golden test fixtures are deliberately duplicated across all three (the protocol is frozen).
 
 ## Build and Run Commands
 

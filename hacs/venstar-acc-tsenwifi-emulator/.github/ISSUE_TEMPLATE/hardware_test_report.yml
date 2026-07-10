@@ -1,0 +1,50 @@
+name: Hardware test report
+description: You tried this integration with a real Venstar thermostat — tell us how it went (success reports are just as valuable as failures!)
+labels: ["hardware-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This integration is verified byte-for-byte against a known-working implementation, but reports
+        from real thermostats are what turn "should work" into "works". Thank you!
+  - type: input
+    id: thermostat
+    attributes:
+      label: Thermostat model
+      placeholder: "T8900"
+    validations:
+      required: true
+  - type: input
+    id: integration-version
+    attributes:
+      label: Integration version
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: Outcome
+      options:
+        - Everything worked (pairing + ongoing readings)
+        - Pairing worked, but readings have problems
+        - Pairing failed
+        - Other / partial (describe below)
+    validations:
+      required: true
+  - type: checkboxes
+    id: tested
+    attributes:
+      label: What did you test?
+      options:
+        - label: Pairing (sensors appeared on the thermostat)
+        - label: Ongoing temperature updates
+        - label: Remote purpose (HVAC control)
+        - label: Outdoor purpose
+        - label: Return/Supply purposes
+        - label: Celsius scale
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Anything surprising — pairing quirks, update delays, name truncation, differences from the Docker version, etc.

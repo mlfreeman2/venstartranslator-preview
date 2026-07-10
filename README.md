@@ -2,7 +2,16 @@
 
 ## What is this?
 
-Venstar Translator bridges the gap between your existing temperature sensors and Venstar ColorTouch thermostats. If you have temperature data from Home Assistant, Ecowitt weather stations, or any other system with a JSON API, this app lets you feed that data directly to your Venstar thermostat as if they were official Venstar ACC-TSENWIFIPRO sensors.
+Venstar Translator bridges the gap between your existing temperature sensors and Venstar ColorTouch thermostats. If you have temperature data from Home Assistant, Ecowitt weather stations, or any other system with a JSON API, this app lets you feed that data directly to your Venstar thermostat as if they were official Venstar wireless sensors — the **ACC-TSENWIFIPRO** (the part this protocol was reverse-engineered from; discontinued by Venstar in August 2025) or the still-available **ACC-TSENWIFI** that distributors recommend in its place (believed to speak the same wire protocol; the protocol's model field says only `TEMPSENSOR`, with no per-part distinction).
+
+**Which piece of the project family do you need?**
+
+| You have | You want | Use |
+|---|---|---|
+| Temperature data behind any JSON API | Readings on a Venstar thermostat | **This app** (C#/Docker) |
+| Home Assistant entities | Readings on a Venstar thermostat | [venstar-acc-tsenwifi-emulator](https://github.com/mlfreeman2/venstar-acc-tsenwifi-emulator) (HACS integration) |
+| Physical Venstar ACC-TSENWIFI(PRO) sensors | Their readings in Home Assistant | [venstar-acc-tsenwifi-listener](https://github.com/mlfreeman2/venstar-acc-tsenwifi-listener) (HACS integration, in development) |
+| Curiosity about the wire protocol | Documentation | [PROTOCOL.md](PROTOCOL.md) (duplicated in all three repos) |
 
 **Key Features:**
 - Emulate up to 20 Venstar wireless temperature sensors per instance
@@ -17,7 +26,7 @@ Venstar Translator bridges the gap between your existing temperature sensors and
 
 ### Compatible Thermostats
 
-This application emulates one or more **Venstar ACC-TSENWIFIPRO** Wi-Fi temperature sensors. Compatible thermostat models include:
+This application emulates one or more **Venstar ACC-TSENWIFI / ACC-TSENWIFIPRO** Wi-Fi temperature sensors. Compatible thermostat models include:
 
 **ColorTouch Series:**
 - T7850, T7900, T8850, T8900
@@ -57,7 +66,7 @@ cd ~/venstartranslator
 services:
   venstartranslator:
     container_name: venstartranslator
-    image: ghcr.io/mlfreeman2/venstartranslator-preview:main
+    image: ghcr.io/mlfreeman2/venstartranslator:main
     restart: unless-stopped
     volumes:
       - "./data:/data"

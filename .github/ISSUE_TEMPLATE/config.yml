@@ -1,0 +1,7 @@
+contact_links:
+  - name: Issue with the Home Assistant emulator integration?
+    url: https://github.com/mlfreeman2/venstar-acc-tsenwifi-emulator/issues
+    about: Emulating sensors from HA entities (HACS integration) has its own repository.
+  - name: Issue with receiving packets from physical Venstar sensors in HA?
+    url: https://github.com/mlfreeman2/venstar-acc-tsenwifi-listener/issues
+    about: Ingesting real ACC-TSENWIFI(PRO) sensors into HA is the listener integration's job.

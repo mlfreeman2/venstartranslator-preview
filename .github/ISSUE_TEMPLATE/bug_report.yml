@@ -1,0 +1,65 @@
+name: Bug report
+description: Something in VenstarTranslator doesn't work as documented
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: |
+        The Docker image tag (e.g. `main-202607101530`). On builds whose web UI shows a version in the
+        footer, paste the `/api/version` output instead.
+      placeholder: "main-202607101530"
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How is it deployed?
+      options:
+        - "Docker Compose (network_mode: host)"
+        - Docker (other configuration)
+        - Bare `dotnet run` / self-built
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: checkboxes
+    id: network
+    attributes:
+      label: Network checklist
+      description: UDP broadcast only works inside one broadcast domain.
+      options:
+        - label: The app runs on the same VLAN/broadcast domain as the thermostat
+          required: true
+        - label: "If running in Docker, it uses `network_mode: host`"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant excerpt from `docker logs` (errors are logged at ERROR level with full exception details).
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: sensor-config
+    attributes:
+      label: Sensor configuration (if relevant)
+      description: |
+        The relevant entry from `sensors.json` or the web UI.
+        ⚠️ **Redact before posting:** URLs can reveal internal hostnames, and `Headers` often contain
+        API tokens (e.g. Home Assistant long-lived access tokens).
+      render: json
+  - type: textarea
+    id: capture
+    attributes:
+      label: Packet capture (if packet-level and available)
+      description: |
+        On builds that include the Protobuf Listener page, a saved `venstar-protobuf-capture/1` file of the
+        traffic in question is the ideal artifact — attach it here.
+        ⚠️ A capture containing a WIFICONFIG packet includes a **cleartext Wi-Fi password**; the export
+        warns you, but review before posting.

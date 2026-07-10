@@ -1,0 +1,7 @@
+contact_links:
+  - name: Issue with the Docker/C# VenstarTranslator app?
+    url: https://github.com/mlfreeman2/venstartranslator/issues
+    about: The JSON-API-driven Docker application has its own repository.
+  - name: Issue with receiving packets from physical Venstar sensors?
+    url: https://github.com/mlfreeman2/venstar-acc-tsenwifi-listener/issues
+    about: Ingesting real ACC-TSENWIFI(PRO) sensors into HA is the listener integration's job.
