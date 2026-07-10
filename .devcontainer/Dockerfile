@@ -51,6 +51,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo \
     # SQLite for database work
     sqlite3 \
+    # Python for scripting and tooling
+    python3 \
+    python3-pip \
+    python3-venv \
     # Locales
     locales \
     && rm -rf /var/lib/apt/lists/*
@@ -69,16 +73,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
 # Install global npm tools
 RUN npm install -g \
     @anthropic-ai/claude-code \
-    typescript \
     eslint \
-    prettier \
     && npm cache clean --force
-
-# Install .NET global tools
-RUN dotnet tool install --global dotnet-ef \
-    && dotnet tool install --global dotnet-aspnet-codegenerator \
-    && dotnet tool install --global dotnet-format \
-    && dotnet tool install --global dotnet-outdated-tool
 
 # Create non-root user with sudo access
 RUN groupadd --gid $USER_GID $USERNAME \
@@ -99,6 +95,10 @@ RUN git config --system --add safe.directory '*'
 # Switch to non-root user
 USER $USERNAME
 
+# .NET global tools must be installed as the non-root user so they land in
+# /home/vscode/.dotnet/tools, which is what PATH points at
+RUN dotnet tool install --global dotnet-ef
+
 # Set up shell environment
 RUN echo 'export PATH="$PATH:/home/'${USERNAME}'/.dotnet/tools"' >> ~/.bashrc \
     && echo 'alias ll="ls -alF"' >> ~/.bashrc \
@@ -106,7 +106,3 @@ RUN echo 'export PATH="$PATH:/home/'${USERNAME}'/.dotnet/tools"' >> ~/.bashrc \
     && echo 'alias l="ls -CF"' >> ~/.bashrc
 
 WORKDIR /workspace
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD claude --version || exit 1

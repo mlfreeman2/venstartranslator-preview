@@ -1,7 +1,24 @@
 {
   "name": "venstar-acc-tsenwifi-listener",
   "image": "mcr.microsoft.com/devcontainers/python:3.13",
-  "postCreateCommand": "scripts/setup",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": {},
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+  },
+  "mounts": [
+    // SSH keys for git operations
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind,readonly",
+    // Claude Code config/auth persistence (per-project named volume survives rebuilds)
+    "source=claude-code-config-${devcontainerId},target=/home/vscode/.config/claude,type=volume",
+    // GitHub CLI auth persistence (survives container rebuilds)
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/gh,target=/home/vscode/.config/gh,type=bind,consistency=cached"
+  ],
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/vscode/.config/claude"
+  },
+  // chown: fresh named volumes are mounted root-owned; hand them to vscode before use
+  "postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.config/claude && scripts/setup",
   "forwardPorts": [8123],
   "portsAttributes": {
     "8123": { "label": "Home Assistant", "onAutoForward": "notify" }
@@ -11,7 +28,8 @@
       "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "charliermarsh.ruff"
+        "charliermarsh.ruff",
+        "Anthropic.claude-code"
       ]
     }
   }
