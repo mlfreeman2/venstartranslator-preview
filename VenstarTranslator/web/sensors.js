@@ -13,7 +13,27 @@ document.addEventListener('DOMContentLoaded', function() {
   loadSensors();
   loadSettings();
   setupSortableHeaders();
+  loadBuildInfo();
 });
+
+/**
+ * Populate the build-identity footer from /api/version (§12b)
+ */
+function loadBuildInfo() {
+  const footer = document.getElementById('build-footer');
+  if (!footer) {
+    return;
+  }
+  fetch('/api/version')
+    .then(response => response.json())
+    .then(info => {
+      const shortCommit = info.commit && info.commit.length > 7 ? info.commit.substring(0, 7) : info.commit;
+      footer.textContent = `VenstarTranslator ${info.version} (${shortCommit})`;
+    })
+    .catch(() => {
+      // Footer stays blank if version can't be fetched.
+    });
+}
 
 /**
  * Load sensors from API and render table

@@ -195,6 +195,19 @@ The web UI provides built-in monitoring for sensor broadcast health:
 
 When healthchecks.io is configured, success and failure pings are sent after each broadcast attempt, enabling external alerting via email, Slack, or other notification channels.
 
+### Protobuf Listener (diagnostic)
+
+The **Protobuf Listener** page (button in the header, next to "Test JSON Path") is a troubleshooting tool that *receives* on UDP 5001 instead of broadcasting. Click **Start listening** and it binds `0.0.0.0:5001`, then shows every Venstar protobuf datagram that arrives — arrival time, source, decoded command, a temperature/sensor summary, and an expandable field tree alongside the raw hex. It polls for new packets every 30 seconds; the socket is only open while a session is running.
+
+- **Self-receive is the proof it works.** The app's own broadcasts go to `255.255.255.255:5001`; a socket bound on 5001 on the same host receives them. So with any enabled sensor broadcasting, clicking Start shows the app's own `SENSORDATA` packets arriving in bursts of 5 (the 5×-send) — no external hardware required.
+- **Save / Import.** Save the current buffer to a `venstar-protobuf-capture/1` JSON file (raw hex only), and import such a file to browse it offline — handy for attaching a capture to a GitHub issue. Imports are re-decoded by the current build, so decoder improvements apply retroactively.
+- **⚠️ Capture files can contain secrets.** They hold source IPs, sensor names, and SSIDs — and a captured `WIFICONFIG` packet contains the **Wi-Fi password in cleartext** (that's the wire protocol). The UI masks the password on screen, but it is present in the raw hex and in exported files. Treat capture files like logs before sharing them.
+- Requires broadcast reachability like the rest of the app (host networking / same broadcast domain; `network_mode: host` in Docker).
+
+### Build version
+
+`GET /api/version` returns `{ "version": "...", "commit": "..." }`, and the same string appears as a muted footer at the bottom of each page and as the first line of the Docker logs (`VenstarTranslator {version} ({commit}) starting`). Include it in issue reports so the exact build is known.
+
 ### JSONPath Examples
 
 **New to JSONPath?** The easiest way to get started is to ask an AI:

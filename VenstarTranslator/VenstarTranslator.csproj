@@ -7,6 +7,19 @@
     <PublishSingleFile>true</PublishSingleFile>
   </PropertyGroup>
 
+  <!-- Build identity (§12a). Dev-safe defaults so local builds work unstamped; the Docker
+       build passes real values as -p:InformationalVersion / -p:GitSha. Keep dev's
+       InformationalVersion clean of SourceLink's "+<sha>" suffix. -->
+  <PropertyGroup>
+    <InformationalVersion Condition="'$(InformationalVersion)' == ''">dev</InformationalVersion>
+    <GitSha Condition="'$(GitSha)' == ''">local</GitSha>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="GitSha" Value="$(GitSha)" />
+  </ItemGroup>
+
   <Target Name="CustomClean" AfterTargets="Clean">
     <Delete Files="$(ProjectDir)VenstarTranslator.db" />
     <Delete Files="$(ProjectDir)VenstarTranslator.db-shm" />

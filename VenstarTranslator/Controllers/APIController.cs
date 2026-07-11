@@ -375,6 +375,13 @@ public class API : ControllerBase
         return Ok(new MessageResponse { Message = "Settings saved." });
     }
 
+    [HttpGet]
+    [Route("/api/version")]
+    public ActionResult GetVersion()
+    {
+        return new JsonResult(new { version = BuildInfo.Version, commit = BuildInfo.Commit });
+    }
+
     [HttpPost]
     [Route("/api/testjsonpath")]
     public ActionResult TestJsonPath(JSONPathTest test)
