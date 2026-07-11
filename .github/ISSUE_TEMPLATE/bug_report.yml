@@ -57,9 +57,9 @@ body:
   - type: textarea
     id: capture
     attributes:
-      label: Packet capture (if packet-level and available)
+      label: Packet capture (if packet-level)
       description: |
-        On builds that include the Protobuf Listener page, a saved `venstar-protobuf-capture/1` file of the
-        traffic in question is the ideal artifact — attach it here.
+        A `venstar-protobuf-capture/1` file of the traffic in question, saved from the web UI's
+        Protobuf Listener page, is the ideal artifact — attach it here.
         ⚠️ A capture containing a WIFICONFIG packet includes a **cleartext Wi-Fi password**; the export
         warns you, but review before posting.

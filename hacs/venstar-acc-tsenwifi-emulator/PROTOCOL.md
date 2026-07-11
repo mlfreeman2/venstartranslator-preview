@@ -4,7 +4,7 @@ This document describes the UDP broadcast protocol used by Venstar wireless temp
 
 > **Which sensors speak this protocol?** It was reverse-engineered from the **ACC-TSENWIFIPRO**, which Venstar discontinued in August 2025. Distributors now point buyers at the plain **ACC-TSENWIFI**, which is believed to speak the same protocol — the wire format itself carries no per-part identity (the model field in every packet is simply `TEMPSENSOR`). This protocol is treated as **frozen**: if Venstar ever ships a firmware update that changes the wire format, that is a new protocol to be documented and implemented separately.
 >
-> This file is deliberately **duplicated across the three related repositories** ([VenstarTranslator](https://github.com/mlfreeman2/venstartranslator), [venstar-acc-tsenwifi-emulator](https://github.com/mlfreeman2/venstar-acc-tsenwifi-emulator), [venstar-acc-tsenwifi-listener](https://github.com/mlfreeman2/venstar-acc-tsenwifi-listener)) so each is self-contained; because the protocol is frozen, the copies cannot legitimately diverge.
+> This file is deliberately **duplicated across the three related repositories** ([VenstarTranslator](https://github.com/mlfreeman2/venstartranslator), [venstar-acc-tsenwifi-emulator](https://github.com/mlfreeman2/venstar-acc-tsenwifi-emulator), [venstar-acc-tsenwifi-listener](https://github.com/mlfreeman2/venstar-acc-tsenwifi-listener)) so each is self-contained; because the protocol is frozen, the copies cannot legitimately diverge. The file format for sharing raw packet captures of this protocol is specified separately in [CAPTURE_FORMAT.md](CAPTURE_FORMAT.md), duplicated the same way.
 
 ## Table of Contents
 

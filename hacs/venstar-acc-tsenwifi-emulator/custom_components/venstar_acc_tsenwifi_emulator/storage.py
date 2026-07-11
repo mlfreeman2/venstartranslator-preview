@@ -58,8 +58,8 @@ class VenstarEmulatorStorage:
             self.mac_prefix = data.get("mac_prefix")
             self.sensors = data.get("sensors", {})
             _LOGGER.info(
-                f"Loaded storage: MAC prefix={self.mac_prefix}, "
-                f"{len(self.sensors)} sensors configured"
+                "Loaded storage: MAC prefix=%s, %s sensors configured",
+                self.mac_prefix, len(self.sensors),
             )
 
     def _data_to_save(self) -> dict[str, Any]:
@@ -82,7 +82,7 @@ class VenstarEmulatorStorage:
             await self._store.async_save(self._data_to_save())
         else:
             self._store.async_delay_save(self._data_to_save, SAVE_DELAY)
-        _LOGGER.debug(f"Saved storage: {len(self.sensors)} sensors (immediate={immediate})")
+        _LOGGER.debug("Saved storage: %s sensors (immediate=%s)", len(self.sensors), immediate)
 
     def get_next_sensor_id(self) -> int | None:
         """Find the next available sensor ID (0-19).
@@ -139,7 +139,7 @@ class VenstarEmulatorStorage:
             "sequence": 1,  # Initial sequence number
         }
 
-        _LOGGER.info(f"Added sensor {sensor_id}: {name} ({purpose})")
+        _LOGGER.info("Added sensor %s: %s (%s)", sensor_id, name, purpose)
         return sensor_id
 
     def update_sensor(
@@ -187,7 +187,7 @@ class VenstarEmulatorStorage:
         if enabled is not None:
             sensor_config["enabled"] = enabled
 
-        _LOGGER.info(f"Updated sensor {sensor_id}: {sensor_config['name']}")
+        _LOGGER.info("Updated sensor %s: %s", sensor_id, sensor_config["name"])
 
     def delete_sensor(self, sensor_id: int) -> None:
         """Delete a sensor configuration.
@@ -204,7 +204,7 @@ class VenstarEmulatorStorage:
 
         name = self.sensors[sensor_id_str]["name"]
         del self.sensors[sensor_id_str]
-        _LOGGER.info(f"Deleted sensor {sensor_id}: {name}")
+        _LOGGER.info("Deleted sensor %s: %s", sensor_id, name)
 
     def get_sensor(self, sensor_id: int) -> dict[str, Any] | None:
         """Get sensor configuration by ID.

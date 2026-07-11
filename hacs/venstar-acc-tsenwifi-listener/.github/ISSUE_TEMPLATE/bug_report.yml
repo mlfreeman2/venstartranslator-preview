@@ -2,11 +2,6 @@ name: Bug report
 description: Something in the listener integration doesn't work as documented
 labels: ["bug"]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        > **Note:** while this integration is still marked "planned / not yet implemented" in the README,
-        > bug reports apply to the design docs and dev tooling only.
   - type: input
     id: ha-version
     attributes:

@@ -71,16 +71,16 @@ class VenstarSensorCoordinator:
     async def start(self) -> None:
         """Start the broadcast scheduler."""
         if self._task is not None:
-            _LOGGER.warning(f"Coordinator for sensor {self.sensor_id} already running")
+            _LOGGER.warning("Coordinator for sensor %s already running", self.sensor_id)
             return
 
         sensor_config = self._sensor_config
         if not sensor_config:
-            _LOGGER.error(f"Cannot start coordinator: sensor {self.sensor_id} not found")
+            _LOGGER.error("Cannot start coordinator: sensor %s not found", self.sensor_id)
             return
 
         if not sensor_config.get("enabled", True):
-            _LOGGER.debug(f"Sensor {self.sensor_id} is disabled, not starting coordinator")
+            _LOGGER.debug("Sensor %s is disabled, not starting coordinator", self.sensor_id)
             return
 
         # Determine broadcast interval based on sensor purpose
@@ -91,8 +91,8 @@ class VenstarSensorCoordinator:
         )
 
         _LOGGER.info(
-            f"Starting coordinator for sensor {self.sensor_id} "
-            f"({sensor_config['name']}), interval={interval}s"
+            "Starting coordinator for sensor %s (%s), interval=%ss",
+            self.sensor_id, sensor_config["name"], interval,
         )
 
         self._stop_event.clear()
@@ -108,7 +108,7 @@ class VenstarSensorCoordinator:
         if self._task is None:
             return
 
-        _LOGGER.info(f"Stopping coordinator for sensor {self.sensor_id}")
+        _LOGGER.info("Stopping coordinator for sensor %s", self.sensor_id)
 
         self._stop_event.set()
         self._task.cancel()
@@ -135,15 +135,14 @@ class VenstarSensorCoordinator:
                     await self._broadcast_sensor(temperature)
                 else:
                     _LOGGER.warning(
-                        f"Sensor {self.sensor_id} ({sensor_config['name']}): "
-                        f"temperature unavailable from entity {sensor_config['entity_id']}"
+                        "Sensor %s (%s): temperature unavailable from entity %s",
+                        self.sensor_id, sensor_config["name"], sensor_config["entity_id"],
                     )
 
-            except Exception as e:
-                _LOGGER.error(
-                    f"Error broadcasting sensor {self.sensor_id} "
-                    f"({sensor_config['name']}): {e}",
-                    exc_info=True
+            except Exception:
+                _LOGGER.exception(
+                    "Error broadcasting sensor %s (%s)",
+                    self.sensor_id, sensor_config["name"],
                 )
 
             # Wait for next broadcast interval
@@ -166,20 +165,20 @@ class VenstarSensorCoordinator:
         state = self.hass.states.get(sensor_config["entity_id"])
 
         if state is None:
-            _LOGGER.debug(f"Entity {sensor_config['entity_id']} not found")
+            _LOGGER.debug("Entity %s not found", sensor_config["entity_id"])
             return None
 
         if state.state in ("unknown", "unavailable"):
-            _LOGGER.debug(
-                f"Entity {sensor_config['entity_id']} state is {state.state}"
-            )
+            _LOGGER.debug("Entity %s state is %s", sensor_config["entity_id"], state.state)
             return None
 
         temperature = extract_temperature(state)
         if temperature is None:
-            _LOGGER.error(
-                f"No numeric temperature available from {sensor_config['entity_id']} "
-                f"(state: {state.state})"
+            # Detail behind the caller's per-interval "temperature unavailable"
+            # warning — DEBUG so a misconfigured entity doesn't spam ERROR forever.
+            _LOGGER.debug(
+                "No numeric temperature available from %s (state: %s)",
+                sensor_config["entity_id"], state.state,
             )
         return temperature
 
@@ -215,9 +214,9 @@ class VenstarSensorCoordinator:
         await storage.async_save(immediate=False)
 
         _LOGGER.debug(
-            f"Broadcast sensor {self.sensor_id} ({sensor_config['name']}): "
-            f"{temperature}°{sensor_config['scale']} "
-            f"(seq={sensor.sequence-1})"
+            "Broadcast sensor %s (%s): %s°%s (seq=%s)",
+            self.sensor_id, sensor_config["name"], temperature,
+            sensor_config["scale"], sensor.sequence - 1,
         )
 
     async def trigger_broadcast(self) -> None:
@@ -227,7 +226,7 @@ class VenstarSensorCoordinator:
         """
         sensor_config = self._sensor_config
         if not sensor_config:
-            _LOGGER.error(f"Cannot broadcast: sensor {self.sensor_id} not found")
+            _LOGGER.error("Cannot broadcast: sensor %s not found", self.sensor_id)
             return
 
         temperature = await self._get_current_temperature()
@@ -235,5 +234,5 @@ class VenstarSensorCoordinator:
             await self._broadcast_sensor(temperature)
         else:
             _LOGGER.warning(
-                f"Cannot broadcast sensor {self.sensor_id}: temperature unavailable"
+                "Cannot broadcast sensor %s: temperature unavailable", self.sensor_id
             )

@@ -1,6 +1,8 @@
-# Protobuf Listener Page — Implementation Plan
+# Protobuf Listener Page — Implementation Plan (implemented)
 
-> **Status: Planned / not yet built.** Design plan for a diagnostic "Protobuf Listener" tool page in the C# app, analogous to the existing JSON Path Tester. It binds UDP 5001, captures incoming Venstar protobuf packets, decodes them, and lets the web UI batch-download what arrived (with arrival timestamps) on a polling interval.
+> **Archived.** This design plan is implemented; it lives in `docs/archive/` as the architecture record. In-document relative paths refer to its original location (`VenstarTranslator/`).
+
+> **Status: Implemented (July 2026), including the §12 build-identity addendum.** Kept as the architecture record for the feature — design rationale, decode gates, capture-file behavior, and gotchas below all describe the shipped code. The user-facing docs are the "Protobuf Listener" section of the README; the capture-file format now has a standalone spec in `CAPTURE_FORMAT.md`. The feature is a diagnostic "Protobuf Listener" tool page in the C# app, analogous to the JSON Path Tester: it binds UDP 5001, captures incoming Venstar protobuf packets, decodes them, and lets the web UI batch-download what arrived (with arrival timestamps) on a polling interval.
 >
 > **Not to be confused with the [venstar-acc-tsenwifi-listener](https://github.com/mlfreeman2/venstar-acc-tsenwifi-listener) repo's `LISTENER_IMPLEMENTATION_PLAN.md`** — that plan is a standalone *Home Assistant integration*: an end-user product for people who own physical Venstar sensors and want them in HA. This one is a diagnostic page inside the C# app — a maintainer-facing troubleshooting tool, not a user-installable feature. If you were asked to implement "the listener plan," confirm which file you were pointed at.
 

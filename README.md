@@ -118,6 +118,10 @@ services:
 
 See the full `docker-compose.yml.sample` in the root directory for a complete example.
 
+### Security
+
+The web UI and API are **deliberately unauthenticated** — this is a trusted-LAN tool, expected to live on the same private network segment as your thermostat. If it must be reachable more widely, put a reverse proxy with authentication in front of it. Also note that sensor HTTP headers frequently contain API tokens (e.g. Home Assistant long-lived access tokens); they are stored in plaintext in `sensors.json` and are visible in the web UI, so treat that file — and access to the UI — accordingly.
+
 ## Configuration
 
 ### Setting Up Your First Sensor

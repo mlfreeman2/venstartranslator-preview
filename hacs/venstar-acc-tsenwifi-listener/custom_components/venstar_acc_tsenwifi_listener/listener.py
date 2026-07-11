@@ -253,7 +253,7 @@ class DeviceManager:
         if device is None:
             self.roster[reading.mac] = DiscoveredDevice.from_reading(reading)
             self._save_immediate()
-            _LOGGER.debug("Discovered new device %s (%s)", reading.mac, reading.name)
+            _LOGGER.info("Discovered new device %s (%s)", reading.mac, reading.name)
             async_dispatcher_send(self._hass, SIGNAL_NEW_DEVICE, reading)
             return
 
@@ -270,7 +270,7 @@ class DeviceManager:
 
         if new_capability:
             self._save_immediate()
-            _LOGGER.debug(
+            _LOGGER.info(
                 "New capability on %s (battery=%s humidity=%s)",
                 reading.mac,
                 device.has_battery,
@@ -292,11 +292,13 @@ class DeviceManager:
         registry = dr.async_get(self._hass)
         device_entry = registry.async_get_device(identifiers={(DOMAIN, mac)})
         if device_entry is not None:
+            _LOGGER.info("Device %s renamed on the wire to '%s'", mac, name)
             registry.async_update_device(device_entry.id, name=name)
 
     async def async_remove(self, mac: str) -> None:
         """Purge a mac from the roster and persist (device deletion, §6h)."""
         if self.roster.pop(mac, None) is not None:
+            _LOGGER.info("Removed device %s from the roster", mac)
             await self._storage.async_save(self.roster)
 
     async def async_save_final(self) -> None:
@@ -369,5 +371,5 @@ async def async_create_listener(
     transport, protocol = await hass.loop.create_datagram_endpoint(
         protocol_factory, sock=sock
     )
-    _LOGGER.debug("Listening for Venstar packets on %s:%d", DEFAULT_BIND_ADDRESS, port)
+    _LOGGER.info("Listening for Venstar packets on %s:%d", DEFAULT_BIND_ADDRESS, port)
     return transport, protocol

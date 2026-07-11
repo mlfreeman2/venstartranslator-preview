@@ -1,5 +1,7 @@
 # Closing Pass — Implementation Plan
 
+> **Archived — executed 2026-07-11.** All sections of this plan were applied in one pass (pre-repo-split, working from the monorepo). Kept for the record of what the closing pass covered.
+
 > **Status: Blocked until both feature implementations land.** Do not start this plan before (1) the C# protobuf listener page + build identity ([VenstarTranslator/PROTOBUF_LISTENER_PLAN.md](VenstarTranslator/PROTOBUF_LISTENER_PLAN.md), phases 1–7) and (2) the HACS listener integration (`LISTENER_IMPLEMENTATION_PLAN.md` in the listener repo, phases 1–6) are implemented. This plan is the cleanup/polish sweep that runs across **all three codebases** afterward.
 >
 > **Working set:** this repo, plus checkouts of `mlfreeman2/venstar-acc-tsenwifi-emulator` and `mlfreeman2/venstar-acc-tsenwifi-listener` (or, if the repo split hasn't happened yet, their pre-split homes under `hacs/` here — same layouts either way). Changes to the two HACS repos are separate commits/PRs in those repos.

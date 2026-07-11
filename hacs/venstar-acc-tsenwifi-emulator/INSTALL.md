@@ -355,8 +355,8 @@ rm /config/.storage/venstar_acc_tsenwifi_emulator
 ## Next Steps
 
 - [Debug Logging Guide](DEBUG_LOGGING.md) - Enable detailed logging
-- [Implementation Plan](IMPLEMENTATION_PLAN.md) - Technical details (historical, uses pre-rename names)
-- [Progress Tracking](PROGRESS.md) - Development status (historical, uses pre-rename names)
+- [Implementation Plan](docs/archive/IMPLEMENTATION_PLAN.md) - Technical details (historical, uses pre-rename names)
+- [Progress Tracking](docs/archive/PROGRESS.md) - Development status (historical, uses pre-rename names)
 
 ## Support
 

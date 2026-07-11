@@ -170,7 +170,7 @@ class VenstarEmulatorOptionsFlow(OptionsFlow):
                         await coordinator.start()
                         self._coordinators[sensor_id] = coordinator
 
-                    _LOGGER.info(f"Added sensor {sensor_id}: {name}")
+                    _LOGGER.info("Added sensor %s: %s", sensor_id, name)
                     return await self.async_step_sensor_list()
 
             except ValueError as e:
@@ -180,7 +180,7 @@ class VenstarEmulatorOptionsFlow(OptionsFlow):
                     errors["base"] = "max_sensors_reached"
                 else:
                     errors["base"] = "unknown"
-                    _LOGGER.error(f"Error adding sensor: {e}")
+                    _LOGGER.exception("Error adding sensor")
 
         # Check if we can add more sensors
         if storage.get_next_sensor_id() is None:
@@ -304,7 +304,7 @@ class VenstarEmulatorOptionsFlow(OptionsFlow):
                         await coordinator.start()
                         coordinators[sensor_id] = coordinator
 
-                    _LOGGER.info(f"Updated sensor {sensor_id}: {name}")
+                    _LOGGER.info("Updated sensor %s: %s", sensor_id, name)
                     return await self.async_step_sensor_list()
 
             except ValueError as e:
@@ -312,7 +312,7 @@ class VenstarEmulatorOptionsFlow(OptionsFlow):
                     errors["name"] = "name_duplicate"
                 else:
                     errors["base"] = "unknown"
-                    _LOGGER.error(f"Error updating sensor: {e}")
+                    _LOGGER.exception("Error updating sensor")
 
         return self.async_show_form(
             step_id="edit_sensor",
@@ -393,7 +393,7 @@ class VenstarEmulatorOptionsFlow(OptionsFlow):
                 storage.delete_sensor(sensor_id)
                 await storage.async_save()
 
-                _LOGGER.info(f"Deleted sensor {sensor_id}: {sensor_config['name']}")
+                _LOGGER.info("Deleted sensor %s: %s", sensor_id, sensor_config["name"])
 
             return await self.async_step_sensor_list()
 
@@ -430,7 +430,7 @@ class VenstarEmulatorOptionsFlow(OptionsFlow):
                 )
                 if temperature is None:
                     _LOGGER.warning(
-                        f"Skipping pairing for sensor {sensor_id}: temperature unavailable"
+                        "Skipping pairing for sensor %s: temperature unavailable", sensor_id
                     )
                     failed_sensors.append(sensor_config["name"])
                     continue
@@ -441,10 +441,10 @@ class VenstarEmulatorOptionsFlow(OptionsFlow):
                 )
 
                 paired_count += 1
-                _LOGGER.info(f"Paired sensor {sensor_id} ({sensor_config['name']})")
+                _LOGGER.info("Paired sensor %s (%s)", sensor_id, sensor_config["name"])
 
-            except Exception as e:
-                _LOGGER.error(f"Failed to pair sensor {sensor_id}: {e}")
+            except Exception:
+                _LOGGER.exception("Failed to pair sensor %s", sensor_id)
                 failed_sensors.append(sensor_config.get("name", str(sensor_id)))
 
         # Show results

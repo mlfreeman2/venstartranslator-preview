@@ -207,8 +207,8 @@ class VenstarSensor:
         temp_index = get_temperature_index(temperature, self.scale)
 
         _LOGGER.debug(
-            f"Building data packet for sensor {self.sensor_id} ({self.name}): "
-            f"temp={temperature}°{self.scale}, temp_index={temp_index}, seq={self.sequence}"
+            "Building data packet for sensor %s (%s): temp=%s°%s, temp_index=%s, seq=%s",
+            self.sensor_id, self.name, temperature, self.scale, temp_index, self.sequence,
         )
 
         # Build INFO message
@@ -219,8 +219,8 @@ class VenstarSensor:
         signature = self.generate_signature(info_bytes)
 
         _LOGGER.debug(
-            f"Sensor {self.sensor_id}: INFO bytes={len(info_bytes)}, "
-            f"signature={signature[:16]}... (truncated)"
+            "Sensor %s: INFO bytes=%s, signature=%s... (truncated)",
+            self.sensor_id, len(info_bytes), signature[:16],
         )
 
         # Build SENSORDATA message
@@ -242,8 +242,8 @@ class VenstarSensor:
 
         packet = message.SerializeToString()
         _LOGGER.debug(
-            f"Sensor {self.sensor_id}: Built data packet, size={len(packet)} bytes, "
-            f"next_seq={self.sequence}"
+            "Sensor %s: Built data packet, size=%s bytes, next_seq=%s",
+            self.sensor_id, len(packet), self.sequence,
         )
 
         return packet
@@ -262,10 +262,12 @@ class VenstarSensor:
         """
         temp_index = get_temperature_index(temperature, self.scale)
 
-        _LOGGER.info(
-            f"Building PAIRING packet for sensor {self.sensor_id} ({self.name}): "
-            f"temp={temperature}°{self.scale}, temp_index={temp_index}, "
-            f"mac={self.mac_address}, purpose={self.purpose}"
+        # Packet-construction detail is DEBUG; the user-facing INFO line for a
+        # pairing event is logged by the caller ("Pairing packet sent...").
+        _LOGGER.debug(
+            "Building PAIRING packet for sensor %s (%s): temp=%s°%s, temp_index=%s, mac=%s, purpose=%s",
+            self.sensor_id, self.name, temperature, self.scale, temp_index,
+            self.mac_address, self.purpose,
         )
 
         # Build INFO message
@@ -278,7 +280,8 @@ class VenstarSensor:
         )
 
         _LOGGER.debug(
-            f"Sensor {self.sensor_id}: Pairing signature_key={self.signature_key[:16]}... (truncated)"
+            "Sensor %s: Pairing signature_key=%s... (truncated)",
+            self.sensor_id, self.signature_key[:16],
         )
 
         # Build SensorMessage
@@ -291,9 +294,9 @@ class VenstarSensor:
         self.sequence = 1
 
         packet = message.SerializeToString()
-        _LOGGER.info(
-            f"Sensor {self.sensor_id}: Built pairing packet, size={len(packet)} bytes, "
-            f"hex={packet.hex()[:32]}... (truncated)"
+        _LOGGER.debug(
+            "Sensor %s: Built pairing packet, size=%s bytes, hex=%s... (truncated)",
+            self.sensor_id, len(packet), packet.hex()[:32],
         )
 
         return packet
@@ -310,9 +313,8 @@ def broadcast_udp_packet(packet: bytes, port: int = UDP_PORT) -> None:
     """
     try:
         _LOGGER.debug(
-            f"Broadcasting UDP packet: size={len(packet)} bytes, "
-            f"destination={BROADCAST_ADDRESS}:{port}, repeats={BROADCAST_REPEAT_COUNT}, "
-            f"hex={packet.hex()[:64]}... (truncated)"
+            "Broadcasting UDP packet: size=%s bytes, destination=%s:%s, repeats=%s, hex=%s... (truncated)",
+            len(packet), BROADCAST_ADDRESS, port, BROADCAST_REPEAT_COUNT, packet.hex()[:64],
         )
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
@@ -320,16 +322,14 @@ def broadcast_udp_packet(packet: bytes, port: int = UDP_PORT) -> None:
             for i in range(BROADCAST_REPEAT_COUNT):
                 bytes_sent = sock.sendto(packet, (BROADCAST_ADDRESS, port))
                 _LOGGER.debug(
-                    f"UDP broadcast {i+1}/{BROADCAST_REPEAT_COUNT}: "
-                    f"sent {bytes_sent} bytes to {BROADCAST_ADDRESS}:{port}"
+                    "UDP broadcast %s/%s: sent %s bytes to %s:%s",
+                    i + 1, BROADCAST_REPEAT_COUNT, bytes_sent, BROADCAST_ADDRESS, port,
                 )
 
-        _LOGGER.debug(f"Successfully broadcast {BROADCAST_REPEAT_COUNT} UDP packets")
+        _LOGGER.debug("Successfully broadcast %s UDP packets", BROADCAST_REPEAT_COUNT)
 
-    except Exception as e:
-        _LOGGER.error(
-            f"Failed to broadcast UDP packet: {e}, "
-            f"packet_size={len(packet)}, port={port}",
-            exc_info=True
+    except Exception:
+        _LOGGER.exception(
+            "Failed to broadcast UDP packet (size=%s, port=%s)", len(packet), port
         )
         raise

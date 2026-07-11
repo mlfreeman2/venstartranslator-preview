@@ -63,7 +63,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VenstarConfigEntry) -> b
         sensor_id = call.data["sensor_id"]
 
         if str(sensor_id) not in storage.sensors:
-            _LOGGER.error(f"Sensor {sensor_id} not configured")
+            _LOGGER.error("Sensor %s not configured", sensor_id)
             return
 
         sensor_config = storage.sensors[str(sensor_id)]
@@ -72,8 +72,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: VenstarConfigEntry) -> b
         temperature = extract_temperature(hass.states.get(sensor_config["entity_id"]))
         if temperature is None:
             _LOGGER.error(
-                f"Cannot pair sensor {sensor_id}: temperature unavailable from "
-                f"entity {sensor_config['entity_id']}"
+                "Cannot pair sensor %s: temperature unavailable from entity %s",
+                sensor_id, sensor_config["entity_id"],
             )
             return
 
@@ -97,11 +97,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: VenstarConfigEntry) -> b
             await storage.async_save()
 
             _LOGGER.info(
-                f"Pairing packet sent for sensor {sensor_id} ({sensor_config['name']})"
+                "Pairing packet sent for sensor %s (%s)", sensor_id, sensor_config["name"]
             )
 
-        except Exception as e:
-            _LOGGER.error(f"Failed to send pairing packet for sensor {sensor_id}: {e}")
+        except Exception:
+            _LOGGER.exception("Failed to send pairing packet for sensor %s", sensor_id)
 
     hass.services.async_register(
         DOMAIN, SERVICE_PAIR_SENSOR, handle_pair_sensor, schema=SERVICE_SCHEMA
@@ -113,26 +113,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: VenstarConfigEntry) -> b
         sensor_id = call.data["sensor_id"]
 
         if str(sensor_id) not in storage.sensors:
-            _LOGGER.error(f"Sensor {sensor_id} not configured")
+            _LOGGER.error("Sensor %s not configured", sensor_id)
             return
 
         packet = storage.get_last_packet(sensor_id)
         if packet is None:
             _LOGGER.error(
-                f"Sensor {sensor_id}: no cached packet to resend "
-                f"(sensor has never broadcast)"
+                "Sensor %s: no cached packet to resend (sensor has never broadcast)",
+                sensor_id,
             )
             return
 
         try:
             await hass.async_add_executor_job(broadcast_udp_packet, packet)
             _LOGGER.info(
-                f"Resent last packet for sensor {sensor_id} "
-                f"({storage.sensors[str(sensor_id)]['name']}), "
-                f"{len(packet)} bytes"
+                "Resent last packet for sensor %s (%s), %s bytes",
+                sensor_id, storage.sensors[str(sensor_id)]["name"], len(packet),
             )
-        except Exception as e:
-            _LOGGER.error(f"Failed to resend packet for sensor {sensor_id}: {e}")
+        except Exception:
+            _LOGGER.exception("Failed to resend packet for sensor %s", sensor_id)
 
     hass.services.async_register(
         DOMAIN, SERVICE_RESEND_LAST_PACKET, handle_resend_last_packet, schema=SERVICE_SCHEMA

@@ -1,10 +1,10 @@
 # Project Notes
 
-Context, decisions, and gotchas behind [TODO.md](TODO.md). State as of 2026-07-10, after the repo-split restructuring.
+Context, decisions, and gotchas behind [TODO.md](TODO.md). State as of 2026-07-11, after implementations and the closing pass.
 
 ## Current state
 
-The two HACS subfolders under `hacs/` are fully laid out as ready-to-push repo roots (renamed components, docs, devcontainers, dev scripts, LICENSE/PROTOCOL.md/fixture copies, emulator CI). Nothing has been pushed to the new GitHub repos yet. Both planned features (HACS listener, C# protobuf listener page) have finished design plans but **no implementation code**.
+The two HACS subfolders under `hacs/` are fully laid out as ready-to-push repo roots and **both features are implemented**: the HACS listener (phases 1–6 + CI + a 67-test pytest suite) and the C# protobuf listener page + build identity (`/api/version`, stamped Docker builds). The closing pass ([docs/archive/CLOSING_PASS_PLAN.md](docs/archive/CLOSING_PASS_PLAN.md)) was executed 2026-07-11 pre-split, in-monorepo: logging review across all three codebases, status-flips, `CAPTURE_FORMAT.md` (duplicated ×3), README security note, Docker `latest`/semver tags + an 85% coverage floor, `FORUM_POST_DRAFT.md`, and brands-PR prep with generated placeholder icons (`docs/brands-prep/`). Executed plan docs are archived under each repo's `docs/archive/`. Nothing has been pushed to the new GitHub repos yet; remaining work is human-only (see TODO.md).
 
 ## Naming
 
@@ -36,8 +36,8 @@ The protocol is treated as frozen. If Venstar ships a firmware update that chang
 
 - HACS is hard-limited to **one integration per repository** — the entire reason for the split. Custom-repo install needs `custom_components/<domain>/` at the repo root, `hacs.json`, and a README (all in place).
 - Tag GitHub releases so HACS offers pinned versions instead of tracking the default branch.
-- Some `hacs/action` CI checks read the live repo's description/topics via the GitHub API — they can only pass after upload. The workflow sets `ignore: brands` because custom integrations aren't required to be in home-assistant/brands (but see below).
-- The **listener repo has no CI yet on purpose**: hassfest fails on an empty component skeleton. Add CI with phase 1 code.
+- Some `hacs/action` CI checks read the live repo's description/topics via the GitHub API — they can only pass after upload. The workflows set `ignore: brands` because custom integrations aren't required to be in home-assistant/brands (but see below).
+- Both HACS repos now carry `validate.yml` CI (hassfest + HACS action; the listener's also runs its pytest suite).
 
 ## Dev environment (both HACS repos)
 
@@ -57,7 +57,7 @@ A disposable HA instance on the same broadcast domain as the running C# app, wit
 ## Support loop / share strategy
 
 - The listener plan's §12 hardware unknowns (real MAC formats, humidity, battery values, 5× repeats, name limits) are **unresolvable without community help** — no physical sensors on hand. The channel: issue templates + a forum post framed partly as a call for testers.
-- **Issue templates are pre-staged (2026-07-10)** in all three repos' `.github/ISSUE_TEMPLATE/`: bug report + `config.yml` cross-repo redirects everywhere, a *hardware test report* on the emulator (thermostat owners), and a *physical sensor report* on the listener whose form fields directly harvest the §12 unknowns (part number, humidity entity appeared?, battery ≠ 100?, diagnostics, capture file). Capture asks say "in builds that include the Protobuf Listener page" until that ships — drop the caveat in the Phase 3 status-flip pass.
+- **Issue templates are pre-staged** in all three repos' `.github/ISSUE_TEMPLATE/`: bug report + `config.yml` cross-repo redirects everywhere, a *hardware test report* on the emulator (thermostat owners), and a *physical sensor report* on the listener whose form fields directly harvest the §12 unknowns (part number, humidity entity appeared?, battery ≠ 100?, diagnostics, capture file). The "in builds that include it" caveats were dropped 2026-07-11 (the protobuf page shipped).
 - **Capture files can contain cleartext Wi-Fi passwords** (a captured WIFICONFIG packet carries them — that's the wire protocol). Every place that asks users for captures must repeat this warning; the C# page plan masks the field in the UI and warns on export.
 - The pre-share test that matters most: run the HACS emulator against the real thermostat here. It's the only first-party hardware validation possible and it removes the scariest README banner.
 - home-assistant/brands accepts custom integrations (`custom_integrations/` folder): one PR per domain gives a real icon in the HA UI instead of the gray puzzle piece. Separate and slower: HACS default-store submission — optional, but expect "why isn't this in HACS?" as the first forum question.
@@ -73,5 +73,5 @@ A disposable HA instance on the same broadcast domain as the running C# app, wit
 ## Misc
 
 - Emulator protobuf requirement is `>=6.31.1,<8` per protobuf's cross-version runtime guarantee (N runtime supports N and N−1 gencode). Maintenance rhythm: when HA's pin enters 8.x, regenerate gencode with 7.x-era protoc, move bound to `<9`. Same rhythm applies to the listener when built.
-- The historical docs in the emulator repo (IMPLEMENTATION_PLAN.md, PROGRESS.md) carry a "historical document" banner and keep pre-rename names on purpose.
-- The C# Docker images are currently branch-timestamp tags only (`main-YYYYMMDDHHMM`); a `latest`/semver story is a pre-share nicety, not a blocker.
+- Implemented/outdated docs live in `docs/archive/` per repo: the two feature plans (kept as architecture records; their in-document relative paths refer to their original locations), the UI prototype, the closing-pass plan, and the emulator's historical IMPLEMENTATION_PLAN/PROGRESS (which keep pre-rename names on purpose).
+- Docker tags: `{branch}-{timestamp}` on main/beta pushes (unchanged), plus `latest` on main pushes and `v*` release tags, plus `X.Y.Z`/`X.Y` semver tags on release tags. `BUILD_VERSION` (→ `/api/version` and the UI footer) always equals the primary image tag. Coverage gate: build fails below 85% line coverage (94.4% when set).

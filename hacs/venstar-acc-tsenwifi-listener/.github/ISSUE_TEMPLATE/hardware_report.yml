@@ -51,7 +51,7 @@ body:
       label: Packet capture (the most valuable artifact)
       description: |
         If you can, attach a `venstar-protobuf-capture/1` file of your sensors' raw packets
-        (saved from the C# VenstarTranslator app's Protobuf Listener page, in builds that include it).
+        (saved from the C# VenstarTranslator app's Protobuf Listener page).
 
         ⚠️ **Before attaching, be aware:** a capture taken while a sensor was being configured for Wi-Fi
         can contain your **Wi-Fi password in cleartext** (that's the wire protocol, not our choice).
