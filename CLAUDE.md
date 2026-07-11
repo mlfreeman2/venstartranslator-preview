@@ -42,7 +42,7 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 - Extracts temperature values from fetched JSON documents via JSONPath
 - Contains Protocol Buffer serialization logic for both pairing and data packets
 - Manages HMAC-SHA256 signatures for authenticated sensor communications
-- Temperature lookup tables map sensor readings to Venstar's expected format (Fahrenheit and Celsius)
+- Maps sensor readings to Venstar's temperature-index byte via a direct arithmetic conversion (`GetTemperatureIndexCalculated`), for both Fahrenheit and Celsius
 
 **Services** (`Services/`)
 - `SensorOperations`: Orchestrates the fetch → extract → build packet → broadcast flow for data, pairing, and resend packets; static `SyncToJsonFile()` writes the database back to `sensors.json`
@@ -95,7 +95,7 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 2. Validated sensors are stored in SQLite (`VenstarTranslatorDataCache.db`)
 3. Hangfire schedules recurring jobs for each enabled sensor
 4. Background jobs fetch temperature via HTTP, extract value using JSONPath
-5. Temperature is mapped to Venstar's lookup table format
+5. Temperature is converted to Venstar's temperature-index byte via direct arithmetic (`GetTemperatureIndexCalculated`)
 6. Protocol Buffer packet is serialized with HMAC-SHA256 signature
 7. UDP broadcast sent 5 times to `255.255.255.255:5001`
 8. Success or failure is pinged to healthchecks.io after each broadcast attempt (when configured)
@@ -229,10 +229,10 @@ The application MUST run on the same VLAN/broadcast domain as the Venstar thermo
 ## Monitoring and Problem Detection
 
 The web UI provides real-time sensor health monitoring that mirrors the thermostat's error detection:
-- **Problem Indicators**: Sensors with stale broadcasts display an orange pulsing "Problem" badge in the Status column
-- **Staleness Thresholds** (matches when thermostat shows sensor error):
-  - Outdoor sensors: 20 minutes (broadcasts every 5 minutes)
-  - Other sensor types: 5 minutes (broadcasts every 1 minute)
+- **Problem Indicators**: A sensor displays an orange pulsing "Problem" badge in the Status column once it accumulates `FailureThreshold` (5) consecutive failed broadcasts (`TranslatedVenstarSensor.HasProblem`). The trigger is a failure count, not elapsed time — a sensor whose job never runs does not trip it
+- **Effective staleness** (5 consecutive failures × the broadcast interval, chosen to line up with when the thermostat shows a sensor error):
+  - Outdoor sensors: ~25 minutes (broadcasts every 5 minutes; exceeds the thermostat's ~20 min threshold)
+  - Other sensor types: ~5 minutes (broadcasts every 1 minute)
 - **Details**: Hover over the problem badge to see the last successful broadcast timestamp
 - **Logs**: Full exception details are logged to console/Docker logs at ERROR level
 - **Database Tracking**: `LastSuccessfulBroadcast` timestamp tracked in database (not persisted to sensors.json)

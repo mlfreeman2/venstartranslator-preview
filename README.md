@@ -188,10 +188,10 @@ When provided, the application fully manages healthchecks.io checks alongside yo
 
 The web UI provides built-in monitoring for sensor broadcast health:
 
-- **Problem Indicators**: An orange pulsing "Problem" badge appears in the Status column when a sensor's broadcasts become stale. This mirrors when the thermostat itself would show a sensor error.
-- **Staleness Thresholds**:
-  - Outdoor sensors: 20 minutes (broadcasts every 5 minutes)
-  - All other sensor types: 5 minutes (broadcasts every minute)
+- **Problem Indicators**: An orange pulsing "Problem" badge appears in the Status column after a sensor racks up 5 consecutive failed broadcasts. This mirrors when the thermostat itself would show a sensor error.
+- **How long that takes** (5 consecutive failures × the broadcast interval):
+  - Outdoor sensors: ~25 minutes (broadcasts every 5 minutes)
+  - All other sensor types: ~5 minutes (broadcasts every minute)
 - **Details**: Hover over the problem badge to see the last successful broadcast timestamp.
 - **Auto-Recovery**: The problem indicator clears automatically when broadcasts resume.
 - **Resend Last Packet**: Each sensor has a "Resend Last Packet" button for troubleshooting thermostat connectivity. This resends the exact packet from the last broadcast.
@@ -204,7 +204,7 @@ When healthchecks.io is configured, success and failure pings are sent after eac
 The **Protobuf Listener** page (button in the header, next to "Test JSON Path") is a troubleshooting tool that *receives* on UDP 5001 instead of broadcasting. Click **Start listening** and it binds `0.0.0.0:5001`, then shows every Venstar protobuf datagram that arrives — arrival time, source, decoded command, a temperature/sensor summary, and an expandable field tree alongside the raw hex. It polls for new packets every 30 seconds; the socket is only open while a session is running.
 
 - **Self-receive is the proof it works.** The app's own broadcasts go to `255.255.255.255:5001`; a socket bound on 5001 on the same host receives them. So with any enabled sensor broadcasting, clicking Start shows the app's own `SENSORDATA` packets arriving in bursts of 5 (the 5×-send) — no external hardware required.
-- **Save / Import.** Save the current buffer to a `venstar-protobuf-capture/1` JSON file (raw hex only), and import such a file to browse it offline — handy for attaching a capture to a GitHub issue. Imports are re-decoded by the current build, so decoder improvements apply retroactively.
+- **Save / Import.** Save the current buffer to a `venstar-protobuf-capture/1` JSON file (raw hex plus arrival metadata — source, timestamp — only; no decoded fields), and import such a file to browse it offline — handy for attaching a capture to a GitHub issue. Imports are re-decoded by the current build, so decoder improvements apply retroactively.
 - **⚠️ Capture files can contain secrets.** They hold source IPs, sensor names, and SSIDs — and a captured `WIFICONFIG` packet contains the **Wi-Fi password in cleartext** (that's the wire protocol). The UI masks the password on screen, but it is present in the raw hex and in exported files. Treat capture files like logs before sharing them.
 - Requires broadcast reachability like the rest of the app (host networking / same broadcast domain; `network_mode: host` in Docker).
 
