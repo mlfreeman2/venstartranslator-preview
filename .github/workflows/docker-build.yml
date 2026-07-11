@@ -102,11 +102,11 @@ jobs:
       env:
         # Emit annotations on the manifest index too, so the package page picks up
         # the description for multi-arch images (not just the per-arch image config).
+        # metadata-action sources the description annotation from the GitHub repo's
+        # description field, so that must be set for the package page to show it.
         DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        labels: |
-          org.opencontainers.image.description=Fetches temperatures from any JSON API and emulates Venstar wireless sensors for ColorTouch thermostats.
         tags: |
           type=raw,value=${{ steps.branch.outputs.name }}-${{ steps.timestamp.outputs.timestamp }},enable=${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta') }}
 
