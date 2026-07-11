@@ -10,7 +10,7 @@ Venstar Translator bridges the gap between your existing temperature sensors and
 |---|---|---|
 | Temperature data behind any JSON API | Readings on a Venstar thermostat | **This app** (C#/Docker) |
 | Home Assistant entities | Readings on a Venstar thermostat | [venstar-acc-tsenwifi-emulator](https://github.com/mlfreeman2/venstar-acc-tsenwifi-emulator) (HACS integration) |
-| Physical Venstar ACC-TSENWIFI(PRO) sensors | Their readings in Home Assistant | [venstar-acc-tsenwifi-listener](https://github.com/mlfreeman2/venstar-acc-tsenwifi-listener) (HACS integration, in development) |
+| Physical Venstar ACC-TSENWIFI(PRO) sensors | Their readings in Home Assistant | [venstar-acc-tsenwifi-listener](https://github.com/mlfreeman2/venstar-acc-tsenwifi-listener) (HACS integration, beta — not yet tested against physical sensors) |
 | Curiosity about the wire protocol | Documentation | [PROTOCOL.md](PROTOCOL.md) (duplicated in all three repos) |
 
 **Key Features:**

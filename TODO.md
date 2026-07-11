@@ -38,6 +38,6 @@ Companion context, rationale, and gotchas live in [NOTES.md](NOTES.md). Work top
 
 - [x] Restructure into standalone repo layouts + naming (`a76848f`, 2026-07-10)
 - [x] C# protobuf listener page + build identity — plan archived at [docs/archive/PROTOBUF_LISTENER_PLAN.md](docs/archive/PROTOBUF_LISTENER_PLAN.md)
-- [x] HACS listener integration phases 1–6 incl. CI + tests — plan archived at `hacs/venstar-acc-tsenwifi-listener/docs/archive/`
+- [x] HACS listener integration phases 1–6 incl. CI + tests — plan archived in the listener repo's `docs/archive/`
 - [x] Issue templates in all three repos (caveats dropped 2026-07-11)
 - [x] Closing pass per [docs/archive/CLOSING_PASS_PLAN.md](docs/archive/CLOSING_PASS_PLAN.md) (2026-07-11): logging review (C# clean; emulator lazy-%/level fixes; listener lifecycle→INFO), status-flips, CAPTURE_FORMAT.md ×3, security note, Docker release tags + 85% coverage floor, FORUM_POST_DRAFT.md, brands prep
