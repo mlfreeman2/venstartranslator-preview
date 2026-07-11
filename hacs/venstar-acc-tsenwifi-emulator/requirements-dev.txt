@@ -1,4 +1,0 @@
-# Development environment: a runnable Home Assistant plus the integration's
-# runtime dependency (manifest requirements are not auto-installed in dev).
-homeassistant>=2025.7.1
-protobuf>=6.31.1,<8

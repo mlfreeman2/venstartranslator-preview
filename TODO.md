@@ -6,15 +6,15 @@ Companion context, rationale, and gotchas live in [NOTES.md](NOTES.md). Work top
 
 ## Phase 1 — Repo split
 
-- [ ] Rename this repo to `venstartranslator` (decided 2026-07-10: chop `-preview`) — **do this first**: all baked-in cross-repo links already use the final URL, and GitHub only redirects old→new, so links to the final name 404 until the rename happens
-- [ ] Create `github.com/mlfreeman2/venstar-acc-tsenwifi-emulator`; push the contents of `hacs/venstar-acc-tsenwifi-emulator/` as the repo root
-- [ ] Create `github.com/mlfreeman2/venstar-acc-tsenwifi-listener`; push the contents of `hacs/venstar-acc-tsenwifi-listener/` as the repo root
-- [ ] Set description + topics on both repos — descriptions must contain both part numbers (`ACC-TSENWIFI`, `ACC-TSENWIFIPRO`); topics: `home-assistant`, `hacs`, `venstar`
-- [ ] Tag **v0.3.0** release on the emulator repo and **v0.1.0** on the listener repo so HACS offers pinned versions (listener plan phase 7)
-- [ ] Confirm both repos' CI (`validate.yml`) passes post-upload — some HACS checks read the live repo's description/topics, so they can only pass there
-- [ ] Verify the pre-staged **issue templates** render correctly on all three repos
+- [x] ~~Rename this repo to `venstartranslator`~~ — done 2026-07-11; local `origin` remote updated to match
+- [x] Create `github.com/mlfreeman2/venstar-acc-tsenwifi-emulator`; push the contents of `hacs/venstar-acc-tsenwifi-emulator/` as the repo root
+- [x] Create `github.com/mlfreeman2/venstar-acc-tsenwifi-listener`; push the contents of `hacs/venstar-acc-tsenwifi-listener/` as the repo root
+- [x] Set description + topics on both repos — descriptions must contain both part numbers (`ACC-TSENWIFI`, `ACC-TSENWIFIPRO`); topics: `home-assistant`, `hacs`, `venstar`
+- [x] Tag **v0.3.0** release on the emulator repo and **v0.1.0** on the listener repo so HACS offers pinned versions (listener plan phase 7)
+- [x] Confirm both repos' CI (`validate.yml`) passes post-upload — some HACS checks read the live repo's description/topics, so they can only pass there
+- [x] Verify the pre-staged **issue templates** render correctly on all three repos
 - [ ] Verify a HACS custom-repository install of **both** integrations end-to-end on a test HA instance
-- [ ] Delete `hacs/` from this repo and commit
+- [x] Delete `hacs/` from this repo and commit
 
 ## Phase 2 — Validation (hardware/live)
 

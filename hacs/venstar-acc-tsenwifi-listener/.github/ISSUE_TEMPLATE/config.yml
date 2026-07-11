@@ -1,7 +1,0 @@
-contact_links:
-  - name: Issue with emulating sensors from HA entities?
-    url: https://github.com/mlfreeman2/venstar-acc-tsenwifi-emulator/issues
-    about: Broadcasting emulated sensors to a thermostat is the emulator integration's job.
-  - name: Issue with the Docker/C# VenstarTranslator app?
-    url: https://github.com/mlfreeman2/venstartranslator/issues
-    about: The JSON-API-driven Docker application has its own repository.
