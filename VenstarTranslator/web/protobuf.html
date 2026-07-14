@@ -42,7 +42,8 @@
       50%      { box-shadow: 0 0 0 5px rgba(16,185,129,0); }
     }
 
-    .glyph { font-size: .7rem; line-height: 1; }
+    /* Raw ▶/■ glyphs have less side bearing than Font Awesome icons; pad to match. */
+    .glyph { font-size: .7rem; line-height: 1; margin-right: .4rem; }
 
     .ribbon {
       background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af;
@@ -161,7 +162,7 @@
       <div class="toolbar">
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" role="switch" id="dupToggle">
-          <label class="form-check-label" for="dupToggle">Collapse duplicates (&times;5 bursts)</label>
+          <label class="form-check-label" for="dupToggle">Collapse duplicates</label>
         </div>
         <div class="spacer"></div>
         <button class="btn btn-outline-secondary btn-sm" id="btnSave" disabled><i class="fas fa-download"></i> Save capture</button>
@@ -173,7 +174,7 @@
 
       <div class="empty" id="empty">
         <strong>Nothing captured yet.</strong><br>
-        Press <strong>Start listening</strong> to bind UDP 0.0.0.0:5001 and watch broadcast traffic arrive.
+        Press <strong>Start listening</strong> to bind UDP 0.0.0.0:5001. This view is not live &mdash; it polls for new packets every 30 seconds.
       </div>
 
       <div class="table-wrap" id="tableWrap" hidden>
@@ -190,7 +191,9 @@
 
       <div class="foot">
         <span id="counts">0 captured</span>
-        <span>Self-receive is the feature: the app's own broadcasts to 255.255.255.255:5001 arrive here in bursts of 5.</span>
+        <span id="pollNote"></span>
+        <span>This page also hears the app's own broadcasts &mdash; seeing your sensors here confirms packets are going out.</span>
+        <span>Each broadcast is sent 5 times, so duplicate rows are normal; <strong>Collapse duplicates</strong> groups each burst.</span>
       </div>
     </div>
     <div id="build-footer" class="text-muted small text-center mt-3"></div>
@@ -201,6 +204,7 @@
 
     const API = "/api/protobuf-listener";
     const POLL_INTERVAL_MS = 30000;
+    const POLL_SECONDS = POLL_INTERVAL_MS / 1000;
 
     const $ = (id) => document.getElementById(id);
     const tbody = $("tbody");
@@ -218,7 +222,10 @@
     let running = false;
     let cursor = 0;          // poll cursor (last seen Id)
     let capturedThisSession = 0;
-    let pollTimer = null;
+    let pollTimer = null;    // pending setTimeout for the next auto-poll
+    let pollInFlight = false;
+    let nextPollAt = 0;      // epoch ms of the next scheduled auto-poll
+    let tickTimer = null;    // 1 s ticker for the countdown in the status line
     let mode = "live";       // "live" | "import"
     let liveStash = null;    // preserved live model while viewing an import
     let statusPort = 5001;
@@ -408,6 +415,14 @@
     /* ---------- start / stop / poll ---------- */
     function setStatus(text) { $("status").textContent = text; }
 
+    function setEmptyText() {
+      $("empty").innerHTML = running
+        ? "<strong>Listening &mdash; nothing captured yet.</strong><br>" +
+          "Packets are collected in the background and shown when the view next polls &mdash; automatically every " + POLL_SECONDS + " seconds, or click <strong>Poll now</strong>."
+        : "<strong>Nothing captured yet.</strong><br>" +
+          "Press <strong>Start listening</strong> to bind UDP 0.0.0.0:5001. This view is not live &mdash; it polls for new packets every " + POLL_SECONDS + " seconds.";
+    }
+
     async function startCapture() {
       if (mode === "import") exitImport(true);
       let resp;
@@ -427,6 +442,7 @@
       running = true;
       cursor = status.lastId;      // adopt Start's high-water Id as the cursor
       capturedThisSession = 0;
+      nextPollAt = 0;
       statusPort = status.port;
       model = [];
       startedAtLabel = new Date().toTimeString().slice(0, 8);
@@ -435,52 +451,71 @@
       $("btnStop").disabled = false;
       $("btnPoll").disabled = false;
       $("droppedBanner").hidden = true;
+      setEmptyText();
       updateStatusLine();
       render();
+      if (tickTimer) clearInterval(tickTimer);
+      tickTimer = setInterval(updateStatusLine, 1000);
       poll();
-      pollTimer = setInterval(poll, POLL_INTERVAL_MS);
     }
 
     async function stopCapture() {
-      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+      if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
       try { await fetch(API + "/stop", { method: "POST" }); } catch { /* ignore */ }
       running = false;
       $("dot").classList.remove("live");
       $("btnStart").disabled = false;
       $("btnStop").disabled = true;
       $("btnPoll").disabled = true;
+      setEmptyText();
       setStatus("Stopped · socket closed · buffer retained (" + capturedThisSession + ") — Start begins a fresh session");
       render();
     }
 
+    // Chained setTimeout rather than setInterval: a manual "Poll now" resets the
+    // cadence, and nextPollAt stays truthful for the countdown.
     async function poll() {
-      if (mode === "import" || !running) return;
-      let page;
+      if (mode === "import" || !running || pollInFlight) return;
+      pollInFlight = true;
+      if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+      updateStatusLine();
+      let gotNew = false;
       try {
         const resp = await fetch(API + "/messages?afterId=" + cursor + "&limit=500");
-        if (!resp.ok) return;
-        page = await resp.json();
-      } catch { return; }
-
-      if (page.droppedBeforeId > cursor) {
-        $("droppedBanner").hidden = false;
+        if (resp.ok) {
+          const page = await resp.json();
+          if (page.droppedBeforeId > cursor) {
+            $("droppedBanner").hidden = false;
+          }
+          const msgs = page.messages || [];
+          for (const m of msgs) {
+            m.fresh = true;
+            model.unshift(m);
+            capturedThisSession++;
+          }
+          gotNew = msgs.length > 0;
+          if (model.length > 2000) model.length = 2000;
+          cursor = Math.max(cursor, page.lastId);
+        }
+      } catch { /* transient — the next cycle retries */ }
+      pollInFlight = false;
+      if (running && mode !== "import") {
+        nextPollAt = Date.now() + POLL_INTERVAL_MS;
+        pollTimer = setTimeout(poll, POLL_INTERVAL_MS);
       }
-      const msgs = page.messages || [];
-      for (const m of msgs) {
-        m.fresh = true;
-        model.unshift(m);
-        capturedThisSession++;
-      }
-      if (model.length > 2000) model.length = 2000;
-      cursor = Math.max(cursor, page.lastId);
       updateStatusLine();
-      render();
+      if (gotNew) render();
     }
 
     function updateStatusLine() {
-      if (running) {
-        setStatus("Listening on :" + statusPort + " · started " + startedAtLabel + " · " + capturedThisSession + " captured");
+      if (!running) return;
+      let refresh = "polling now…";
+      if (!pollInFlight && nextPollAt) {
+        const secs = Math.max(0, Math.ceil((nextPollAt - Date.now()) / 1000));
+        if (secs > 0) refresh = "next poll in " + secs + " s";
       }
+      setStatus("Listening on :" + statusPort + " · started " + startedAtLabel + " · " + capturedThisSession + " captured · " + refresh);
     }
 
     /* ---------- save / import ---------- */
@@ -595,7 +630,11 @@
       else $("importBanner").hidden = true;
     });
 
-    document.addEventListener("DOMContentLoaded", loadBuildInfo);
+    document.addEventListener("DOMContentLoaded", () => {
+      loadBuildInfo();
+      setEmptyText();
+      $("pollNote").textContent = "This page polls rather than streams: the view refreshes every " + POLL_SECONDS + " seconds while listening, or immediately with Poll now.";
+    });
   </script>
 </body>
 
