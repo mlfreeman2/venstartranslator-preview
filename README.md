@@ -2,7 +2,16 @@
 
 ## What is this?
 
-Venstar Translator bridges the gap between your existing temperature sensors and Venstar ColorTouch thermostats. If you have temperature data from Home Assistant, Ecowitt weather stations, or any other system with a JSON API, this app lets you feed that data directly to your Venstar thermostat as if they were official Venstar ACC-TSENWIFIPRO sensors.
+Venstar Translator bridges the gap between your existing temperature sensors and Venstar ColorTouch thermostats. If you have temperature data from Home Assistant, Ecowitt weather stations, or any other system with a JSON API, this app lets you feed that data directly to your Venstar thermostat as if they were official Venstar wireless sensors — the **ACC-TSENWIFIPRO** (the part this protocol was reverse-engineered from; discontinued by Venstar in August 2025) or the still-available **ACC-TSENWIFI** that distributors recommend in its place (believed to speak the same wire protocol; the protocol's model field says only `TEMPSENSOR`, with no per-part distinction).
+
+**Which piece of the project family do you need?**
+
+| You have | You want | Use |
+|---|---|---|
+| Temperature data behind any JSON API | Readings on a Venstar thermostat | **This app** (C#/Docker) |
+| Home Assistant entities | Readings on a Venstar thermostat | [venstar-acc-tsenwifi-emulator](https://github.com/mlfreeman2/venstar-acc-tsenwifi-emulator) (HACS integration) |
+| Physical Venstar ACC-TSENWIFI(PRO) sensors | Their readings in Home Assistant | [venstar-acc-tsenwifi-listener](https://github.com/mlfreeman2/venstar-acc-tsenwifi-listener) (HACS integration, beta — not yet tested against physical sensors) |
+| Curiosity about the wire protocol | Documentation | [PROTOCOL.md](PROTOCOL.md) (duplicated in all three repos) |
 
 **Key Features:**
 - Emulate up to 20 Venstar wireless temperature sensors per instance
@@ -17,7 +26,7 @@ Venstar Translator bridges the gap between your existing temperature sensors and
 
 ### Compatible Thermostats
 
-This application emulates one or more **Venstar ACC-TSENWIFIPRO** Wi-Fi temperature sensors. Compatible thermostat models include:
+This application emulates one or more **Venstar ACC-TSENWIFI / ACC-TSENWIFIPRO** Wi-Fi temperature sensors. Compatible thermostat models include:
 
 **ColorTouch Series:**
 - T7850, T7900, T8850, T8900
@@ -57,7 +66,7 @@ cd ~/venstartranslator
 services:
   venstartranslator:
     container_name: venstartranslator
-    image: ghcr.io/mlfreeman2/venstartranslator-preview:main
+    image: ghcr.io/mlfreeman2/venstartranslator:main
     restart: unless-stopped
     volumes:
       - "./data:/data"
@@ -108,6 +117,10 @@ services:
 ```
 
 See the full `docker-compose.yml.sample` in the root directory for a complete example.
+
+### Security
+
+The web UI and API are **deliberately unauthenticated** — this is a trusted-LAN tool, expected to live on the same private network segment as your thermostat. If it must be reachable more widely, put a reverse proxy with authentication in front of it. Also note that sensor HTTP headers frequently contain API tokens (e.g. Home Assistant long-lived access tokens); they are stored in plaintext in `sensors.json` and are visible in the web UI, so treat that file — and access to the UI — accordingly.
 
 ## Configuration
 
@@ -175,16 +188,29 @@ When provided, the application fully manages healthchecks.io checks alongside yo
 
 The web UI provides built-in monitoring for sensor broadcast health:
 
-- **Problem Indicators**: An orange pulsing "Problem" badge appears in the Status column when a sensor's broadcasts become stale. This mirrors when the thermostat itself would show a sensor error.
-- **Staleness Thresholds**:
-  - Outdoor sensors: 20 minutes (broadcasts every 5 minutes)
-  - All other sensor types: 5 minutes (broadcasts every minute)
+- **Problem Indicators**: An orange pulsing "Problem" badge appears in the Status column after a sensor racks up 5 consecutive failed broadcasts. This mirrors when the thermostat itself would show a sensor error.
+- **How long that takes** (5 consecutive failures × the broadcast interval):
+  - Outdoor sensors: ~25 minutes (broadcasts every 5 minutes)
+  - All other sensor types: ~5 minutes (broadcasts every minute)
 - **Details**: Hover over the problem badge to see the last successful broadcast timestamp.
 - **Auto-Recovery**: The problem indicator clears automatically when broadcasts resume.
 - **Resend Last Packet**: Each sensor has a "Resend Last Packet" button for troubleshooting thermostat connectivity. This resends the exact packet from the last broadcast.
 - **Logs**: Full exception details are logged to console/Docker logs. Check with `docker logs venstartranslator`.
 
 When healthchecks.io is configured, success and failure pings are sent after each broadcast attempt, enabling external alerting via email, Slack, or other notification channels.
+
+### Protobuf Listener (diagnostic)
+
+The **Protobuf Listener** page (button in the header, next to "Test JSON Path") is a troubleshooting tool that *receives* on UDP 5001 instead of broadcasting. Click **Start listening** and it binds `0.0.0.0:5001`, then shows every Venstar protobuf datagram that arrives — arrival time, source, decoded command, a temperature/sensor summary, and an expandable field tree alongside the raw hex. It polls for new packets every 30 seconds; the socket is only open while a session is running.
+
+- **Self-receive is the proof it works.** The app's own broadcasts go to `255.255.255.255:5001`; a socket bound on 5001 on the same host receives them. So with any enabled sensor broadcasting, clicking Start shows the app's own `SENSORDATA` packets arriving in bursts of 5 (the 5×-send) — no external hardware required.
+- **Save / Import.** Save the current buffer to a `venstar-protobuf-capture/1` JSON file (raw hex plus arrival metadata — source, timestamp — only; no decoded fields), and import such a file to browse it offline — handy for attaching a capture to a GitHub issue. Imports are re-decoded by the current build, so decoder improvements apply retroactively.
+- **⚠️ Capture files can contain secrets.** They hold source IPs, sensor names, and SSIDs — and a captured `WIFICONFIG` packet contains the **Wi-Fi password in cleartext** (that's the wire protocol). The UI masks the password on screen, but it is present in the raw hex and in exported files. Treat capture files like logs before sharing them.
+- Requires broadcast reachability like the rest of the app (host networking / same broadcast domain; `network_mode: host` in Docker).
+
+### Build version
+
+`GET /api/version` returns `{ "version": "...", "commit": "..." }`, and the same string appears as a muted footer at the bottom of each page and as the first line of the Docker logs (`VenstarTranslator {version} ({commit}) starting`). Include it in issue reports so the exact build is known.
 
 ### JSONPath Examples
 

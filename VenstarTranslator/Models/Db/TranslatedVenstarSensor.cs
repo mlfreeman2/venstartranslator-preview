@@ -104,8 +104,8 @@ public class TranslatedVenstarSensor
     }
 
     /// <summary>
-    /// Calculate temperature index directly from temperature value without using lookup arrays.
-    /// This is a NEW experimental method being validated against the production array-based approach.
+    /// Calculate the Venstar temperature index directly from the temperature value with arithmetic
+    /// (no lookup arrays). This is the sole production path — see BuildDataPacket.
     ///
     /// <para><b>Temperature Index Space:</b></para>
     /// The Venstar protocol uses byte values (0-255) to represent the current temperature.

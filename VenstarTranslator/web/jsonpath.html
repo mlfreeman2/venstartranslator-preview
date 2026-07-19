@@ -84,6 +84,7 @@
       </div>
 
     </div>
+    <div id="build-footer" class="text-muted small text-center mt-3"></div>
   </div>
 
   <script>
@@ -92,7 +93,19 @@
     // Load sensors on page load
     document.addEventListener('DOMContentLoaded', function() {
       loadSensors();
+      loadBuildInfo();
     });
+
+    // Populate the build-identity footer from /api/version
+    function loadBuildInfo() {
+      fetch('/api/version')
+        .then(response => response.json())
+        .then(info => {
+          const shortCommit = info.commit && info.commit.length > 7 ? info.commit.substring(0, 7) : info.commit;
+          document.getElementById('build-footer').textContent = `VenstarTranslator ${info.version} (${shortCommit})`;
+        })
+        .catch(() => { /* leave blank */ });
+    }
 
     function loadSensors() {
       fetch('/api/sensors')

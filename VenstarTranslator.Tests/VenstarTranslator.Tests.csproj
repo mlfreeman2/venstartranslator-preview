@@ -28,4 +28,8 @@
     <ProjectReference Include="..\VenstarTranslator\VenstarTranslator.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Fixtures\csharp_golden_packets.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

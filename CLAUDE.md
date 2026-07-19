@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VenstarTranslator is an ASP.NET Core 10.0 application that fetches temperature readings from arbitrary JSON endpoints and translates them into the format expected by Venstar ColorTouch thermostats. It emulates up to 20 Venstar ACC-TSENWIFIPRO sensors by broadcasting UDP packets on port 5001. The application uses Protocol Buffers for data serialization and broadcasts packets to `255.255.255.255:5001`.
+VenstarTranslator is an ASP.NET Core 10.0 application that fetches temperature readings from arbitrary JSON endpoints and translates them into the format expected by Venstar ColorTouch thermostats. It emulates up to 20 Venstar wireless temperature sensors (ACC-TSENWIFI / ACC-TSENWIFIPRO — the PRO was discontinued in August 2025; the wire protocol's model field says only `TEMPSENSOR`) by broadcasting UDP packets on port 5001. The application uses Protocol Buffers for data serialization and broadcasts packets to `255.255.255.255:5001`. Two companion Home Assistant integrations live in their own repos: [venstar-acc-tsenwifi-emulator](https://github.com/mlfreeman2/venstar-acc-tsenwifi-emulator) and [venstar-acc-tsenwifi-listener](https://github.com/mlfreeman2/venstar-acc-tsenwifi-listener); PROTOCOL.md and the golden test fixtures are deliberately duplicated across all three (the protocol is frozen).
 
 ## Build and Run Commands
 
@@ -42,7 +42,7 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 - Extracts temperature values from fetched JSON documents via JSONPath
 - Contains Protocol Buffer serialization logic for both pairing and data packets
 - Manages HMAC-SHA256 signatures for authenticated sensor communications
-- Temperature lookup tables map sensor readings to Venstar's expected format (Fahrenheit and Celsius)
+- Maps sensor readings to Venstar's temperature-index byte via a direct arithmetic conversion (`GetTemperatureIndexCalculated`), for both Fahrenheit and Celsius
 
 **Services** (`Services/`)
 - `SensorOperations`: Orchestrates the fetch → extract → build packet → broadcast flow for data, pairing, and resend packets; static `SyncToJsonFile()` writes the database back to `sensors.json`
@@ -51,6 +51,9 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 - `HangfireJobManager`: Adds/removes recurring Hangfire jobs
 - `SettingsService`: Reads/writes `settings.json` (stored next to `sensors.json`); migrates the legacy `healthChecksBaseUrl` field to the mode-based format
 - `HealthChecksClient`: healthchecks.io success/failure pings and management API operations (create/rename/pause/resume/delete checks)
+- `ProtobufCaptureService`: the app's only **receive** path — a singleton that (on demand) binds UDP 5001, runs a receive loop, decodes each datagram via `VenstarPacketDecoder`, and holds them in an in-memory ring buffer (cap 2000). Socket opens on Start, closes on Stop, so port 5001 is free when not diagnosing. Backs the Protobuf Listener page (see below). `ProtobufListenerPort` config key (default `5001`; `0` = ephemeral, used by tests)
+- `VenstarPacketDecoder`: pure/stateless decode of a datagram into a `CapturedMessage`. Uses a **decode-only mirror model** (`Models/ProtobufCapture/Wire.cs`) whose members are all nullable with no initializers, so absent wire fields decode to `null` (never the emit model's `Battery = 100` / zero defaults). Applies a validity gate so garbage that "parses" is marked undecodable; projects a flat `SensorSummary` (reverse temperature index → °C/°F, fault detection) for sensor commands
+- `BuildInfo`: static helper reading the build's `InformationalVersion` + `GitSha` (stamped at Docker build time), cached, never throws (unstamped local build → `dev`/`local`)
 
 **Program.cs**
 - Application configuration and dependency injection setup
@@ -75,7 +78,16 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 - `/api/sensors/{id}/latest`: Test temperature fetch from data source
 - `/api/sensors/{id}/resend`: Rebroadcast the last cached packet
 - `/api/settings` (GET/PUT): Application settings (instance name, healthchecks.io configuration)
+- `/api/version` (GET): `{ version, commit }` build identity for issue reports
 - Sensor and settings changes drive the healthchecks.io check lifecycle (create/rename/pause/resume/delete) when a management API key is configured
+
+**ProtobufListenerController.cs** (`Controllers/ProtobufListenerController.cs`)
+- Dedicated controller for the diagnostic Protobuf Listener page under `/api/protobuf-listener/*`
+- `start` (POST): begin a fresh capture session; `409` on bind failure (port already held by a non-reuse socket)
+- `stop` (POST): stop capture, keep buffer; `status` (GET): current `CaptureStatus`
+- `messages?afterId={n}&limit={m}` (GET): `MessagesPage` of messages with `Id > afterId` (poll cursor)
+- `export` (GET): download the buffer as a `venstar-protobuf-capture/1` JSON file (raw hex + arrival metadata only); `409` when empty
+- `import` (POST): re-decode an uploaded capture file for offline viewing — pure, touches no capture state
 
 ### Data Flow
 
@@ -83,7 +95,7 @@ The application runs on port 8080 by default (HTTP). The web UI is accessible at
 2. Validated sensors are stored in SQLite (`VenstarTranslatorDataCache.db`)
 3. Hangfire schedules recurring jobs for each enabled sensor
 4. Background jobs fetch temperature via HTTP, extract value using JSONPath
-5. Temperature is mapped to Venstar's lookup table format
+5. Temperature is converted to Venstar's temperature-index byte via direct arithmetic (`GetTemperatureIndexCalculated`)
 6. Protocol Buffer packet is serialized with HMAC-SHA256 signature
 7. UDP broadcast sent 5 times to `255.255.255.255:5001`
 8. Success or failure is pinged to healthchecks.io after each broadcast attempt (when configured)
@@ -217,10 +229,10 @@ The application MUST run on the same VLAN/broadcast domain as the Venstar thermo
 ## Monitoring and Problem Detection
 
 The web UI provides real-time sensor health monitoring that mirrors the thermostat's error detection:
-- **Problem Indicators**: Sensors with stale broadcasts display an orange pulsing "Problem" badge in the Status column
-- **Staleness Thresholds** (matches when thermostat shows sensor error):
-  - Outdoor sensors: 20 minutes (broadcasts every 5 minutes)
-  - Other sensor types: 5 minutes (broadcasts every 1 minute)
+- **Problem Indicators**: A sensor displays an orange pulsing "Problem" badge in the Status column once it accumulates `FailureThreshold` (5) consecutive failed broadcasts (`TranslatedVenstarSensor.HasProblem`). The trigger is a failure count, not elapsed time — a sensor whose job never runs does not trip it
+- **Effective staleness** (5 consecutive failures × the broadcast interval, chosen to line up with when the thermostat shows a sensor error):
+  - Outdoor sensors: ~25 minutes (broadcasts every 5 minutes; exceeds the thermostat's ~20 min threshold)
+  - Other sensor types: ~5 minutes (broadcasts every 1 minute)
 - **Details**: Hover over the problem badge to see the last successful broadcast timestamp
 - **Logs**: Full exception details are logged to console/Docker logs at ERROR level
 - **Database Tracking**: `LastSuccessfulBroadcast` timestamp tracked in database (not persisted to sensors.json)
@@ -249,6 +261,8 @@ The web UI provides real-time sensor health monitoring that mirrors the thermost
 Located in `web/` directory:
 - `index.html`: Main sensor management interface with real-time problem indicators and the Settings modal
 - `jsonpath.html`: JSONPath query tester
+- `protobuf.html`: Protobuf Listener — a diagnostic page (reached from the index header) that binds UDP 5001, polls captured packets every 30 s, decodes them into an expandable field tree + raw hex, and can save/import `venstar-protobuf-capture/1` files. The self-receive of the app's own broadcasts is the acceptance signal (no hardware needed). The capture file format is specified in `CAPTURE_FORMAT.md` (duplicated across the three repos); the original design plan and UI prototype are archived under `docs/archive/`. `WIFICONFIG` Wi-Fi passwords are masked in the tree but present in the raw hex/export — capture files carry secrets and should be treated like logs
+- A muted build-identity footer (`VenstarTranslator {version} ({short commit})`) is populated from `/api/version` on index/jsonpath/protobuf pages
 - `sensors.js`: Sensor table rendering, tooltip initialization, and Settings dialog logic
 - `modals.js`: Modal dialog management
 - `style.css`: Custom styling including problem badge animations

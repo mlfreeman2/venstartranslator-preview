@@ -1,0 +1,132 @@
+{
+  "_meta": {
+    "description": "Golden Venstar sensor packets serialized by the C# app (TranslatedVenstarSensor via protobuf-net). Decoder implementations (the HA listener component and the C# protobuf listener page) must recover the 'expected' values from 'hex'.",
+    "generated": "2026-07-09",
+    "generated_by": "throwaway xunit test run against VenstarTranslator's TranslatedVenstarSensor",
+    "mac_prefix": "428e0486d8",
+    "regenerate": "re-create a similar throwaway test in VenstarTranslator.Tests that builds packets with fixed inputs and dumps Convert.ToHexString of the bytes",
+    "notes": "humidity is never sent by the C# app; battery is always 100; FwMajor/FwMinor are 4/2; Power is BATTERY. temp_c = temp_index / 2 - 40."
+  },
+  "packets": [
+    {
+      "description": "data packet, 72.0 F (Remote): 72F -> 22.22C -> rounds 22.0C -> index 124",
+      "command": "SENSORDATA",
+      "hex": "082ad2025a0a2a082a10001a0c34323865303438366438303020042802300138014208476f6c64656e20464803507c5864122c6d7057426c52434e354845744667616f666a58684862634f416a41514b7142716f4e466e5242505459724d3d",
+      "expected": {
+        "mac": "428e0486d800",
+        "sensor_id": 0,
+        "name": "Golden F",
+        "purpose": "Remote",
+        "sequence": 42,
+        "temp_index": 124,
+        "temperature_field_present": true,
+        "temp_c": 22.0,
+        "battery": 100,
+        "humidity": null,
+        "fw_major": 4,
+        "fw_minor": 2,
+        "power": "BATTERY"
+      },
+      "source": {
+        "scale": "F",
+        "input_temperature": 72.0
+      }
+    },
+    {
+      "description": "data packet, -10.5 C (Outdoor), sequence at rollover edge: index 59",
+      "command": "SENSORDATA",
+      "hex": "082ad2025c0a2c08e7fb0310031a0c34323865303438366438303320042802300138014208476f6c64656e20434801503b5864122c5057306e656c7261596573573864736f5866632f637876344e3351476b6d6b6e58654562567135537148553d",
+      "expected": {
+        "mac": "428e0486d803",
+        "sensor_id": 3,
+        "name": "Golden C",
+        "purpose": "Outdoor",
+        "sequence": 64999,
+        "temp_index": 59,
+        "temperature_field_present": true,
+        "temp_c": -10.5,
+        "battery": 100,
+        "humidity": null,
+        "fw_major": 4,
+        "fw_minor": 2,
+        "power": "BATTERY"
+      },
+      "source": {
+        "scale": "C",
+        "input_temperature": -10.5
+      }
+    },
+    {
+      "description": "data packet, -40.0 C (Supply): index 0, Temperature field OMITTED on the wire (protobuf-net skips zero)",
+      "command": "SENSORDATA",
+      "hex": "082ad2025a0a2a080210051a0c3432386530343836643830352004280230013801420a476f6c64656e204d696e48045864122c46356c71346f6b475241394e584c7354524f4a38662f7765697853702f45354c686b2f6c6e414f6664536b3d",
+      "expected": {
+        "mac": "428e0486d805",
+        "sensor_id": 5,
+        "name": "Golden Min",
+        "purpose": "Supply",
+        "sequence": 2,
+        "temp_index": 0,
+        "temperature_field_present": false,
+        "temp_c": -40.0,
+        "battery": 100,
+        "humidity": null,
+        "fw_major": 4,
+        "fw_minor": 2,
+        "power": "BATTERY"
+      },
+      "source": {
+        "scale": "C",
+        "input_temperature": -40.0
+      }
+    },
+    {
+      "description": "data packet, 86.5 C (Return): index 253 (max valid)",
+      "command": "SENSORDATA",
+      "hex": "082ad2025d0a2d080310061a0c3432386530343836643830362004280230013801420a476f6c64656e204d6178480250fd015864122c5a2b4a766e756132624945506479746a4c505a6f784d615236706f6e6378544645704876523271617269413d",
+      "expected": {
+        "mac": "428e0486d806",
+        "sensor_id": 6,
+        "name": "Golden Max",
+        "purpose": "Return",
+        "sequence": 3,
+        "temp_index": 253,
+        "temperature_field_present": true,
+        "temp_c": 86.5,
+        "battery": 100,
+        "humidity": null,
+        "fw_major": 4,
+        "fw_minor": 2,
+        "power": "BATTERY"
+      },
+      "source": {
+        "scale": "C",
+        "input_temperature": 86.5
+      }
+    },
+    {
+      "description": "pairing packet, 68.0 F (Remote): sequence forced to 1, Signature is the base64 SHA256 key itself",
+      "command": "SENSORPAIR",
+      "hex": "082bd2025a0a2a080110001a0c34323865303438366438303020042802300138014208476f6c64656e2046480350785864122c3875374b364c7561347975386b4e496334663463656377484a4e35516d6a54736c556e36536561594467673d",
+      "expected": {
+        "mac": "428e0486d800",
+        "sensor_id": 0,
+        "name": "Golden F",
+        "purpose": "Remote",
+        "sequence": 1,
+        "temp_index": 120,
+        "temperature_field_present": true,
+        "temp_c": 20.0,
+        "battery": 100,
+        "humidity": null,
+        "fw_major": 4,
+        "fw_minor": 2,
+        "power": "BATTERY"
+      },
+      "source": {
+        "scale": "F",
+        "input_temperature": 68.0
+      }
+    }
+  ]
+}

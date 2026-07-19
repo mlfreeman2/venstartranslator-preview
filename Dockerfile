@@ -1,8 +1,9 @@
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG TARGETARCH
+# Build identity (§12a) — .git is dockerignored, so these arrive as build args.
+ARG BUILD_VERSION=dev
+ARG GIT_SHA=local
 WORKDIR /source
-
-LABEL org.opencontainers.image.description="Emulate Venstar wireless temperature sensors by fetching data from any JSON API. Supports up to 20 sensors per instance with Home Assistant, Ecowitt, and custom endpoint integration for Venstar ColorTouch thermostats."
 
 # Copy solution and project files for dependency restoration
 COPY VenstarTranslator.sln ./
@@ -13,11 +14,13 @@ RUN dotnet restore VenstarTranslator/VenstarTranslator.csproj -a $TARGETARCH
 COPY VenstarTranslator/. ./VenstarTranslator/
 
 WORKDIR /source/VenstarTranslator
-RUN dotnet publish -c Release -o /app -a $TARGETARCH --no-restore
+RUN dotnet publish -c Release -o /app -a $TARGETARCH --no-restore -p:InformationalVersion=$BUILD_VERSION -p:GitSha=$GIT_SHA
 
 # final stage/image
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
+
+LABEL org.opencontainers.image.description="Fetches temperatures from any JSON API and emulates Venstar wireless sensors for ColorTouch thermostats."
 
 COPY --from=build /app ./
 COPY VenstarTranslator/web/. ./web

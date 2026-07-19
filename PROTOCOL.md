@@ -1,6 +1,10 @@
-# Venstar ACC-TSENWIFIPRO Sensor Protocol
+# Venstar ACC-TSENWIFI(PRO) Sensor Protocol
 
-This document describes the UDP broadcast protocol used by Venstar ACC-TSENWIFIPRO wireless temperature sensors to communicate with Venstar ColorTouch thermostats. This protocol can be emulated to create virtual sensors from arbitrary data sources.
+This document describes the UDP broadcast protocol used by Venstar wireless temperature sensors to communicate with Venstar ColorTouch thermostats. This protocol can be emulated to create virtual sensors from arbitrary data sources.
+
+> **Which sensors speak this protocol?** It was reverse-engineered from the **ACC-TSENWIFIPRO**, which Venstar discontinued in August 2025. Distributors now point buyers at the plain **ACC-TSENWIFI**, which is believed to speak the same protocol — the wire format itself carries no per-part identity (the model field in every packet is simply `TEMPSENSOR`). This protocol is treated as **frozen**: if Venstar ever ships a firmware update that changes the wire format, that is a new protocol to be documented and implemented separately.
+>
+> This file is deliberately **duplicated across the three related repositories** ([VenstarTranslator](https://github.com/mlfreeman2/venstartranslator), [venstar-acc-tsenwifi-emulator](https://github.com/mlfreeman2/venstar-acc-tsenwifi-emulator), [venstar-acc-tsenwifi-listener](https://github.com/mlfreeman2/venstar-acc-tsenwifi-listener)) so each is self-contained; because the protocol is frozen, the copies cannot legitimately diverge. The file format for sharing raw packet captures of this protocol is specified separately in [CAPTURE_FORMAT.md](CAPTURE_FORMAT.md), duplicated the same way.
 
 ## Table of Contents
 
@@ -22,7 +26,7 @@ The protocol uses Protocol Buffers (protobuf) for message serialization and UDP 
 1. **Pairing Packet** (Command 43): Introduces the sensor to the thermostat
 2. **Data Packet** (Command 42): Sends temperature readings
 
-All data packets are authenticated using HMAC-SHA256 signatures derived from the sensor's MAC address.
+All data packets are authenticated with HMAC-SHA256. The key is whatever was sent in the pairing packet's Signature field: the base64-encoded SHA-256 of *anything*. The protocol does not require it to be derived from the MAC address — that's just a convenient convention some implementations (including VenstarTranslator) use so the key can be regenerated instead of stored.
 
 ## Network Requirements
 
@@ -129,7 +133,7 @@ message INFO {
 
 ##### Signature
 
-In a pairing packet, the signature field can be the base64 encoded SHA-256 of anything, but it's easier if it's the SHA-256 of from the MAC address sent in the INFO object.  
+In a pairing packet, the signature field is the base64 encoded SHA-256 of anything at all — the thermostat simply stores it. Deriving it from the MAC address sent in the INFO object (as VenstarTranslator does) is just a convenience: the key can then be regenerated on demand instead of having to be persisted.  
 In a data packet, the SHA-256 that was base64 encoded and sent in the pairing packet is used as the key in a round of HMAC-SHA256 and the result of the HMAC-SHA256 is put in the Signature field.  
 If you don't save the value sent in the pairing packet, the sensor will have to be deleted and re-added in the thermostat.
 
@@ -348,7 +352,7 @@ Note: Fahrenheit appears to have a "smaller" range because it's converted throug
 1. Application starts
 2. Load sensor configuration (ID, name, type, temperature source)
 3. Generate MAC address from sensor ID
-4. Derive signature key (SHA256 of MAC)
+4. Generate signature key (base64-encoded SHA256 of anything; this implementation uses SHA256 of the MAC so the key never needs to be stored)
 5. Fetch current temperature and convert to lookup index
 6. Build pairing packet:
    - Command = SENSORPAIR (43)
@@ -392,7 +396,7 @@ The VenstarTranslator C# implementation provides a complete reference:
 
 1. **Check network**: Ensure broadcast packets reach the thermostat (same VLAN/subnet)
 2. **Verify MAC format**: Must be exactly 12 hex characters, lowercase, no delimiters
-3. **Check signature**: Pairing packet uses SHA256 of MAC (not HMAC)
+3. **Check signature**: Pairing packet carries the base64-encoded signature key itself (a SHA256 of anything — not an HMAC)
 4. **Timing**: The thermostat only caches pairing packets for 30-60 seconds
 
 ### Sensor appears but shows no temperature

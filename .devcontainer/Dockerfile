@@ -4,9 +4,10 @@ FROM mcr.microsoft.com/dotnet/sdk:${VARIANT}
 
 USER root
 
-# Set non-root user
+# Set non-root user. UID 1000 matches the devcontainer convention and the Python
+# devcontainer image, so the shared claude-code volume keeps one consistent owner.
 ARG USERNAME=vscode
-ARG USER_UID=1001
+ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
 # Configure environment
@@ -51,6 +52,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo \
     # SQLite for database work
     sqlite3 \
+    # Python for scripting and tooling
+    python3 \
+    python3-pip \
+    python3-venv \
     # Locales
     locales \
     && rm -rf /var/lib/apt/lists/*
@@ -74,14 +79,23 @@ RUN npm install -g \
     prettier \
     && npm cache clean --force
 
-# Install .NET global tools
-RUN dotnet tool install --global dotnet-ef \
-    && dotnet tool install --global dotnet-aspnet-codegenerator \
-    && dotnet tool install --global dotnet-format \
-    && dotnet tool install --global dotnet-outdated-tool
+# Playwright: Firefox (the browser actually used day-to-day) + Chromium (automation
+# workhorse; the only engine with virtual-WebAuthn support for passkey testing).
+# Must run as root (apt); binaries go to a shared path readable by the vscode user.
+# Projects should npm-install the same pinned playwright version.
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+RUN npm install -g playwright@1.61.1 \
+    && playwright install-deps chromium firefox \
+    && playwright install chromium firefox \
+    && chmod -R a+rX /opt/ms-playwright \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user with sudo access
-RUN groupadd --gid $USER_GID $USERNAME \
+# Create non-root user with sudo access. The noble-based .NET images ship a
+# default `ubuntu` user/group already holding UID/GID 1000, so evict it first —
+# `groupadd -f` would silently pick a different GID instead of reusing 1000.
+RUN if getent passwd $USER_UID > /dev/null; then userdel -r "$(getent passwd $USER_UID | cut -d: -f1)"; fi \
+    && if getent group $USER_GID > /dev/null; then groupdel "$(getent group $USER_GID | cut -d: -f1)"; fi \
+    && groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME \
     && echo "$USERNAME ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
@@ -105,8 +119,11 @@ RUN echo 'export PATH="$PATH:/home/'${USERNAME}'/.dotnet/tools"' >> ~/.bashrc \
     && echo 'alias la="ls -A"' >> ~/.bashrc \
     && echo 'alias l="ls -CF"' >> ~/.bashrc
 
-WORKDIR /workspace
+# Install .NET global tools for the vscode user. Must run AFTER the USER switch:
+# installed as root they land in /root/.dotnet/tools where vscode can't use them.
+RUN dotnet tool install --global dotnet-ef \
+    && dotnet tool install --global dotnet-aspnet-codegenerator \
+    && dotnet tool install --global dotnet-format \
+    && dotnet tool install --global dotnet-outdated-tool
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD claude --version || exit 1
+WORKDIR /workspace

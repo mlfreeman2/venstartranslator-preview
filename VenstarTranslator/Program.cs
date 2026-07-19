@@ -65,8 +65,12 @@ builder.Services.AddSingleton<IHangfireJobManager, HangfireJobManager>();
 builder.Services.AddHttpClient("HealthChecks", c => c.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddSingleton<IHealthChecksClient, HealthChecksClient>();
 builder.Services.AddSingleton<ISettingsService, SettingsService>();
+builder.Services.AddSingleton<IProtobufCaptureService, ProtobufCaptureService>();
 
 var app = builder.Build();
+
+// Self-identifying first log line — makes Docker logs answer "what build are you on?" (§12b)
+app.Logger.LogInformation("VenstarTranslator {Version} ({Commit}) starting", BuildInfo.Version, BuildInfo.Commit);
 
 // Set the service provider for BroadcastTrackingFilter
 BroadcastTrackingFilterAttribute.ServiceProvider = app.Services;

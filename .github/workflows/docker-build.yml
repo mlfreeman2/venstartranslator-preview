@@ -3,6 +3,7 @@ name: Build and Push Docker Image
 on:
   push:
     branches: [ main, beta ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main, beta ]
 
@@ -47,13 +48,15 @@ jobs:
       with:
         filename: VenstarTranslator.Tests/coverage/**/coverage.cobertura.xml
         badge: true
-        fail_below_min: false
+        # Hard floor: fail the build below 85% line coverage (94.4% at the time
+        # this gate was set — lower the number only with a reason, not by drift).
+        fail_below_min: true
         format: markdown
         hide_branch_rate: false
         hide_complexity: true
         indicators: true
         output: both
-        thresholds: '60 80'
+        thresholds: '85 95'
 
     - name: Add Coverage PR Comment
       uses: marocchino/sticky-pull-request-comment@v3
@@ -96,21 +99,48 @@ jobs:
       run: |
         echo "name=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
+    - name: Compute build version
+      id: version
+      # The stamped version (BUILD_VERSION -> /api/version and the UI footer)
+      # always equals the primary image tag: X.Y.Z for release tags,
+      # {branch}-{timestamp} for branch pushes, "dev" otherwise (PR builds).
+      run: |
+        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          echo "value=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        elif [[ -n "${{ steps.branch.outputs.name }}" ]]; then
+          echo "value=${{ steps.branch.outputs.name }}-${{ steps.timestamp.outputs.timestamp }}" >> $GITHUB_OUTPUT
+        else
+          echo "value=dev" >> $GITHUB_OUTPUT
+        fi
+
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v6
+      env:
+        # Emit annotations on the manifest index too, so the package page picks up
+        # the description for multi-arch images (not just the per-arch image config).
+        # metadata-action sources the description annotation from the GitHub repo's
+        # description field, so that must be set for the package page to show it.
+        DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
           type=raw,value=${{ steps.branch.outputs.name }}-${{ steps.timestamp.outputs.timestamp }},enable=${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta') }}
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v7
       with:
         context: .
-        platforms: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta') && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
-        push: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta') }}
+        platforms: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta' || startsWith(github.ref, 'refs/tags/v')) && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+        push: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta' || startsWith(github.ref, 'refs/tags/v')) }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+        annotations: ${{ steps.meta.outputs.annotations }}
+        build-args: |
+          BUILD_VERSION=${{ steps.version.outputs.value }}
+          GIT_SHA=${{ github.sha }}
         cache-from: type=gha
         cache-to: type=gha,mode=max

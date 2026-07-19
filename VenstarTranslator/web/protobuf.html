@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protobuf Listener</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet" />
+  <link href="style.css" rel="stylesheet" />
+
+  <style>
+    /* Capture-specific components (mirrors the archived UI prototype, light theme). */
+    :root {
+      --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      --absent: #94a3b8;
+      --panel-bg: #f8fafc;
+      --hex-bg: #f1f5f9;
+      --hex-text: #334155;
+      --guide: #d7dfea;
+      --chip-neutral-bg: #e2e8f0;
+      --chip-neutral-text: #475569;
+    }
+
+    .status-line {
+      font-size: .85rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: .45rem;
+    }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--absent); flex: none; }
+    .dot.live { background: #10b981; animation: pulse-dot 2s ease-in-out infinite; }
+    @keyframes pulse-dot {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,.55); }
+      50%      { box-shadow: 0 0 0 5px rgba(16,185,129,0); }
+    }
+
+    /* Raw ▶/■ glyphs have less side bearing than Font Awesome icons; pad to match. */
+    .glyph { font-size: .7rem; line-height: 1; margin-right: .4rem; }
+
+    .ribbon {
+      background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af;
+      border-radius: 10px; padding: .55rem .9rem; font-size: .82rem; margin-bottom: 1.25rem;
+      display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+    }
+    .ribbon.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+    .ribbon .btn-inline { margin-left: auto; }
+
+    .toolbar { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .toolbar .spacer { flex: 1; }
+
+    .table-wrap { border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; box-shadow: var(--shadow); }
+    table.capture { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 760px; }
+    table.capture thead th {
+      background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+      color: var(--text-primary); font-weight: 600; font-size: .78rem;
+      text-transform: uppercase; letter-spacing: .05em;
+      padding: .9rem 1rem; text-align: left; border-bottom: 2px solid var(--border);
+      user-select: none; white-space: nowrap;
+    }
+    table.capture tbody td { padding: .7rem 1rem; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: .875rem; }
+    tr.pkt { cursor: pointer; transition: background-color .15s ease; }
+    tr.pkt:hover, tr.pkt:focus-visible { background: #f8fafc; outline: none; }
+    tr.pkt.fresh { animation: fadeRow .5s ease; }
+    @keyframes fadeRow { from { opacity: 0; } to { opacity: 1; } }
+    tr.pkt td.chev { text-align: center; width: 2.2rem; color: var(--text-secondary); }
+    tr.pkt .chevron { display: inline-block; transition: transform .15s ease; font-size: .7rem; }
+    tr.pkt.open .chevron { transform: rotate(90deg); }
+    td.t-time { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text-secondary); }
+    td.t-src  { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    td.t-len  { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; color: var(--text-secondary); }
+
+    .cmd-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 7px; padding: .28rem .6rem; font-size: .72rem; font-weight: 600;
+      letter-spacing: .03em; color: #fff; white-space: nowrap;
+    }
+    .cmd-SENSORDATA   { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+    .cmd-SENSORPAIR   { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .cmd-SETSENSORNAME{ background: linear-gradient(135deg, #0d9488, #14b8a6); }
+    .cmd-WIFI         { background: linear-gradient(135deg, #0284c7, #0ea5e9); }
+    .cmd-FIRMWARE     { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .cmd-none         { background: var(--chip-neutral-bg); color: var(--chip-neutral-text); }
+    .fault-badge { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; border-radius: 6px; padding: .1rem .45rem; font-size: .72rem; font-weight: 600; }
+    .xn { background: var(--chip-neutral-bg); color: var(--chip-neutral-text); border-radius: 6px; padding: .1rem .4rem; font-size: .72rem; font-weight: 600; margin-left: .45rem; font-variant-numeric: tabular-nums; }
+    .pdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .35rem; vertical-align: 1px; }
+    .p-Outdoor { background: #10b981; }
+    .p-Remote  { background: #8b5cf6; }
+    .p-Return  { background: #ef4444; }
+    .p-Supply  { background: #0ea5e9; }
+    .muted { color: var(--text-secondary); }
+
+    tr.detail > td { background: var(--panel-bg); padding: 1rem 1.25rem 1.25rem; }
+    .detail-grid { display: flex; flex-direction: column; gap: 1rem; }
+
+    .tree { font-size: .85rem; }
+    .tree .node-children { margin-left: .6rem; padding-left: 1rem; border-left: 1px solid var(--guide); display: flex; flex-direction: column; gap: .12rem; }
+    .tree .node-head { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; border: none; background: none; font: inherit; color: var(--text-primary); font-weight: 600; padding: .1rem .3rem .1rem 0; border-radius: 6px; }
+    .tree .node-head:hover { color: var(--primary-color); }
+    .tree .node-head .tchev { display: inline-block; font-size: .6rem; transition: transform .15s ease; color: var(--text-secondary); }
+    .tree .node.collapsed > .node-children { display: none; }
+    .tree .node:not(.collapsed) > .node-head .tchev { transform: rotate(90deg); }
+    .tree .leaf { display: flex; gap: .5rem; align-items: baseline; padding: .05rem 0; flex-wrap: wrap; }
+    .tree .fname { color: var(--text-secondary); font-weight: 500; min-width: 7.5rem; }
+    .tree .fval { word-break: break-all; }
+    .tree .fval.mono { font-family: var(--mono); font-size: .8rem; }
+    .tree .fval.num { font-variant-numeric: tabular-nums; }
+    .tree .absent { color: var(--absent); font-style: italic; }
+    .tree .enrich { color: var(--text-secondary); font-size: .8rem; }
+    .tree .note { color: var(--absent); font-size: .78rem; font-style: italic; }
+
+    .hexblock { background: var(--hex-bg); color: var(--hex-text); font-family: var(--mono); font-size: .78rem; border-radius: 10px; border: 1px solid var(--border); padding: .8rem 1rem; line-height: 1.7; word-break: break-all; user-select: all; }
+    .hexlabel { font-size: .72rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: .3rem; }
+    .decode-error { color: #ef4444; font-size: .85rem; margin-bottom: .5rem; }
+
+    .empty { border: 2px dashed var(--border); border-radius: 12px; padding: 3rem 1rem; text-align: center; color: var(--text-secondary); }
+    .empty strong { color: var(--text-primary); }
+    .foot { margin-top: 1rem; font-size: .78rem; color: var(--text-secondary); display: flex; gap: 1rem; flex-wrap: wrap; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .dot.live, tr.pkt.fresh { animation: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">
+          <i class="fas fa-satellite-dish"></i>
+        </div>
+        <div class="card-title-group">
+          <h2 class="card-title">Protobuf Listener</h2>
+          <div class="status-line"><span class="dot" id="dot"></span><span id="status">Socket closed — Start binds 0.0.0.0:5001</span></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-success" id="btnStart"><span class="glyph">&#9654;</span> Start listening</button>
+          <button class="btn btn-danger" id="btnStop" disabled><span class="glyph">&#9632;</span> Stop</button>
+          <button class="btn btn-secondary" onclick="window.close()"><i class="fas fa-backward"></i> Back to Sensor Config</button>
+        </div>
+      </div>
+
+      <div class="ribbon warn" id="droppedBanner" hidden>
+        <i class="fas fa-triangle-exclamation"></i>
+        <span>Buffer overflowed — some messages were dropped. Poll more often or reduce traffic.</span>
+      </div>
+
+      <div class="ribbon" id="importBanner" hidden>
+        <i class="fas fa-folder-open"></i>
+        <span id="importInfo"></span>
+        <button class="btn btn-sm btn-outline-primary btn-inline" id="btnExitImport" type="button">Return to live view</button>
+      </div>
+
+      <div class="toolbar">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch" id="dupToggle">
+          <label class="form-check-label" for="dupToggle">Collapse duplicates</label>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn btn-outline-secondary btn-sm" id="btnSave" disabled><i class="fas fa-download"></i> Save capture</button>
+        <button class="btn btn-outline-secondary btn-sm" id="btnImport"><i class="fas fa-file-import"></i> Import capture&hellip;</button>
+        <input type="file" id="fileInput" accept=".json,application/json" hidden>
+        <button class="btn btn-outline-secondary btn-sm" id="btnPoll" disabled><i class="fas fa-rotate"></i> Poll now</button>
+        <button class="btn btn-outline-secondary btn-sm" id="btnClear" disabled><i class="fas fa-eraser"></i> Clear view</button>
+      </div>
+
+      <div class="empty" id="empty">
+        <strong>Nothing captured yet.</strong><br>
+        Press <strong>Start listening</strong> to bind UDP 0.0.0.0:5001. This view is not live &mdash; it polls for new packets every 30 seconds.
+      </div>
+
+      <div class="table-wrap" id="tableWrap" hidden>
+        <table class="capture">
+          <thead>
+            <tr>
+              <th>Time</th><th>Source</th><th>Command</th><th>Summary</th>
+              <th style="text-align:right">Len</th><th aria-label="Details"></th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="foot">
+        <span id="counts">0 captured</span>
+        <span id="pollNote"></span>
+        <span>This page also hears the app's own broadcasts &mdash; seeing your sensors here confirms packets are going out.</span>
+        <span>Each broadcast is sent 5 times, so duplicate rows are normal; <strong>Collapse duplicates</strong> groups each burst.</span>
+      </div>
+    </div>
+    <div id="build-footer" class="text-muted small text-center mt-3"></div>
+  </div>
+
+  <script>
+    "use strict";
+
+    const API = "/api/protobuf-listener";
+    const POLL_INTERVAL_MS = 30000;
+    const POLL_SECONDS = POLL_INTERVAL_MS / 1000;
+
+    const $ = (id) => document.getElementById(id);
+    const tbody = $("tbody");
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+    const PURPOSE_LABEL = { OUTDOOR: "Outdoor", REMOTE: "Remote", RETURN: "Return", SUPPLY: "Supply" };
+    const CMD_CLASS = {
+      SENSORDATA: "cmd-SENSORDATA", SENSORPAIR: "cmd-SENSORPAIR", SETSENSORNAME: "cmd-SETSENSORNAME",
+      WIFICONFIG: "cmd-WIFI", WIFISCANRESULTS: "cmd-WIFI", FIRMWARECHUNK: "cmd-FIRMWARE",
+      FIRMWARECOMPLETE: "cmd-FIRMWARE", SUCCESS: "cmd-none", FAILURE: "cmd-none",
+    };
+
+    /* ---------- state ---------- */
+    let model = [];          // newest first
+    let running = false;
+    let cursor = 0;          // poll cursor (last seen Id)
+    let capturedThisSession = 0;
+    let pollTimer = null;    // pending setTimeout for the next auto-poll
+    let pollInFlight = false;
+    let nextPollAt = 0;      // epoch ms of the next scheduled auto-poll
+    let tickTimer = null;    // 1 s ticker for the countdown in the status line
+    let mode = "live";       // "live" | "import"
+    let liveStash = null;    // preserved live model while viewing an import
+    let statusPort = 5001;
+    let startedAtLabel = "";
+
+    /* ---------- temperature helpers ---------- */
+    function fmtTime(iso) {
+      const d = new Date(iso);
+      return d.toTimeString().slice(0, 8) + "." + String(d.getMilliseconds()).padStart(3, "0");
+    }
+
+    /* ---------- summary rendering ---------- */
+    function summaryHTML(p) {
+      if (!p.decoded) return '<span class="muted">not a Venstar message</span>';
+      const b = p.body || {};
+      if (p.summary) {
+        const s = p.summary;
+        const purpose = PURPOSE_LABEL[s.purpose] || "Remote";
+        let temp;
+        if (s.fault) {
+          temp = '<span class="fault-badge">FAULT: ' + esc(s.fault.toUpperCase()) + "</span>";
+        } else if (!s.temperaturePresent) {
+          temp = '&minus;40.0 &deg;C <span class="muted">(field absent = index 0)</span>';
+        } else {
+          temp = s.fahrenheit.toFixed(1) + " &deg;F / " + s.celsius.toFixed(1) +
+            ' &deg;C <span class="muted">(idx ' + s.temperatureIndex + ")</span>";
+        }
+        const batt = s.battery == null ? "" : " batt " + s.battery + "% &middot;";
+        return '<span class="pdot p-' + purpose + '"></span>' + esc(s.name == null ? "(unnamed)" : s.name) +
+          ' <span class="muted">&middot; id ' + s.sensorId + " &middot;</span> " + temp +
+          ' <span class="muted">&middot;' + batt + " seq " + s.sequence + "</span>";
+      }
+      if (b.sensorName) return 'Name &rarr; &ldquo;' + esc(b.sensorName.name == null ? "?" : b.sensorName.name) + "&rdquo;";
+      if (b.wifiScanResults) {
+        const items = b.wifiScanResults.wifiScanResults || [];
+        return items.length + ' networks <span class="muted">(' +
+          items.map((x) => esc(x.ssid == null ? "?" : x.ssid) + " " + (x.signalStrength == null ? "?" : x.signalStrength) + "%").join(", ") + ")</span>";
+      }
+      if (b.firmwareChunk) {
+        const c = b.firmwareChunk;
+        return esc(c.type == null ? "?" : c.type) + ' chunk <span class="muted">&middot; seq ' + c.sequence + "</span>";
+      }
+      if (b.wifiConfig) return 'Wi-Fi config <span class="muted">&middot; SSID &ldquo;' + esc(b.wifiConfig.ssid == null ? "?" : b.wifiConfig.ssid) + "&rdquo;</span>";
+      if (b.firmwareComplete) return 'Firmware complete <span class="muted">&middot; seq ' + b.firmwareComplete.sequence + "</span>";
+      return '<span class="muted">acknowledgement (no body)</span>';
+    }
+
+    /* ---------- field tree ---------- */
+    // Pretty-print a camelCase wire key back toward its PascalCase class-member name.
+    function prettyKey(k) { return k.length ? k[0].toUpperCase() + k.slice(1) : k; }
+    const MONO_KEYS = new Set(["mac", "signature", "data", "servicePackSignature", "ssid"]);
+
+    function tempEnrich(idx) {
+      if (idx === 254) return { fault: "shorted" };
+      if (idx === 255) return { fault: "open" };
+      const c = idx / 2 - 40, f = c * 9 / 5 + 32;
+      return { c: c.toFixed(1), f: f.toFixed(1) };
+    }
+
+    function leafHTML(key, val) {
+      const label = prettyKey(key);
+      let vhtml;
+      if (val === null || val === undefined) {
+        vhtml = '<span class="absent">absent</span>';
+        if (key === "temperature") vhtml += ' <span class="note">absent = index 0 &rarr; &minus;40.0 &deg;C (emitter omits the field at exactly index 0)</span>';
+      } else if (key === "password") {
+        vhtml = '<span class="fval">&bull;&bull;&bull;&bull;&bull;&bull;</span> <span class="note">masked in UI; present in raw hex/export</span>';
+      } else if (key === "temperature") {
+        const t = tempEnrich(val);
+        vhtml = '<span class="fval num">' + val + "</span> " + (t.fault
+          ? '<span class="fault-badge">FAULT: ' + t.fault.toUpperCase() + " SENSOR</span>"
+          : '<span class="enrich">&rarr; ' + t.c + " &deg;C / " + t.f + " &deg;F</span>");
+      } else if (typeof val === "number") {
+        vhtml = '<span class="fval num">' + val + "</span>";
+        if (key === "battery" || key === "humidity" || key === "signalStrength") vhtml += ' <span class="enrich">%</span>';
+      } else {
+        vhtml = '<span class="fval' + (MONO_KEYS.has(key) ? " mono" : "") + '">' + esc(val) + "</span>";
+      }
+      return '<div class="leaf"><span class="fname">' + esc(label) + "</span>" + vhtml + "</div>";
+    }
+
+    function nodeHTML(label, obj, isRoot) {
+      let inner = "";
+      if (Array.isArray(obj)) {
+        inner = obj.map((item, n) => nodeHTML("[" + n + "]", item, false)).join("");
+      } else {
+        for (const [k, v] of Object.entries(obj)) {
+          if (v !== null && typeof v === "object") {
+            inner += nodeHTML(prettyKey(k), v, false);
+          } else if (v === null && isRoot) {
+            // Command bodies at the SensorMessage level are oneof-like alternatives:
+            // omit absent siblings rather than listing five "absent" noise rows.
+            continue;
+          } else {
+            inner += leafHTML(k, v);
+          }
+        }
+      }
+      return '<div class="node"><button class="node-head" type="button" aria-expanded="true">' +
+        '<span class="tchev">&#9654;</span>' + esc(label) + "</button>" +
+        '<div class="node-children">' + inner + "</div></div>";
+    }
+
+    function detailHTML(p) {
+      let out = '<div class="detail-grid">';
+      if (!p.decoded) {
+        out += '<div class="decode-error">Not decodable as a Venstar message &mdash; ' + esc(p.decodeError || "unknown reason") + "</div>";
+      } else {
+        out += '<div class="tree">' + nodeHTML("SensorMessage", p.body, true) + "</div>";
+      }
+      out += '<div><div class="hexlabel">Raw datagram &middot; ' + p.length + " bytes</div>" +
+        '<div class="hexblock">' + p.hex.replace(/(..)/g, "$1 ").trim() + "</div></div></div>";
+      return out;
+    }
+
+    /* ---------- rendering ---------- */
+    function dupKey(p) {
+      if (!p.decoded) return "g" + p.id;
+      if (p.summary) return p.command + "|" + p.summary.mac + "|" + p.summary.sequence;
+      return "x" + p.id;
+    }
+
+    function render() {
+      const collapse = $("dupToggle").checked;
+      tbody.innerHTML = "";
+      let i = 0;
+      while (i < model.length) {
+        const p = model[i];
+        let n = 1;
+        if (collapse) { const k = dupKey(p); while (i + n < model.length && dupKey(model[i + n]) === k) n++; }
+        tbody.appendChild(rowPair(p, n));
+        i += n;
+      }
+      const has = model.length > 0;
+      $("empty").hidden = has;
+      $("tableWrap").hidden = !has;
+      $("btnClear").disabled = !has || mode === "import";
+      $("btnSave").disabled = !has || mode === "import";
+      $("counts").textContent = mode === "import"
+        ? model.length + " packets from imported capture"
+        : capturedThisSession + " captured" + (running ? "" : (model.length ? " · buffer retained" : ""));
+    }
+
+    function rowPair(p, dupN) {
+      const frag = document.createDocumentFragment();
+      const tr = document.createElement("tr");
+      tr.className = "pkt" + (p.fresh ? " fresh" : "");
+      tr.tabIndex = 0;
+      tr.setAttribute("aria-expanded", "false");
+      const cls = p.command ? (CMD_CLASS[p.command] || "cmd-none") : "cmd-none";
+      const badge = p.decoded && p.command
+        ? '<span class="cmd-badge ' + cls + '">' + esc(p.command) + "</span>"
+        : '<span class="cmd-badge cmd-none">NOT VENSTAR</span>';
+      tr.innerHTML =
+        '<td class="t-time">' + fmtTime(p.receivedAtUtc) + "</td>" +
+        '<td class="t-src">' + esc(p.source) + "</td>" +
+        "<td>" + badge + (dupN > 1 ? '<span class="xn">&times;' + dupN + "</span>" : "") + "</td>" +
+        '<td class="t-sum">' + summaryHTML(p) + "</td>" +
+        '<td class="t-len">' + p.length + " B</td>" +
+        '<td class="chev"><span class="chevron">&#9654;</span></td>';
+      const trD = document.createElement("tr");
+      trD.className = "detail";
+      trD.hidden = true;
+      trD.innerHTML = '<td colspan="6"></td>';
+      const toggle = () => {
+        const open = trD.hidden;
+        if (open && !trD.firstElementChild.firstElementChild) trD.firstElementChild.innerHTML = detailHTML(p);
+        trD.hidden = !open;
+        tr.classList.toggle("open", open);
+        tr.setAttribute("aria-expanded", String(open));
+      };
+      tr.addEventListener("click", toggle);
+      tr.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+      trD.addEventListener("click", (e) => {
+        const head = e.target.closest(".node-head");
+        if (!head) return;
+        const node = head.parentElement;
+        const collapsed = node.classList.toggle("collapsed");
+        head.setAttribute("aria-expanded", String(!collapsed));
+      });
+      frag.appendChild(tr);
+      frag.appendChild(trD);
+      p.fresh = false;
+      return frag;
+    }
+
+    /* ---------- start / stop / poll ---------- */
+    function setStatus(text) { $("status").textContent = text; }
+
+    function setEmptyText() {
+      $("empty").innerHTML = running
+        ? "<strong>Listening &mdash; nothing captured yet.</strong><br>" +
+          "Packets are collected in the background and shown when the view next polls &mdash; automatically every " + POLL_SECONDS + " seconds, or click <strong>Poll now</strong>."
+        : "<strong>Nothing captured yet.</strong><br>" +
+          "Press <strong>Start listening</strong> to bind UDP 0.0.0.0:5001. This view is not live &mdash; it polls for new packets every " + POLL_SECONDS + " seconds.";
+    }
+
+    async function startCapture() {
+      if (mode === "import") exitImport(true);
+      let resp;
+      try {
+        resp = await fetch(API + "/start", { method: "POST" });
+      } catch (e) {
+        setStatus("Failed to reach server: " + e.message);
+        return;
+      }
+      if (!resp.ok) {
+        let msg = "Start failed.";
+        try { msg = (await resp.json()).message || msg; } catch { /* ignore */ }
+        setStatus(msg);
+        return;
+      }
+      const status = await resp.json();
+      running = true;
+      cursor = status.lastId;      // adopt Start's high-water Id as the cursor
+      capturedThisSession = 0;
+      nextPollAt = 0;
+      statusPort = status.port;
+      model = [];
+      startedAtLabel = new Date().toTimeString().slice(0, 8);
+      $("dot").classList.add("live");
+      $("btnStart").disabled = true;
+      $("btnStop").disabled = false;
+      $("btnPoll").disabled = false;
+      $("droppedBanner").hidden = true;
+      setEmptyText();
+      updateStatusLine();
+      render();
+      if (tickTimer) clearInterval(tickTimer);
+      tickTimer = setInterval(updateStatusLine, 1000);
+      poll();
+    }
+
+    async function stopCapture() {
+      if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+      if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+      try { await fetch(API + "/stop", { method: "POST" }); } catch { /* ignore */ }
+      running = false;
+      $("dot").classList.remove("live");
+      $("btnStart").disabled = false;
+      $("btnStop").disabled = true;
+      $("btnPoll").disabled = true;
+      setEmptyText();
+      setStatus("Stopped · socket closed · buffer retained (" + capturedThisSession + ") — Start begins a fresh session");
+      render();
+    }
+
+    // Chained setTimeout rather than setInterval: a manual "Poll now" resets the
+    // cadence, and nextPollAt stays truthful for the countdown.
+    async function poll() {
+      if (mode === "import" || !running || pollInFlight) return;
+      pollInFlight = true;
+      if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+      updateStatusLine();
+      let gotNew = false;
+      try {
+        const resp = await fetch(API + "/messages?afterId=" + cursor + "&limit=500");
+        if (resp.ok) {
+          const page = await resp.json();
+          if (page.droppedBeforeId > cursor) {
+            $("droppedBanner").hidden = false;
+          }
+          const msgs = page.messages || [];
+          for (const m of msgs) {
+            m.fresh = true;
+            model.unshift(m);
+            capturedThisSession++;
+          }
+          gotNew = msgs.length > 0;
+          if (model.length > 2000) model.length = 2000;
+          cursor = Math.max(cursor, page.lastId);
+        }
+      } catch { /* transient — the next cycle retries */ }
+      pollInFlight = false;
+      if (running && mode !== "import") {
+        nextPollAt = Date.now() + POLL_INTERVAL_MS;
+        pollTimer = setTimeout(poll, POLL_INTERVAL_MS);
+      }
+      updateStatusLine();
+      if (gotNew) render();
+    }
+
+    function updateStatusLine() {
+      if (!running) return;
+      let refresh = "polling now…";
+      if (!pollInFlight && nextPollAt) {
+        const secs = Math.max(0, Math.ceil((nextPollAt - Date.now()) / 1000));
+        if (secs > 0) refresh = "next poll in " + secs + " s";
+      }
+      setStatus("Listening on :" + statusPort + " · started " + startedAtLabel + " · " + capturedThisSession + " captured · " + refresh);
+    }
+
+    /* ---------- save / import ---------- */
+    async function saveCapture() {
+      if (!model.length || mode !== "live") return;
+      if (model.some((p) => p.body && p.body.wifiConfig) &&
+        !confirm("This capture contains a WIFICONFIG packet — it includes Wi-Fi credentials in cleartext. Save anyway?")) {
+        return;
+      }
+      let resp;
+      try {
+        resp = await fetch(API + "/export");
+      } catch (e) { alert("Export failed: " + e.message); return; }
+      if (!resp.ok) {
+        let msg = "Export failed.";
+        try { msg = (await resp.json()).message || msg; } catch { /* ignore */ }
+        alert(msg);
+        return;
+      }
+      const blob = await resp.blob();
+      let filename = "venstar-capture.json";
+      const cd = resp.headers.get("Content-Disposition");
+      const match = cd && cd.match(/filename="?([^"]+)"?/);
+      if (match) filename = match[1];
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }
+
+    async function importFile(file) {
+      let text;
+      try { text = await file.text(); } catch { showImportError(file.name, "could not read file"); return; }
+      let resp;
+      try {
+        resp = await fetch(API + "/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: text });
+      } catch (e) { showImportError(file.name, e.message); return; }
+      if (!resp.ok) {
+        let msg = "import failed";
+        try { msg = (await resp.json()).message || msg; } catch { /* ignore */ }
+        showImportError(file.name, msg);
+        return;
+      }
+      const result = await resp.json();
+      const rows = (result.messages || []).slice().sort((a, b) => new Date(b.receivedAtUtc) - new Date(a.receivedAtUtc));
+      if (!rows.length) { showImportError(file.name, "no usable packets" + (result.skipped ? " (" + result.skipped + " skipped)" : "")); return; }
+      enterImport(file.name, rows, result.skipped);
+    }
+
+    function enterImport(fileName, rows, skipped) {
+      if (running) stopCapture();
+      if (mode === "live") liveStash = { model, captured: capturedThisSession };
+      mode = "import";
+      model = rows;
+      $("importInfo").textContent = "Viewing imported capture — " + fileName + " · " + rows.length +
+        " packets" + (skipped ? " · " + skipped + " skipped" : "");
+      $("btnExitImport").textContent = "Return to live view";
+      $("importBanner").hidden = false;
+      setStatus("Viewing imported capture · live socket state unchanged");
+      $("dot").classList.remove("live");
+      render();
+    }
+
+    function exitImport(silent) {
+      mode = "live";
+      $("importBanner").hidden = true;
+      if (liveStash) { model = liveStash.model; capturedThisSession = liveStash.captured; }
+      liveStash = null;
+      if (!silent) {
+        setStatus(model.length
+          ? "Stopped · socket closed · buffer retained (" + capturedThisSession + ") — Start begins a fresh session"
+          : "Socket closed — Start binds 0.0.0.0:5001");
+        render();
+      }
+    }
+
+    function showImportError(fileName, why) {
+      $("importInfo").textContent = "Import failed — " + fileName + ": " + why;
+      $("btnExitImport").textContent = "Dismiss";
+      $("importBanner").hidden = false;
+    }
+
+    /* ---------- build footer ---------- */
+    function loadBuildInfo() {
+      fetch("/api/version")
+        .then((r) => r.json())
+        .then((info) => {
+          const shortCommit = info.commit && info.commit.length > 7 ? info.commit.substring(0, 7) : info.commit;
+          $("build-footer").textContent = "VenstarTranslator " + info.version + " (" + shortCommit + ")";
+        })
+        .catch(() => { /* leave blank */ });
+    }
+
+    /* ---------- wiring ---------- */
+    $("btnStart").addEventListener("click", startCapture);
+    $("btnStop").addEventListener("click", stopCapture);
+    $("btnPoll").addEventListener("click", poll);
+    $("btnClear").addEventListener("click", () => { model = []; render(); });
+    $("dupToggle").addEventListener("change", render);
+    $("btnSave").addEventListener("click", saveCapture);
+    $("btnImport").addEventListener("click", () => $("fileInput").click());
+    $("fileInput").addEventListener("change", () => {
+      const f = $("fileInput").files[0];
+      $("fileInput").value = "";
+      if (f) importFile(f);
+    });
+    $("btnExitImport").addEventListener("click", () => {
+      if (mode === "import") exitImport(false);
+      else $("importBanner").hidden = true;
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadBuildInfo();
+      setEmptyText();
+      $("pollNote").textContent = "This page polls rather than streams: the view refreshes every " + POLL_SECONDS + " seconds while listening, or immediately with Poll now.";
+    });
+  </script>
+</body>
+
+</html>

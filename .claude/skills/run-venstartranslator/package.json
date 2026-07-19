@@ -1,0 +1,9 @@
+{
+  "name": "run-venstartranslator-driver",
+  "private": true,
+  "type": "module",
+  "description": "Headless-browser smoke driver for the VenstarTranslator web UI (see SKILL.md)",
+  "dependencies": {
+    "playwright": "^1.61.1"
+  }
+}
