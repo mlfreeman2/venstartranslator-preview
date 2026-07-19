@@ -28,12 +28,15 @@
 	"mounts": [
 		// SSH keys for git operations
 		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind,readonly",
-		// Claude Code config/auth persistence (per-project named volume survives rebuilds)
-		"source=claude-code-config-${devcontainerId},target=/home/vscode/.config/claude,type=volume",
+		// Claude Code auth + config + memory, SHARED across all local devcontainers
+		// (one login everywhere; CLAUDE_CONFIG_DIR below must point at the target)
+		"source=claude-code-shared,target=/home/vscode/.claude,type=volume",
 		// NuGet package cache to speed up builds
 		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.nuget,target=/home/vscode/.nuget,type=bind,consistency=cached",
 		// GitHub CLI auth persistence (survives container rebuilds)
-		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/gh,target=/home/vscode/.config/gh,type=bind,consistency=cached"
+		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/gh,target=/home/vscode/.config/gh,type=bind,consistency=cached",
+		// .NET User Secrets persistence
+		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.microsoft/usersecrets,target=/home/vscode/.microsoft/usersecrets,type=bind,consistency=cached"
 	],
 	"runArgs": [
 		"--network=host"
@@ -62,10 +65,13 @@
 		},
 		"ghcr.io/devcontainers/features/github-cli:1": {}
 	},
+	// post-create runs as vscode and uses sudo internally only where root is required
+	"postCreateCommand": "bash .devcontainer/post-create.sh",
+	"postStartCommand": "claude --version || sudo npm install -g @anthropic-ai/claude-code",
 	"updateContentCommand": "dotnet restore 2>/dev/null || true",
 	"containerEnv": {
 		"ASPNETCORE_ENVIRONMENT": "Development",
-		"ASPNETCORE_URLS": "http://+:8080",
-		"CLAUDE_CONFIG_DIR": "/home/vscode/.config/claude"
+		// No ASPNETCORE_URLS: the app's port comes from its Kestrel appsettings section
+		"CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
 	}
 }
